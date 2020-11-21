@@ -8,6 +8,7 @@ from ovseg.utils.torch_np_utils import check_type
 from ovseg.postprocessing.SegmentationPostprocessing import SegmentationPostprocessing
 from ovseg.utils.io import save_nii, save_pkl, load_pkl, read_dcms
 from ovseg.utils.eval_predictions import eval_prediction_segmentation
+from ovseg.utils.grid_utils import get_centred_np_grid
 from torch.nn import functional as F
 import torch
 import numpy as np
@@ -28,7 +29,7 @@ class SegmentationUNetModel(ModelBase):
                  model_parameters=None, preprocessed_name=None,
                  network_name='network', is_inference_only: bool = False,
                  fmt_write='{:.4f}', batch_size_val=1, fp16_val=True):
-        super().__init__(self, val_fold=val_fold,
+        super().__init__(val_fold=val_fold,
                          data_name=data_name,
                          model_name=model_name,
                          model_parameters=model_parameters,
@@ -41,9 +42,13 @@ class SegmentationUNetModel(ModelBase):
             print('Warning: Batch size in validation not implemented yet. Using 1.')
         self.fp16_val = fp16_val
 
-        # get the device
-        if not hasattr(self, 'dev'):
-            self.dev = 'cuda' if torch.cuda.is_available() else 'cpu'
+        # now prepare some stuff we need for the prediction
+        self.n_ch = self.model_parameters['network']['out_channels']
+        self.is_2d = len(self.model_parameters['data']['trn_dl_params']['patch_size']) == 2
+        self.patch_size = np.array(self.model_parameters['data']['trn_dl_params']['patch_size'])
+        self.patch_size = self.patch_size.astype(int)
+        if self.is_2d:
+            self.patch_size = np.concatenate([self.patch_size, [1]])
 
         if 'prediction' not in self.model_parameters:
             print('no prediction was initialised. use mode \'flip\'')
@@ -51,10 +56,53 @@ class SegmentationUNetModel(ModelBase):
             if self.parameters_match_saved_ones:
                 self.save_model_parameters()
         elif 'mode' not in self.model_parameters['prediction']:
-            print('no prediction mode was initialised. use \'flip\'')
-            self.model_parameters['prediction']['mode'] = 'flip'
+            print('no prediction mode was initialised. use \'simple\'')
+            self.model_parameters['prediction']['mode'] = 'simple'
             if self.parameters_match_saved_ones:
                 self.save_model_parameters()
+
+        # at the edges of the patch we know that the prediction quality is worse then in the center
+        # so it makes sense to use some gaussian weighting against this.
+        # however this also means that one has to determine a sigme for this
+        if 'patch_weight_type' not in self.model_parameters['prediction']:
+            print('No patch_weight_type specified in the model parameters. Using \'constant\'.')
+            self.model_parameters['prediction']['patch_weight_type'] = 'constant'
+            if self.parameters_match_saved_ones:
+                self.save_model_parameters()
+
+        pwt = self.model_parameters['prediction']['patch_weight_type']
+        if pwt.lower() == 'constant':
+            self.prediction_patch_weight = np.ones(self.patch_size)
+        elif pwt.lower() == 'gaussian':
+            # for the gaussian patch weights we build up the weight function here
+            sigma = self.model_parameters['prediction']['sigma_gaussian']
+            # length of each axis in real world coordinates
+            grid = get_centred_np_grid(self.patch_size, self.spacing)
+            norm_x = np.sum(grid**2, 0)
+
+            # the magic formula
+            self.prediction_patch_weight = np.exp(-0.5 * norm_x/sigma**2)
+
+            if self.prediction_patch_weight.min() == 0:
+                raise ValueError('0 occured in the patch weight when computing the Gaussian ovlp. '
+                                 'Choose larger sigma')
+        else:
+            print('Value Error: '+pwt+' was not recognised as a patch_weight_type. Please check '
+                  'the implementation or add your own patch_weight_type. This model will crash '
+                  'in prediction')
+        # adding the channel axes
+        self.prediction_patch_weight = self.prediction_patch_weight[np.newaxis]
+        # as all the prediction happens in torch we can put the weight there
+        self.prediction_patch_weight = torch.from_numpy(self.prediction_patch_weight).to(self.dev)
+
+        # now the overlap with which we slide the windows
+        if 'overlap' not in self.model_parameters['prediction']:
+            print('No overlap parameter was specified. Chooing 0.5')
+            self.prediction_overlap = 0.5
+            if self.parameters_match_saved_ones:
+                self.save_model_parameters()
+        else:
+            self.prediction_overlap = self.model_parameters['prediction']['overlap']
 
     def initialise_preprocessing(self):
         if 'preprocessing' not in self.model_parameters:
@@ -79,8 +127,11 @@ class SegmentationUNetModel(ModelBase):
                     # resave the updated model parameters.
                     self.save_model_parameters()
 
-        params = self.model_parameters['preprocessing'].copy()
-        self.preprocessing = SegmentationPreprocessing(**params)
+        params = self.model_parameters['preprocessing']
+        print(self.preprocessed_name)
+        self.preprocessing = SegmentationPreprocessing(data_name=self.data_name,
+                                                       preprocessed_name=self.preprocessed_name,
+                                                       **params)
 
         # if the preprocessing method was not initialised with the full set
         # of parameters and the other model paramters match the ones found in
@@ -90,40 +141,51 @@ class SegmentationUNetModel(ModelBase):
             # add full preprocessing parameters to the model parameters
             self.model_parameters['preprocessing'] = self.preprocessing.get_attributes()
             self.save_model_parameters()
+
+        # now let's set the spacing we get from the preprocessing
+        if self.preprocessing.target_spacing is not None and self.preprocessing.apply_resizing:
+            self.spacing = np.array(self.preprocessing.target_spacing)
+        else:
+            print('Spacing wasn\'t found at the preprocessing module. Using isotropic spacing '
+                  '(1, 1, 1).')
+            self.spacing = np.array([1, 1, 1])
         print('Preprocessing initialised.\n')
 
     def initialise_augmentation(self):
 
         # first initialise CPU augmentation
         # this happens in the dataloader
-        if self.preprocessing.target_spacing is not None and self.preprocessing.apply_resizing:
-            spacing = self.preprocessing.target_spacing
         if 'cpu_augmentation' not in self.model_parameters:
             print('no \'cpu_augmentation\' parameters found. '
                   'performing no augmentation on the CPU.\n')
+            params = {}
         else:
             print('CPU augmentation parameters found!\n')
-            params = self.model_parameters['cpu_augmentation'].copy()
+            params = self.model_parameters['cpu_augmentation']
             for key in params:
                 if not hasattr(params[key], 'spacing'):
-                    params[key]['spacing'] = spacing
+                    params[key]['spacing'] = self.spacing
                 if self.parameters_match_saved_ones:
                     self.save_model_parameters()
-            self.cpu_augmentation = SegmentationAugmentation(params)
+        self.cpu_augmentation = SegmentationAugmentation(params)
 
         # now GPU augmentation. We will hand this to the trainier and
         # do it on the fly before executing each loaded batch
         if 'gpu_augmentation' not in self.model_parameters:
             print('no \'gpu_augmentation\' parameters found. '
                   'performing no augmentation on the GPU\n.')
-            self.gpu_augmentation = None
+            params = {}
         else:
             print('GPU augmentation parameters found!\n')
+            params = self.model_parameters['gpu_augmentation']
             for key in params:
                 if not hasattr(params[key], 'spacing'):
-                    params[key]['spacing'] = spacing
-            params = self.model_parameters['gpu_augmentation'].copy()
-            self.gpu_augmentation = SegmentationAugmentation(params)
+                    params[key]['spacing'] = self.spacing
+        self.gpu_augmentation = SegmentationAugmentation(params)
+
+        # just in case we added some spacings here
+        if self.parameters_match_saved_ones:
+            self.save_model_parameters()
 
         print('Augmentation initialised')
 
@@ -194,10 +256,18 @@ class SegmentationUNetModel(ModelBase):
                                              **params)
         print('Training initialised.\n')
 
-    def _sliding_window(self, volume, overlap=0.5, window=1):
+    def _sliding_window(self, volume, ROI=None):
         '''
-        does one complete slide over the whole volume to average the
-        predictions
+        uses sliding window over the volume. Overlap of the winodws and patch_weight
+        must be specified in the model_parameters.
+        INPUT:
+            volume - 3d or 4d np array or tensor
+            ROI - 3d boolean array
+                  predict only patches that have at least one True voxel
+                  default: all True
+        OUTPUT:
+            pred - summed up overlapping weighted patch values
+            ovlp - keeps record of how much overlap we had in each voxel
         '''
 
         if not torch.is_tensor(volume):
@@ -209,93 +279,80 @@ class SegmentationUNetModel(ModelBase):
         # and save the input size to crop again before returning
         shape_in = volume.shape
 
-        # %% check the window and patch size
-        # the window must be a positive number or an array of only positives
-        if np.isscalar(window) or isinstance(window, np.ndarray):
-            if np.max(window) <= 0:
-                raise ValueError('Window must be positive')
-        elif torch.is_tensor(window):
-            if window.max().item() <= 0:
-                raise ValueError('Window must be positive')
-        else:
-            raise TypeError('window must be np.ndarray torch.tensor or scalar')
-
-        # let's get the patch size we use for evaluation
-        patch_size = self.model_parameters['data']['trn_dl_params']['patch_size']
-        patch_size = np.array(patch_size).astype(int)
-
-        # if window is not scalar we need the shape to match the patch size
-        if isinstance(window, np.ndarray) or torch.is_tensor(window):
-            assert np.all(window.shape == patch_size)
-
-            # we will do everything in torch from here
-            window = torch.tensor(window).to(self.dev)
-
-            # adding a channel axis as this makes things easier later
-            window = window.unsqueeze(0)
-
-        # for convinience simply
-        if len(patch_size) == 2:
-            is_2d = True
-            patch_size = np.concatenate([patch_size, [1]])
-            if not np.isscalar(window):
-                window = window.unsqueeze(-1)
-        else:
-            is_2d = False
-
         # %% possible padding of too small volumes
-        pad = [0, patch_size[2] - shape_in[3], 0, patch_size[1] - shape_in[2],
-               0, patch_size[0] - shape_in[1]]
+        pad = [0, self.patch_size[2] - shape_in[3], 0, self.patch_size[1] - shape_in[2],
+               0, self.patch_size[0] - shape_in[1]]
         pad = np.maximum(pad, 0).tolist()
         volume = F.pad(volume, pad)
         nx, ny, nz = volume.shape[1:]
-        n_ch = self.model_parameters['network']['out_channels']
 
         # %% reserve storage
-        pred = torch.zeros((n_ch, nx, ny, nz), device=self.dev)
-        ovlp = torch.zeros_like(pred)
+        pred = torch.zeros((self.n_ch, nx, ny, nz), device=self.dev)
+        ovlp = torch.zeros((1, nx, ny, nz), device=self.dev)
+        if ROI is None:
+            # if the ROI
+            ROI = torch.ones((nx, ny, nz)) > 0
 
         # upper left corners of all patches
-        x_list = list(range(0, nx - patch_size[0],
-                            int(patch_size[0] * overlap))) + [nx - patch_size[0]]
-        y_list = list(range(0, ny - patch_size[1],
-                            int(patch_size[1] * overlap))) + [ny - patch_size[1]]
-        z_list = list(range(0, nz - patch_size[2],
-                            max([int(patch_size[2] * overlap), 1]))) + [nz - patch_size[2]]
+        x_list = list(range(0, nx - self.patch_size[0],
+                            int(self.patch_size[0] * self.prediction_overlap))) \
+            + [nx - self.patch_size[0]]
+        y_list = list(range(0, ny - self.patch_size[1],
+                            int(self.patch_size[1] * self.prediction_overlap))) \
+            + [ny - self.patch_size[1]]
+        z_list = list(range(0, nz - self.patch_size[2],
+                            max([int(self.patch_size[2] * self.prediction_overlap), 1]))) \
+            + [nz - self.patch_size[2]]
         xyz_list = []
         for x in x_list:
             for y in y_list:
                 for z in z_list:
-                    xyz_list.append((x, y, z))
+                    # we only predict the patch if we intersect the ROI
+                    if ROI[x:x+self.patch_size[0], y:y+self.patch_size[1],
+                           z:z+self.patch_size[2]].any().item():
+                        xyz_list.append((x, y, z))
 
+        # introduce batch size
+        n_full_batches = len(xyz_list) // self.batch_size_val
+        xyz_batched = [xyz_list[i * self.batch_size_val: (i + 1) * self.batch_size_val]
+                       for i in range(n_full_batches)]
+        if n_full_batches * self.batch_size_val < len(xyz_list):
+            xyz_batched.append(xyz_list[n_full_batches * self.batch_size_val:])
+        print(len(xyz_batched))
         # %% now the magic!
         with torch.no_grad():
-            for x, y, z in xyz_list:
+            for xyz_batch in xyz_batched:
                 # crop
-                batch = volume[:, x:x+patch_size[0], y:y+patch_size[1],
-                               z:z+patch_size[2]]
-                # add batch axis
-                batch = batch.unsqueeze(0)
+                batch = torch.stack([volume[:, x:x+self.patch_size[0], y:y+self.patch_size[1],
+                                            z:z+self.patch_size[2]] for x, y, z in xyz_batch])
 
                 # remove z axis if we have 2d prediction
-                batch = batch[..., 0] if is_2d else batch
-                out = self.network(batch)[0][0]
+                batch = batch[..., 0] if self.is_2d else batch
+                # remember that the network is outputting a list of predictions for each scale
+                if self.fp16_val and torch.cuda.is_available():
+                    with torch.cuda.amp.autocast():
+                        out = self.network(batch)[0]
+                else:
+                    out = self.network(batch)[0]
 
                 # add z axis again maybe
-                out = out.unsqueeze(-1) if is_2d else out
+                out = out.unsqueeze(-1) if self.is_2d else out
 
                 # update pred and overlap
-                pred[:, x:x+patch_size[0], y:y+patch_size[1],
-                     z:z+patch_size[2]] += out * window
-                ovlp[:, x:x+patch_size[0], y:y+patch_size[1],
-                     z:z+patch_size[2]] += window
+                for i, (x, y, z) in enumerate(xyz_batch):
+                    pred[:, x:x+self.patch_size[0], y:y+self.patch_size[1],
+                         z:z+self.patch_size[2]] += out[i] * self.prediction_patch_weight
+                    ovlp[:, x:x+self.patch_size[0], y:y+self.patch_size[1],
+                         z:z+self.patch_size[2]] += self.prediction_patch_weight
 
         # %% bring maybe back to old shape and possible to numpy
         pred = pred[:, :shape_in[1], :shape_in[2], :shape_in[3]]
         ovlp = ovlp[:, :shape_in[1], :shape_in[2], :shape_in[3]]
 
-        # let's get out of here
-        return pred, ovlp
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        # note that the network returns logits
+        return F.softmax(pred, 0), ovlp
 
     def _eval_network_flip(self, volume):
 
@@ -304,10 +361,8 @@ class SegmentationUNetModel(ModelBase):
         if not len(volume.shape) == 4:
             raise ValueError('Volume must be a 4d tensor (incl channel axis)')
         # now we make the list of all flippings
-        is_2d = len(self.model_parameters['data']['trn_dl_params']
-                    ['patch_size']) == 2
         flip_list = []
-        flip_z_list = [False] if is_2d else [True, False]
+        flip_z_list = [False] if self.is_2d else [True, False]
         for fx in [True, False]:
             for fy in [True, False]:
                 for fz in flip_z_list:
@@ -344,8 +399,51 @@ class SegmentationUNetModel(ModelBase):
 
         return pred, ovlp
 
-    def _eval_network_tta(self, im):
-        raise NotImplementedError('TTA not implemented yet.')
+    def _eval_network_tta(self, volume):
+        if 'eps_tta' not in self.model_parameters['prediction']:
+            raise AttributeError('\'eps_tta\' must be initialised as a prediction parameter when '
+                                 'using test time augmentations (tta). \'eps_tta\' defines for '
+                                 'which difference in prediction a voxel is predicted again.')
+        eps = self.model_parameters['prediction']['eps_tta']
+        if 'max_it_tta' not in self.model_parameters['prediction']:
+            raise AttributeError('\'max_it_tta\' must be initialised as a prediction parameter when'
+                                 ' using test time augmentations (tta). \'max_it_tta\' defines how '
+                                 'many augmentations we do at most per volume.')
+        max_it = self.model_parameters['prediction']['max_it_tta']
+
+        # first prediction over the whole volume
+        pred, ovlp = self._sliding_window(volume, ROI=None)
+        ROI = (pred / ovlp) > eps
+
+        # now the fancy iteration
+        # -1 because we already did one prediction
+        for _ in range(max_it - 1):
+
+            # check if we still have voxel where we are unsure
+            if not ROI.any().item():
+                break
+
+            # else let's go on an augment the volume
+            volume_aug = volume.detach().clone()
+            volume_aug = self.cpu_augmentation.augment_volume(volume_aug, is_inverse=False)
+            volume_aug = self.gpu_augmentation.augment_volume(volume_aug, is_inverse=False)
+            print(volume_aug.shape)
+            pred_update, ovlp_update = self._sliding_window(volume, ROI=ROI)
+            # bring back to original coordinate system
+            sample = torch.cat([pred_update, ovlp_update])
+            sample = self.gpu_augmentation.augment_volume(sample, is_inverse=True)
+            sample = self.cpu_augmentation.augment_volume(sample, is_inverse=True)
+            pred_update, ovlp_update = sample[:-1], sample[-1:]
+
+            # first update the ROI
+            ROI = (pred/ovlp - (pred + pred_update)/(ovlp + ovlp_update)).abs()
+            print(ROI.max())
+            ROI = ROI > eps
+            # then the prediction and overlap
+            pred = pred + pred_update
+            ovlp = ovlp + ovlp_update
+
+        return pred, ovlp
 
     def predict(self, data, do_preprocessing=False, do_postprocessing=True,
                 to_original_shape=False):
@@ -359,7 +457,7 @@ class SegmentationUNetModel(ModelBase):
         im = data['image']
         is_np,  _ = check_type(im)
         if is_np:
-            im = torch.from_numpy(im).to(self.dev)
+            im = torch.from_numpy(im.astype(np.float32)).to(self.dev)
         else:
             im = im.to(self.dev)
 
@@ -369,15 +467,11 @@ class SegmentationUNetModel(ModelBase):
         if do_preprocessing:
             im = self.preprocessing(im, data['spacing'])
 
-        # no the importat part: the sliding window evaluation (or derivatices of it)
-        if self.fp16_val and torch.cuda.is_available():
-            with torch.cuda.amp.autocast():
-                pred = self._eval_network_on_full_volume(im)
-        else:
-            pred = self._eval_network_on_full_volume(im)
+        # no the importat part: the sliding window evaluation (or derivatives of it)
+        pred = self._eval_network_on_full_volume(im)
 
         if do_postprocessing:
-            orig_shape = data['orgi_shape'] if to_original_shape else None
+            orig_shape = data['orig_shape'] if to_original_shape else None
             pred = self.postprocessing(pred, orig_shape)
 
         if torch.is_tensor(pred):

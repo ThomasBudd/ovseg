@@ -23,7 +23,7 @@ class SingleModuleTraining(TrainingBase):
                  num_epochs=1000, opt_params=None, lr_params=None,
                  val_dl=None, nu_ema_trn=0.99,
                  nu_ema_val=0.7, module_name='module', fp32=False,
-                 p_plot_list=[0, 0.5, 0.8], opt_name=None):
+                 p_plot_list=[1, 0.5, 0.2], opt_name=None):
         super().__init__(trn_dl, num_epochs, model_path)
 
         self.module = module
@@ -115,14 +115,14 @@ class SingleModuleTraining(TrainingBase):
         torch.save(self.module.state_dict(), join(self.model_path, self.module_name + '_weights'))
         # save optimizer state_dict
         torch.save(self.opt.state_dict(), join(self.model_path,
-                                               'opt_parameters'))
+                                               'opt_checkpoint'))
 
         # the scaler also has savable parameters
         if not self.fp32:
             torch.save(self.scaler.state_dict(), join(self.model_path,
-                                                      'scaler_parameters'))
+                                                      'scaler_checkpoint'))
 
-        self.print_and_log(self.module_name + ' parameters and opt parameters'
+        self.print_and_log(self.module_name + ' weights and opt checkpoint'
                            ' saved.')
 
     def load_last_checkpoint(self):
@@ -140,7 +140,7 @@ class SingleModuleTraining(TrainingBase):
         # now the optimizer parameters, but before we should reinitialise it
         # in case the opt parameters chagened after loading
         self.initialise_opt()
-        opt_pp = join(self.model_path, 'opt_parameters')
+        opt_pp = join(self.model_path, 'opt_checkpoint')
         if exists(opt_pp):
             self.opt.load_state_dict(torch.load(opt_pp))
         else:
@@ -155,7 +155,7 @@ class SingleModuleTraining(TrainingBase):
             # that moduleTraining was initialised with fp32=True
             # and loaded with fp32=False
             self.scaler = amp.GradScaler()
-            scaler_pp = join(self.model_path, 'scaler_parameters')
+            scaler_pp = join(self.model_path, 'scaler_checkpoint')
             if exists(scaler_pp):
                 self.scaler.load_state_dict(torch.load(scaler_pp))
             else:
@@ -289,19 +289,19 @@ class SingleModuleTraining(TrainingBase):
                 if p == 0:
                     name = 'training_progress_full.png'
                 else:
-                    name = 'training_progress_{:.3f}.png'.format(p)
+                    name = 'training_progress_{:d}.png'.format(100*p)
                 plt.savefig(join(self.model_path, name))
             plt.close(fig)
 
-    def plot_learning_curve(self, p_start=0):
+    def plot_learning_curve(self, p_curve=0):
         '''
-        plot the latest training progress, not showing the first p_start
+        plot the latest training progress, not showing the first p_curve
         percent of the curve
         '''
-        if p_start < 0 or p_start >= 1:
-            raise ValueError('p_start must be >=0 and < 1')
+        if p_curve <= 0 or p_curve > 1:
+            raise ValueError('p_curve must be >=0 and < 1')
         epochs = np.arange(self.epochs_done)
-        n_start = np.round(self.epochs_done * p_start).astype(int)
+        n_start = np.round(self.epochs_done * (1-p_curve)).astype(int)
         if n_start == self.epochs_done:
             return False
         plt.plot(epochs[n_start:], self.trn_losses[n_start:])

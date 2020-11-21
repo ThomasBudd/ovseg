@@ -354,22 +354,20 @@ class SegmentationPreprocessing(object):
 
         '''
         is_np, _ = check_type(volume)
-        if self.try_preprocess_volume_in_torch and is_np:
-            volume = torch.from_numpy(volume).to(self.dev)
-        elif not self.try_preprocess_volume_in_torch and not is_np:
-            # if try_preprocess_volume_in_torch is False we have probably
-            # gone out of ram another time. Let's force to do it on the CPU
-            volume = volume.cpu().numpy()
         shape = np.array(volume.shape)
-
         # we process the volume as a sample
         if len(shape) == 3:
             if is_np:
                 volume = volume[np.newaxis]
             else:
                 volume = volume.unsqueeze(0)
+        if self.try_preprocess_volume_in_torch and is_np:
+            volume = torch.from_numpy(volume).to(self.dev)
+        elif not self.try_preprocess_volume_in_torch and not is_np:
+            # if try_preprocess_volume_in_torch is False we have probably
+            # gone out of ram another time. Let's force to do it on the CPU
+            volume = volume.cpu().numpy()
 
-        # here the exciting part! We preprocess the sample
         # trying to do it on the GPU
         try:
             volume = self.preprocess_sample(volume, spacing)
@@ -378,7 +376,11 @@ class SegmentationPreprocessing(object):
                   'got out of RAM. Moving to the CPU (this will be slow).')
             self.try_preprocess_volume_in_torch = False
             # remember this for later!
-            self.save_attributes()
+            try:
+                self.save_attributes()
+            except FileNotFoundError:
+                print('Turn off try_preprocess_volume_in_torch manually please!')
+            torch.cuda.empty_cache()
             volume = volume.cpu().numpy()
             volume = self.preprocess_sample(volume, spacing)
 
@@ -550,13 +552,18 @@ class SegmentationPreprocessing(object):
         if self.apply_scaling and self.scaling is None:
             self.scaling = np.array([std, mean])
             print('Scaling: ({:.4f}, {:.4f})'.format(*self.scaling))
-        if self.apply_resizing and self.target_spacing is None:
+        if self.target_spacing is None:
+            # we set the target_spacing even if we don't apply resizing. This way we at least
+            # store the medium pixel spacing for other functionalities (e.g. augmentation)
             self.target_spacing = np.median(np.stack(spacings), 0)
             if self.apply_downsampling:
                 # when downsampling we just multiply the factor with the target
                 # spacing
                 if self.downsampling_fac is not None:
                     self.target_spacing *= np.array(self.downsampling_fac)
+                else:
+                    raise ValueError('The apply_downsampling flag was set to True, but no '
+                                     'downsampling factor was given.')
             print('Spacing: ({:.4f}, {:.4f}, {:.4f})'.
                   format(*self.target_spacing))
         if self.apply_windowing and self.window is None:

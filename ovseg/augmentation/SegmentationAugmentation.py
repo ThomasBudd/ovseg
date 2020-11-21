@@ -67,6 +67,5 @@ class SegmentationAugmentation(object):
         # apply each augmentation
         for do_aug, key in zip(do_augs, self.keys):
             if do_aug:
-                volume = self.augmentation[key].augment_volume(volume,
-                                                               is_inverse)
+                volume = self.augmentations[key].augment_volume(volume, is_inverse)
         return volume

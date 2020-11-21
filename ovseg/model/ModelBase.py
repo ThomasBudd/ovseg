@@ -33,7 +33,6 @@ class ModelBase(object):
         self.val_fold = val_fold
         self.data_name = data_name
         self.model_name = model_name
-        self.preprocessed_name = preprocessed_name
         self.model_parameters = model_parameters
         self.network_name = network_name
         self.is_inference_only = is_inference_only
@@ -50,8 +49,10 @@ class ModelBase(object):
         path_utils.maybe_create_path(self.model_path)
         self.path_to_params = join(self.model_cv_path,
                                    'model_parameters.pkl')
-        if self.preprocessed_name is None:
-            if not self.is_inference_only:
+        if preprocessed_name is None:
+            if self.is_inference_only:
+                self.preprocessed_name = ''
+            else:
                 print('Model was called not in inference mode and no '
                       'preprocessed path was given. Searching...\n')
                 preprocessed_folders = os.listdir(join(self.ov_data_base,
@@ -100,7 +101,7 @@ class ModelBase(object):
             # we need either as input
             raise FileNotFoundError('The model parameters were neither given '
                                     'as input, nor found at ' +
-                                    self.model_base_path+'.')
+                                    self.model_cv_path+'.')
         elif not params_given and params_found:
             # typical case when loading the model
             print('Loading model parameters\n')
@@ -137,22 +138,29 @@ class ModelBase(object):
                 print(key)
 
             # now we check the common parameters for equality
-            common_keys = [key for key in model_params_from_pkl.keys()
-                           if key in self.model_parameters.keys()]
-            for key in common_keys:
-                item_pkl = model_params_from_pkl[key]
-                item_inpt = self.model_parameters[key]
-                if item_inpt is not item_pkl:
-                    self.parameters_match_saved_ones = False
-                    print('Found not matching items for key '+key)
-                    print('Input:')
-                    print(item_inpt)
-                    print('Loaded:')
-                    print(item_pkl)
-                    print()
+            # common_keys = [key for key in model_params_from_pkl.keys()
+            #                if key in self.model_parameters.keys()]
+            # for key in common_keys:
+            #     item_pkl = model_params_from_pkl[key]
+            #     item_inpt = self.model_parameters[key]
+            #     if not item_inpt == item_pkl:
+            #         self.parameters_match_saved_ones = False
+            #         print('Found not matching items for key '+key)
+            #         print('Input:')
+            #         print(item_inpt)
+            #         print('Loaded:')
+            #         print(item_pkl)
+            #         print()
 
             if self.parameters_match_saved_ones:
                 print('Not issues found.\n')
+
+            else:
+                print('Warning: missmatch in the paramters found. If you want to keep the new '
+                      'one please save them manually with model.save_parametes()')
+        # now the torch device we use for the calculations
+        if not hasattr(self, 'dev'):
+            self.dev = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         # %% now initialise everything we need
         self.initialise_preprocessing()
