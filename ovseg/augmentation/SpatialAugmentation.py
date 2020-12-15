@@ -48,7 +48,6 @@ class SpatialAugmentation(object):
             rotate_grid_2d
 
         if spacing is None:
-            print('No spacing initialised! Using [1, 1, 1]')
             self.spacing = np.array([1, 1, 1])
         else:
             self.spacing = np.array(spacing)

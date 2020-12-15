@@ -35,7 +35,7 @@ class GrayValueAugmentation(object):
                  p_bright=0.15, fac_bright_mm=[0.7, 1.3],
                  p_contr=0.15, fac_contr_mm=[0.65, 1.5],
                  p_gamma=0.15, gamma_mm=[0.7, 1.5], p_gamma_inv=0.15,
-                 aug_channels=[0], spacing=None):
+                 aug_channels=[0]):
         # gaussian noise
         self.p_noise = p_noise
         self.var_noise_mm = var_noise_mm
@@ -55,7 +55,6 @@ class GrayValueAugmentation(object):
         self.p_gamma_inv = p_gamma_inv
         # all channels in this list will be augmented
         self.aug_channels = aug_channels
-        self.spacing = spacing
 
         # torch filters for gaussian blur
         if self.blur_3d:
@@ -64,12 +63,6 @@ class GrayValueAugmentation(object):
         else:
             self.gfilter = torch.nn.Conv2d(1, 1, kernel_size=11, bias=False,
                                            padding=5)
-
-        if spacing is None:
-            print('No spacing initialised! Using [1, 1, 1]')
-            self.spacing = np.array([1, 1, 1])
-        else:
-            self.spacing = np.array(spacing)
 
     def _torch_uniform(self, mm, device='cpu'):
         return (mm[1] - mm[0]) * torch.rand([], device=device) + mm[0]
@@ -104,8 +97,7 @@ class GrayValueAugmentation(object):
         sigma = self._torch_uniform(self.sigma_blur_mm, device=img.device)
         var = sigma ** 2
         axes = torch.arange(-5, 6, device=img.device)
-        grid = torch.stack(torch.meshgrid([axes*sp for sp in
-                                           self.spacing[:2]]))
+        grid = torch.stack(torch.meshgrid([axes for _ in range(2)]))
         gkernel = torch.exp(-1*torch.sum(grid**2, dim=0)/2.0/var)
         gkernel = gkernel/gkernel.sum()
         gkernel = gkernel.view(1, 1, 11, 11)
@@ -121,7 +113,7 @@ class GrayValueAugmentation(object):
         sigma = self._torch_uniform(self.sigma_blur_mm, device=img.device)
         var = sigma ** 2
         axes = torch.arange(-5, 6, device=img.device)
-        grid = torch.stack(torch.meshgrid([axes*sp for sp in self.spacing]))
+        grid = torch.stack(torch.meshgrid([axes for _ in range(3)]))
         gkernel = torch.exp(-1*torch.sum(grid**2, dim=0)/2.0/var)
         gkernel = gkernel/gkernel.sum()
         gkernel = gkernel.view(1, 1, 11, 11, 11)

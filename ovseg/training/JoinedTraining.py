@@ -173,12 +173,12 @@ class JoinedTraining(TrainingBase):
             return False
 
         # now let's try to load the network parameters
-        net1_pp = join(self.model_path, self.network_name1+'_weights')
+        net1_pp = join(self.model_path, self.network1_name+'_weights')
         if exists(net1_pp):
             self.model1.network.load_state_dict(torch.load(net1_pp))
         else:
             return False
-        net2_pp = join(self.model_path, self.network_name2+'_weights')
+        net2_pp = join(self.model_path, self.network2_name+'_weights')
         if exists(net2_pp):
             self.model2.network.load_state_dict(torch.load(net2_pp))
         else:

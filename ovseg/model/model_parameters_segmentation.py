@@ -60,6 +60,4 @@ def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
                        'nu_ema_val': 0.7, 'fp32': False,
                        'p_plot_list': [0, 0.5, 0.8], 'opt_name': 'SGD'}
     model_parameters['training'] = training_params
-    prediction_parameters = {'mode': 'flip'}
-    model_parameters['prediction'] = prediction_parameters
     return model_parameters

@@ -220,7 +220,7 @@ def read_dcms(dcm_folder, reverse=True, names=None):
     # if no roi files was found we add an empty segmentation array
     if len(roidcms) == 0:
         im = np.concatenate([im, np.zeros_like(im)])
-    return {'image': im, 'label': seg, 'spacing': spacing, 'orig_shape': im.shape}
+    return im, spacing
 
 
 def save_nii(im, out_file, spacing=None, img=None):

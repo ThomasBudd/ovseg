@@ -1,6 +1,8 @@
-from os.path import exists, join
+import numpy as np
+from os.path import exists, join, basename
 from ovseg.utils import io
 from os import environ, sep, listdir
+import pickle
 from ovseg.data.utils import split_scans_random_uniform, \
     split_scans_by_patient_id
 from ovseg.data.Dataset import Dataset
@@ -8,22 +10,17 @@ from ovseg.data.Dataset import Dataset
 
 class DataBase():
 
-    def __init__(self, val_fold: int, preprocessed_path, keys, folders,
-                 n_folds: int = 5, fixed_shuffle=True, trn_dl_params={},
-                 ds_params={}, val_dl_params={}):
+    def __init__(self, val_fold, preprocessed_path, keys, folders, n_folds=5,
+                 fixed_shuffle=True, trn_dl_params={}, ds_params={},
+                 val_dl_params={}):
         '''
-        DataBase(val_fold, preprocessed_path, keys, folders, n_folds=5,
-                 fixed_shuffle=True,
+        DataBase(val_fold, preprocessed_path, n_folds=5, fixed_shuffle=True,
                  trn_dl_params={}, ds_params={}, val_dl_params={})
 
         Basic class that splits data and creates train and validation datasets
-        and dataloaders. The class looks for a file splits.pkl that contains
-        a list of splits with the keys \'train\' and \'val\'. If this isn't
-        found it creates a new one.
-        If this happens and a file patient_ids.pkl that maps from the scan
-        names to the patient ids is used to do a split where no patient
-        appears in more than one fold. If that file is not found the split
-        is done randomly
+        and dataloaders. Can be initialised gived fixed folds \'folds\' or
+        with the scans to all datatuples. In the latter case this class does
+        the splitting automatically.
         '''
         # set number of validation fold
         self.val_fold = val_fold
@@ -45,41 +42,41 @@ class DataBase():
         path_to_splits = join(self.preprocessed_path, 'splits.pkl')
         if exists(path_to_splits):
             # in this case a split of data is given
-            print('Found existing data split.\n')
+            print('Found existing data split')
             self.splits = io.load_pkl(path_to_splits)
             self.n_folds = len(self.splits)
         else:
             print('No data split found.')
-            print('Computing new one...')
+            print('Computing new one..')
 
             self.scans = listdir(join(self.preprocessed_path, self.folders[0]))
             # try to find existing split
             data_name = self.preprocessed_path.split(sep)[-2]
             ov_data_base = environ['OV_DATA_BASE']
-            if exists(join(self.preprocessed_path, 'patient_ids.pkl')):
+            if exists(join(self.preprocessed_path, 'decode.pkl')):
                 decode = io.load_pkl(join(self.preprocessed_path,
-                                          'patient_ids.pkl'))
+                                          'decode.pkl'))
                 self.splits = split_scans_by_patient_id(self.scans, decode,
                                                         self.n_folds,
                                                         self.fixed_shuffle)
-            elif exists(join(ov_data_base, data_name, 'patient_ids.pkl')):
+            elif exists(join(ov_data_base, data_name, 'decode.pkl')):
                 decode = io.load_pkl(join(ov_data_base, data_name,
-                                          'patient_ids.pkl'))
+                                          'decode.pkl'))
                 self.splits = split_scans_by_patient_id(self.scans, decode,
                                                         self.n_folds,
                                                         self.fixed_shuffle)
             else:
-                print('WARNING: no file patient_ids.pkl found in neither the '
+                print('WARNING: no file decode.pkl found in neither the '
                       'preprocessed nor the raw data path. Random uniform '
                       'splitting is applied, make sure to create the '
-                      'patient_ids.pkl file if patients have multiple scans in'
-                      ' your data.\n In this case remove the splits file and '
-                      'leave the patient_ids.pkl instead.\n')
+                      'decode.pkl file if patients have multiple scans in '
+                      'your data.\n In this case remove the splits file and '
+                      'leave the decode.pkl instead.')
                 self.splits = split_scans_random_uniform(self.scans,
                                                          self.n_folds,
                                                          self.fixed_shuffle)
             io.save_pkl(self.splits, path_to_splits)
-            print('New split saved.\n')
+            print('New split saved')
 
         self.split = self.splits[self.val_fold]
         self.trn_scans = self.split['train']

@@ -6,7 +6,8 @@ from ovseg.utils.torch_np_utils import check_type, stack
 from ovseg.utils.io import read_nii_files, load_pkl, save_pkl
 from ovseg.utils.path_utils import my_listdir, maybe_create_path
 from os.path import join, isdir, exists
-from os import remove, environ
+from os import remove
+import pickle
 from tqdm import tqdm
 
 
@@ -27,8 +28,6 @@ class SegmentationPreprocessing(object):
     '''
 
     def __init__(self,
-                 data_name,
-                 preprocessed_name,
                  apply_resizing=True,
                  target_spacing=None,
                  apply_windowing=True,
@@ -39,14 +38,8 @@ class SegmentationPreprocessing(object):
                  downsampling_fac=None,
                  use_only_fg_scans=True,
                  use_only_classes=None,
-                 try_preprocess_volume_in_torch=True,
-                 seg_channels=[1],
-                 use_torch_for_data_conversion=True,
-                 percentiles_fg_voxel=[0.5, 99.5],
                  **kwargs):
 
-        self.data_name = data_name
-        self.preprocessed_name = preprocessed_name
         self.apply_resizing = apply_resizing
         self.target_spacing = target_spacing
         self.apply_windowing = apply_windowing
@@ -57,70 +50,30 @@ class SegmentationPreprocessing(object):
         self.downsampling_fac = downsampling_fac
         self.use_only_fg_scans = use_only_fg_scans
         self.use_only_classes = use_only_classes
-        self.try_preprocess_volume_in_torch = try_preprocess_volume_in_torch
-        self.use_torch_for_data_conversion = use_torch_for_data_conversion
-        self.seg_channels = seg_channels
-        self.percentiles_fg_voxel = percentiles_fg_voxel
 
-        self.path_to_preprocessing_file = join(environ['OV_DATA_BASE'],
-                                               'preprocessed',
-                                               self.data_name,
-                                               self.preprocessed_name,
-                                               'preprocessing_parameters.pkl')
-
-        self.attributes_loaded = False
-
-        self.dev = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-        if self.apply_resizing and target_spacing is None:
-            if exists(self.path_to_preprocessing_file):
-                print('Not all preprocessing parameters were initialised. '
-                      'Loading parameters from folder.')
-                self.load_attributes(False)
-            else:
-                print('Expected \'target_spacing\' to be list or tuple.'
-                      'Got None instead.\n')
+        if self.apply_scaling and target_spacing is None:
+            print('Expected \'target_spacing\' to be list or tuple.'
+                  'Got None instead. Use plan_preprocessing to infere '
+                  'this parameter or load them.')
         else:
             self.target_spacing = np.array(self.target_spacing)
         if self.apply_windowing and window is None:
-            if exists(self.path_to_preprocessing_file):
-                print('Not all preprocessing parameters were initialised. '
-                      'Loading parameters from folder.')
-                self.load_attributes(False)
-            else:
-                print('Expected \'window\' to be list or tuple of length 2.'
-                      ' Got None instead. Use plan_preprocessing to infere '
-                      'this parameter or load them.')
+            print('Expected \'window\' to be list or tuple of length 2. Got'
+                  ' None instead. Use plan_preprocessing to infere '
+                  'this parameter or load them.')
         else:
             self.window = np.array(self.window)
         if self.apply_scaling and scaling is None:
-            if exists(self.path_to_preprocessing_file):
-                print('Not all preprocessing parameters were initialised. '
-                      'Loading parameters from folder.')
-                self.load_attributes(False)
-            else:
-                print('Expected \'scaling\' to be list or tuple of '
-                      'length 2. Got None instead. Use plan_preprocessing to '
-                      'infere this parameter or load them.')
+            print('Expected \'scaling\' to be list or tuple of '
+                  'length 2. Got None instead. Use plan_preprocessing to '
+                  'infere this parameter or load them.')
         else:
             self.scaling = np.array(self.scaling)
 
-        if self.apply_downsampling and self.apply_resizing:
-            print('Downsampling and resizing used as preprocessing. Expecting '
-                  'the downsampling factor to be included in the '
-                  'target_spacing.')
-
-        # check if the right downsampling factor was given.
-        if self.apply_downsampling:
-            if self.downsampling_fac is None:
-                raise TypeError('downsampling_fac was not initialised.')
-            elif not isinstance(self.downsampling_fac, (list, tuple,
-                                                        np.ndarray)):
-                raise TypeError('downsampling_fac must be list, tuple or '
-                                'np array')
-            elif not len(self.downsampling_fac) == 3:
-                raise ValueError('downsampling_fac must be of len 3, one '
-                                 'factor for each axis.')
+        if self.apply_downsampling and \
+                self.downsampling_fac not in [2, 3, 4]:
+            raise ValueError('Downsampling as preprocessing is only '
+                             'implemented for the factors 2, 3 or 4.')
 
         # when inheriting from this please append any other important
         # parameters that define the preprocessing
@@ -130,52 +83,85 @@ class SegmentationPreprocessing(object):
                                          'apply_downsampling',
                                          'downsampling_fac',
                                          'use_only_classes',
-                                         'use_only_fg_scans',
-                                         'try_preprocess_volume_in_torch',
-                                         'seg_channels',
-                                         'percentiles_fg_voxel']
+                                         'use_only_fg_scans']
 
-        # points to the raw data, we need it for infering parameters
-        # or contering data
-        self.raw_data_folder = join(environ['OV_DATA_BASE'], 'raw_data',
-                                    self.data_name)
+    def _downsample_img_fac_2(self, img, downsample_z=False):
+        ndims = len(img.shape)
+        if ndims not in [2, 3]:
+            raise ValueError('Expected 2d or 3d image, but got {}d'.
+                             format(ndims))
+        end = np.array(img.shape) // 2 * 2
+        # x axis
+        img = (img[:end[0]:2] + img[1:end[0]:2]) / 2
+        # y axis
+        img = (img[:, :end[1]:2] + img[:, 1:end[1]:2]) / 2
+        if ndims == 3 and downsample_z:
+            img = (img[:, :, :end[2]:2] + img[:, :, 1:end[2]:2]) / 2
+        return img
 
-        self.preprocessed_folder = join(environ['OV_DATA_BASE'],
-                                        'preprocessed',
-                                        self.data_name,
-                                        self.preprocessed_name)
+    def _downsample_img_fac_3(self, img, downsample_z=False):
+        ndims = len(img.shape)
+        if ndims not in [2, 3]:
+            raise ValueError('Expected 2d or 3d image, but got {}d'.
+                             format(ndims))
+        # x axis
+        img = (img[::3] + img[1::3] + img[2::3]) / 2
+        # y axis
+        img = (img[:, ::3] + img[:, 1::3] + img[:, 2::3]) / 2
+        if ndims == 3 and downsample_z:
+            img = (img[:, :, ::3] + img[:, :, 1::3] + img[:, :, 2::3]) / 2
+        return img
 
-    def get_attributes(self):
+    def _downsample_img(self, img, spacing):
+
+        r = np.max(spacing)/np.min(spacing)
+
+        if self.downsampling_fac == 2:
+            downsample_z = r < 4/3
+            return self._downsample_img_fac_2(img, downsample_z)
+        if self.downsampling_fac == 3:
+            downsample_z = r < 3/2
+            return self._downsample_img_fac_3(img, downsample_z)
+        if self.downsampling_fac == 4:
+            downsample_z1 = r < 4/3
+            img = self._downsample_img_fac_2(img, downsample_z1)
+            downsample_z2 = r < 8/3
+            img = self._downsample_img_fac_2(img, downsample_z2)
+        return img
+
+    def save_attributes(self, outfolder):
+        outfile = join(outfolder, 'preprocessing_parameters.pkl')
+        if exists(outfile):
+            print('Warning: Found existing pickle file of preprocessing '
+                  'attributes. Removing this one.')
+            remove(outfile)
         data = {key: self.__getattribute__(key) for key in
                 self.preprocessing_parameters}
-        return data
+        save_pkl(data, outfile)
 
-    def save_attributes(self):
-        if exists(self.path_to_preprocessing_file):
-            print('Warning: Found existing pickle file of preprocessing '
-                  'attributes. Removing this one.\n')
-            remove(self.path_to_preprocessing_file)
-        data = self.get_attributes()
-        save_pkl(data, self.path_to_preprocessing_file)
-
-    def load_attributes(self, overwrite_set_parameters=True):
-        if not exists(self.path_to_preprocessing_file):
-            raise FileNotFoundError('Couldn\'t load preprocessing parameters '
-                                    'at path ' +
-                                    self.path_to_preprocessing_file +
-                                    '. No such file.')
-
-        # if not we can load the file
-        data = load_pkl(self.path_to_preprocessing_file)
-        for key in data:
-            # check if we want to overwrite the not None parameters
-            if not overwrite_set_parameters and \
-                    self.__getattribute__(key) is not None:
-                continue
-
-            # else we set the attribute
-            self.__setattr__(key, data[key])
-            self.attributes_loaded = True
+    def check_preprocessing(self, outfolder):
+        pklfile = join(outfolder, 'preprocessing_parameters.pkl')
+        # does the file even exsit?
+        if not exists(pklfile):
+            print('No pickel file with preprocessing parameters found at '
+                  + outfolder)
+            return False
+        # load it!
+        data = load_pkl(pklfile)
+        # do the keys match?
+        for key in self.preprocessing_parameters:
+            if key not in data.keys():
+                print('key ' + key + ' was not found in preprocessing '
+                      'parameter file.')
+                return False
+        # not check if the keys are equal
+        for key in self.preprocessing_parameters:
+            item = self.__getattribute__(key)
+            if data[key] != item:
+                print('Found not matching items for key' + key)
+                return False
+        print('Preprocessing parameters match.')
+        return True
 
     def preprocess_image(self, img, is_seg, spacing=None):
         '''
@@ -219,11 +205,9 @@ class SegmentationPreprocessing(object):
         # the preprocessing of segmentations and images are quite different
         # we only apply resizing and downsampling in here
         if is_seg:
-
             # if not there's nothing to be done
             if not self.apply_resizing and not self.apply_downsampling:
                 return img
-
             # convert to one hot encoding
             nclasses = int(img.max())
             img = stack([img == c for c in range(nclasses+1)])
@@ -231,26 +215,20 @@ class SegmentationPreprocessing(object):
                 img = img.astype(np.float32)
             else:
                 img = img.type(torch.float)
-
-            # for interpolation
-            idim = len(shape_in)
-            order = 1
-
             # first resizing
             if self.apply_resizing:
-                # the img extended to a sample, with one hot vectors in each
-                # channel
+                idim = len(shape_in)
+                order = 1
+                # the img is a sample, resize all channels
                 img = change_sample_pixel_spacing(img, spacing[:idim],
                                                   self.target_spacing[:idim],
                                                   orders=(nclasses+1)*[order])
-
-            # if not downsampling
-            if self.apply_downsampling and not self.apply_resizing:
-                # the exact number don't matter here. The resizing factor
-                # is computed relative anyways.
-                img = change_sample_pixel_spacing(img, np.ones(idim),
-                                                  self.downsampling_fac[:idim],
-                                                  orders=(nclasses+1)*[order])
+            # now potentiall downsampling
+            if self.apply_downsampling:
+                sp = self.target_spacing if self.apply_resizing else\
+                    spacing
+                img = stack([self._downsample_img(img[c], sp) for c in
+                             range(nclasses+1)])
 
             # bring back to integer encoding
             if is_np:
@@ -259,20 +237,18 @@ class SegmentationPreprocessing(object):
                 return torch.argmax(img, 0).type(torch.float)
 
         # segmentations are done now! Let's consider only images here
-        idim = len(shape_in)
-        order = 3 if is_np else 1
         if self.apply_resizing:
+            idim = len(shape_in)
+            order = 3 if is_np else 1
             img = change_img_pixel_spacing(img, spacing[:idim],
                                            self.target_spacing[:idim],
                                            order=order)
 
-        # if not downsampling
-        if self.apply_downsampling and not self.apply_resizing:
-            # the exact number don't matter here. The resizing factor
-            # is computed relative anyways.
-            img = change_img_pixel_spacing(img, np.ones(idim),
-                                           self.downsampling_fac[:idim],
-                                           order=order)
+        # downsampling
+        if self.apply_downsampling:
+            sp = self.target_spacing if self.apply_resizing else\
+                spacing
+            img = self._downsample_img(img, sp)
 
         # now windowing
         if self.apply_windowing:
@@ -306,7 +282,7 @@ class SegmentationPreprocessing(object):
         '''
         check_type(sample)
         nch = sample.shape[0]
-        is_seg = [i in self.seg_channels for i in range(nch)]
+        is_seg = [False] + [True for _ in range(nch-1)]
         return stack([self.preprocess_image(sample[c], is_seg[c], spacing)
                       for c in range(nch)])
 
@@ -355,145 +331,81 @@ class SegmentationPreprocessing(object):
         '''
         is_np, _ = check_type(volume)
         shape = np.array(volume.shape)
-        # we process the volume as a sample
         if len(shape) == 3:
             if is_np:
                 volume = volume[np.newaxis]
             else:
                 volume = volume.unsqueeze(0)
-        if self.try_preprocess_volume_in_torch and is_np:
-            volume = torch.from_numpy(volume).to(self.dev)
-        elif not self.try_preprocess_volume_in_torch and not is_np:
-            # if try_preprocess_volume_in_torch is False we have probably
-            # gone out of ram another time. Let's force to do it on the CPU
-            volume = volume.cpu().numpy()
-
-        # trying to do it on the GPU
-        try:
-            volume = self.preprocess_sample(volume, spacing)
-        except RuntimeError:
-            print('Problem while preprocessing a full volume. Probably CUDA '
-                  'got out of RAM. Moving to the CPU (this will be slow).')
-            self.try_preprocess_volume_in_torch = False
-            # remember this for later!
-            try:
-                self.save_attributes()
-            except FileNotFoundError:
-                print('Turn off try_preprocess_volume_in_torch manually please!')
-            torch.cuda.empty_cache()
-            volume = volume.cpu().numpy()
-            volume = self.preprocess_sample(volume, spacing)
-
-        # now do the inverse of the preparation
+        volume = self.preprocess_sample(volume, spacing)
         if len(shape) == 3:
-            volume = volume[0]
-
-        if is_np and torch.is_tensor(volume):
-            # if the input is numpy the output will be as well even if we
-            # do the preprocessing on the GPU
-            volume = volume.cpu().numpy()
-        elif not is_np and isinstance(volume, np.ndarray):
-            # same with torch vice versa
-            volume = torch.tensor(volume).to(self.dev)
-
-        return volume
+            return volume[0]
+        else:
+            return volume
 
     def __call__(self, volume, spacing=None):
         return self.preprocess_volume(volume, spacing)
 
-    def _find_im_and_lb_path(self, raw_data_folder=None):
-
-        if raw_data_folder is None:
-            # if no folder is given we choose by default our
-            # path
-            raw_data_folder = self.raw_data_folder
-
-        subdirs = [d for d in my_listdir(self.raw_data_folder) if
-                   isdir(join(self.raw_data_folder, d))]
+    def _find_nii_subfolder(self, nii_folder):
+        subdirs = [d for d in my_listdir(nii_folder) if
+                   isdir(join(nii_folder, d))]
         if 'labels' in subdirs:
-            lbp = join(self.raw_data_folder, 'labels')
+            lbp = join(nii_folder, 'labels')
         elif 'labelsTr' in subdirs:
-            lbp = join(self.raw_data_folder, 'labelsTr')
+            lbp = join(nii_folder, 'labelsTr')
         else:
-            raise FileNotFoundError('Didn\'t find label folder in ' +
-                                    self.raw_data_folder
+            raise FileNotFoundError('Didn\'t find label folder in '+nii_folder
                                     + '. Label folders are supposed to be '
                                     'named \'labels\' or \'labelsTr\'.')
         if 'images' in subdirs:
-            imp = join(self.raw_data_folder, 'images')
+            imp = join(nii_folder, 'images')
         elif 'imagesTr' in subdirs:
-            imp = join(self.raw_data_folder, 'imagesTr')
+            imp = join(nii_folder, 'imagesTr')
         else:
-            raise FileNotFoundError('Didn\'t find image folder in ' +
-                                    self.raw_data_folder
+            raise FileNotFoundError('Didn\'t find image folder in '+nii_folder
                                     + '. Image folders are supposed to be '
                                     'named \'images\' or \'imagesTr\'.')
         return imp, lbp
 
-    def preprocess_raw_data_folder(self, raw_data_folder=None):
-
+    def preprocess_nii_folder(self, nii_folder, outfolder, use_torch=False):
         # first let's get the image and label path
-        imp, lbp = self._find_im_and_lb_path(raw_data_folder)
+        imp, lbp = self._find_nii_subfolder(nii_folder)
         # now let's create the output folders
         for f in ['images', 'labels', 'spacings', 'orig_shapes']:
-            maybe_create_path(join(self.preprocessed_folder, f))
+            maybe_create_path(join(outfolder, f))
         # now let's get all the cases
         cases = [case[:-7] for case in my_listdir(lbp)
                  if case.endswith('.nii.gz')]
 
         # Let's quickly store the parameters so we can check later
         # what we've done here.
-        self.save_attributes()
-
+        self.save_attributes(outfolder)
         # here is the fun
         for case in tqdm(cases):
-
-            # first let's take the image nii files that start with the same
-            # case_id as the label
+            # first let's take the image nii files
             nii_files = [join(imp, nii_file) for nii_file in my_listdir(imp)
                          if nii_file.endswith('.nii.gz')
                          and nii_file.startswith(case)]
-
-            # ATM we're only doing one image per label. For MR we might have
-            # mulitple
             if not len(nii_files) == 1:
                 raise FileNotFoundError('Assumend to find exactly one images '
                                         'starting with ')
-
-            # the list of nii files is needed to read them all in a sample
             nii_files.append(join(lbp, case+'.nii.gz'))
             sample, spacing = read_nii_files(nii_files)
-
-            # reduce the lesion to the class we're intersted in in this case
             sample[1] = self._remove_classes(sample[1])
-
-            # turns out only using scans that do have show at least one
-            # foreground class perform better best
             if self.use_only_fg_scans and sample[1].max() == 0:
                 continue
             else:
-
-                # if we do have fg clases we save the boy
                 orig_shape = sample[0].shape
-                if self.use_torch_for_data_conversion:
-                    # using torch is very fast, but we're limited to trilinear
-                    # interpolation
+                if use_torch:
                     sample = torch.tensor(sample).to('cuda')
-
-                # the most important part
                 sample = self.preprocess_sample(sample, spacing)
-                if self.use_torch_for_data_conversion:
+                if use_torch:
                     sample = sample.cpu().numpy()
-
-                # save them in the right dtype. int8 is way faster to load
                 im, lb = sample[0].astype(np.float32),\
                     sample[1].astype(np.int8)
-
-                # save all the information in seperate folders
                 for arr, folder in [[im, 'images'], [lb, 'labels'],
                                     [orig_shape, 'orig_shapes'],
                                     [spacing, 'spacings']]:
-                    np.save(join(self.preprocessed_folder, folder, case), arr)
+                    np.save(join(outfolder, folder, case), arr)
         print('Preprocessing done!')
 
     def _remove_classes(self, lb):
@@ -508,11 +420,10 @@ class SegmentationPreprocessing(object):
                 lb_new[lb == c] = i+1
             return lb_new
 
-    def plan_preprocessing_from_raw_folder(self):
-
-        print('Infering preprocessing parameters from '+self.raw_data_folder)
+    def plan_preprocessing_from_nii(self, nii_folder, percentiles=[0.5, 99.5]):
+        print('Infering preprocessing parameters from '+nii_folder)
         # first let's get the image and label path
-        imp, lbp = self._find_im_and_lb_path()
+        imp, lbp = self._find_nii_subfolder(nii_folder)
         # now let's get all the cases
         cases = [case[:-7] for case in my_listdir(lbp)
                  if case.endswith('.nii.gz')]
@@ -552,20 +463,10 @@ class SegmentationPreprocessing(object):
         if self.apply_scaling and self.scaling is None:
             self.scaling = np.array([std, mean])
             print('Scaling: ({:.4f}, {:.4f})'.format(*self.scaling))
-        if self.target_spacing is None:
-            # we set the target_spacing even if we don't apply resizing. This way we at least
-            # store the medium pixel spacing for other functionalities (e.g. augmentation)
+        if self.apply_resizing and self.target_spacing is None:
             self.target_spacing = np.median(np.stack(spacings), 0)
-            if self.apply_downsampling:
-                # when downsampling we just multiply the factor with the target
-                # spacing
-                if self.downsampling_fac is not None:
-                    self.target_spacing *= np.array(self.downsampling_fac)
-                else:
-                    raise ValueError('The apply_downsampling flag was set to True, but no '
-                                     'downsampling factor was given.')
             print('Spacing: ({:.4f}, {:.4f}, {:.4f})'.
                   format(*self.target_spacing))
         if self.apply_windowing and self.window is None:
-            self.window = np.percentile(fg_cvals, self.percentiles_fg_voxel)
+            self.window = np.percentile(fg_cvals, percentiles)
             print('Window: ({:.4f}, {:.4f})'.format(*self.window))

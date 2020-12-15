@@ -18,9 +18,9 @@ class ReconstructionNetworkTraining(NetworkTraining):
             raise ValueError('loss_params[\'l1weight\'] must be in [0, 1].')
 
     def loss_fctn(self, x1, x2):
-        return (1 - self.weight_loss) * self.mse(x1, x2) + self.weight_loss * self.l1loss(x1, x2)
+        return (1 - self.weight_loss) * self.mse(x1, x2) + self.weight_loss * \
+            self.l1loss(x1, x2)
 
-    def _compute_loss(self, data_tpl):
-        im = data_tpl['image']
-        recon = self.module(data_tpl['projection'])
-        return self.loss_fctn(recon, im)
+    def _prepare_data(self, data_tpl):
+        xb, yb = data_tpl[0].to(self.dev), data_tpl[1].to(self.dev)
+        return xb[0], yb[0]

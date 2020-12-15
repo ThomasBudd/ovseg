@@ -152,7 +152,8 @@ class TrainingBase():
 
             for key in self.checkpoint_attributes:
 
-                self.__setattr__(key, attribute_dict[key])
+                item = attribute_dict[key]
+                self.__setattr__(key, item)
             return True
         else:
             return False

@@ -29,7 +29,10 @@ class JoinedBatchDataset(object):
             for ind in range(len(self.vol_ds)):
                 data_dict = self.vol_ds[ind]
                 seg = data_dict['label']
-                coords = np.stack(np.where(np.sum(seg, (0, 1)) > 0)[0])
+                if seg.max() > 0:
+                    coords = np.stack(np.where(np.sum(seg, (0, 1)) > 0)[0])
+                else:
+                    coords = np.array([])
                 self.coords_list.append(coords)
             print('Done')
 
@@ -72,7 +75,10 @@ class JoinedBatchDataset(object):
                     coords = self.coords_list[ind]
                 else:
                     # or not!
-                    coords = np.stack(np.where(np.sum(seg, (0, 1)) > 0)[0])
+                    if seg.max() > 0:
+                        coords = np.stack(np.where(np.sum(seg, (0, 1)) > 0)[0])
+                    else:
+                        coords = np.array([])
                 n_coords = len(coords)
                 if n_coords > 0:
                     zcoord = coords[np.random.randint(n_coords)]
