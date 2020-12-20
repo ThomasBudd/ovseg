@@ -49,12 +49,12 @@ def to_one_hot_encoding(logs, yb):
 
 class CE_dice_loss(nn.Module):
 
-    def __init__(self, eps=1e-5, dice_weight=0.5):
+    def __init__(self, eps=1e-5, ce_weight=1.0, dice_weight=1.0):
         super().__init__()
         self.ce_loss = cross_entropy()
         self.dice_loss = dice_loss(eps)
-        self.dice_weight = 0.5
-        self.ce_weight = 1 - self.dice_weight
+        self.dice_weight = dice_weight
+        self.ce_weight = ce_weight
 
     def forward(self, logs, yb):
         if yb.shape[1] == 1:
@@ -105,9 +105,10 @@ def downsample_yb(logs_list, yb):
 
 class CE_dice_pyramid_loss(nn.Module):
 
-    def __init__(self, eps=1e-5, dice_weight=0.5, pyramid_weight=0.5):
+    def __init__(self, eps=1e-5, ce_weight=1.0, dice_weight=1.0, 
+                 pyramid_weight=0.5):
         super().__init__()
-        self.ce_dice_loss = CE_dice_loss(eps, dice_weight)
+        self.ce_dice_loss = CE_dice_loss(eps, ce_weight, dice_weight)
         self.pyramid_weight = pyramid_weight
 
     def forward(self, logs_list, yb):

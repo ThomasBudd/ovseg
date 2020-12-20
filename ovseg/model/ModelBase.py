@@ -33,6 +33,7 @@ class ModelBase(object):
         self.val_fold = val_fold
         self.data_name = data_name
         self.model_name = model_name
+        self.preprocessed_name = preprocessed_name
         self.model_parameters = model_parameters
         self.network_name = network_name
         self.is_inference_only = is_inference_only
@@ -47,12 +48,9 @@ class ModelBase(object):
                                   self.model_name)
         self.model_path = join(self.model_cv_path, 'fold_%d' % self.val_fold)
         path_utils.maybe_create_path(self.model_path)
-        self.path_to_params = join(self.model_cv_path,
-                                   'model_parameters.pkl')
-        if preprocessed_name is None:
-            if self.is_inference_only:
-                self.preprocessed_name = ''
-            else:
+        self.path_to_params = join(self.model_cv_path, 'model_parameters.pkl')
+        if self.preprocessed_name is None:
+            if not self.is_inference_only:
                 print('Model was called not in inference mode and no '
                       'preprocessed path was given. Searching...\n')
                 preprocessed_folders = os.listdir(join(self.ov_data_base,
@@ -82,6 +80,11 @@ class ModelBase(object):
                                               'preprocessed',
                                               self.data_name,
                                               self.preprocessed_name)
+            else:
+                self.preprocessed_path = join(self.ov_data_base,
+                                              'preprocessed',
+                                              self.data_name,
+                                              'default')
 
         else:
             self.preprocessed_path = join(self.ov_data_base,
@@ -93,10 +96,6 @@ class ModelBase(object):
         params_given = isinstance(self.model_parameters, dict)
         params_found = exists(self.path_to_params)
 
-        # this flag shows us if we can savely overwrite the parameters
-        # when new parameters are added (e.g. preprocessing parameters)
-        self.parameters_match_saved_ones = True
-
         if not params_found and not params_given:
             # we need either as input
             raise FileNotFoundError('The model parameters were neither given '
@@ -104,26 +103,27 @@ class ModelBase(object):
                                     self.model_cv_path+'.')
         elif not params_given and params_found:
             # typical case when loading the model
-            print('Loading model parameters\n')
+            print('Loading model parameters')
             self.model_parameters = io.load_pkl(self.path_to_params)
         elif params_given and not params_found:
             # typical case when first creating the model
-            print('Saving model parameters to model base path\n')
+            print('Saving model parameters to model base path')
             self.save_model_parameters()
         else:
             # This shouldn't happen by default, but can
             print('Model parameters were both given and found in the '
-                  'folder. Checking both...\n')
+                  'folder. Checking both...')
             model_params_from_pkl = io.load_pkl(self.path_to_params)
+            everything_ok = True
 
             # first check which keys were given as input but were not found
             # in the loaded parameters
             keys_not_in_pkl = [key for key in self.model_parameters.keys()
                                if key not in model_params_from_pkl.keys()]
             if len(keys_not_in_pkl) > 0:
-                self.parameters_match_saved_ones = False
+                everything_ok = False
                 print('The following keys were not found in the stored, '
-                      'but in the input model parameters:\n')
+                      'but in the input model parameters:')
             for key in keys_not_in_pkl:
                 print(key)
 
@@ -131,9 +131,9 @@ class ModelBase(object):
             keys_not_in_inpt = [key for key in model_params_from_pkl.keys()
                                 if key not in self.model_parameters.keys()]
             if len(keys_not_in_inpt) > 0:
-                self.parameters_match_saved_ones = False
+                everything_ok = False
                 print('The following keys were not found in the input, '
-                      'but in the stored model parameters:\n')
+                      'but in the stored model parameters:')
             for key in keys_not_in_inpt:
                 print(key)
 
@@ -143,24 +143,16 @@ class ModelBase(object):
             # for key in common_keys:
             #     item_pkl = model_params_from_pkl[key]
             #     item_inpt = self.model_parameters[key]
-            #     if not item_inpt == item_pkl:
-            #         self.parameters_match_saved_ones = False
+            #     if np.any(item_inpt != item_pkl):
+            #         everything_ok = False
             #         print('Found not matching items for key '+key)
             #         print('Input:')
             #         print(item_inpt)
             #         print('Loaded:')
             #         print(item_pkl)
-            #         print()
 
-            if self.parameters_match_saved_ones:
-                print('Not issues found.\n')
-
-            else:
-                print('Warning: missmatch in the paramters found. If you want to keep the new '
-                      'one please save them manually with model.save_parametes()')
-        # now the torch device we use for the calculations
-        if not hasattr(self, 'dev'):
-            self.dev = 'cuda' if torch.cuda.is_available() else 'cpu'
+            if everything_ok:
+                print('Not issues found.')
 
         # %% now initialise everything we need
         self.initialise_preprocessing()
@@ -168,11 +160,14 @@ class ModelBase(object):
         self.initialise_network()
         path_to_weights = join(self.model_path, self.network_name + '_weights')
         if exists(path_to_weights):
-            print('Found '+self.network_name+' weights. Loading...\n')
-            self.network.load_state_dict(torch.load(path_to_weights))
+            print('Found '+self.network_name+' weights. Loading...')
+            try:
+                self.network.load_state_dict(torch.load(path_to_weights))
+            except RuntimeError:
+                print('WARNING! Weights could not be loaded. Something seems to be missmatching.')
         else:
             print('Found no preivous existing '+self.network_name+' weights. '
-                  'Using random initialisation.\n')
+                  'Using random initialisation.')
         self.initialise_postprocessing()
 
         if not self.is_inference_only:
@@ -184,6 +179,7 @@ class ModelBase(object):
                                  '/preprocessed_name')
             self.initialise_data()
             self.initialise_training()
+        self._model_parameters_to_txt()
 
     # %% this is just putting the parameters in a nice .txt file so that
     # we can easily see our choices
@@ -191,11 +187,7 @@ class ModelBase(object):
         if file_name is None:
             file_name = 'model_parameters.txt'
 
-        path_to_file = join(self.model_cv_path, file_name)
-        if exists(path_to_file):
-            os.remove(path_to_file)
-
-        with open(path_to_file, 'w') as file:
+        with open(join(self.model_cv_path, file_name), 'w') as file:
             self._write_parameter_dict_to_txt('model_parameters',
                                               self.model_parameters, file, 0)
 
@@ -216,7 +208,6 @@ class ModelBase(object):
                 file.write(s)
 
     def save_model_parameters(self):
-        self._model_parameters_to_txt()
         io.save_pkl(self.model_parameters, self.path_to_params)
 
     # %% functions every childclass should have
@@ -294,11 +285,11 @@ class ModelBase(object):
                 file.write(s.format(means[i], medians[i]))
             file.write('\n')
             file.write('\n')
-            for case, metrics_case in sorted(zip(cases, metrics)):
+            for j, case in enumerate(cases):
                 file.write(case + ':\n')
                 s = '\t ' + ', '.join([metric+': '+self.fmt_write
                                        for metric in metric_names])
-                file.write(s.format(*metrics_case) + '\n')
+                file.write(s.format(*metrics[j]) + '\n')
 
     def validate(self, save_preds=True, plot=True):
         '''
@@ -348,11 +339,11 @@ class ModelBase(object):
                           'has a key \'name\', \'case\' or \'scan\', or '
                           'that at least the data set has \'names\', \'scans\''
                           ' or \'cases\' as an attribute. Now we have to '
-                          'choose the generic naming case_xxx\n')
+                          'choose the generic naming case_xxx')
                     NO_NAME_FOUND_WARNING_PRINTED = True
 
             # predict from this datapoint
-            pred = self.predict(data_dict, 'val')
+            pred = self.predict(data_dict)
 
             # now compute the error metrics that we like
             metrics = self.compute_error_metrics(pred, data_dict)
@@ -373,13 +364,13 @@ class ModelBase(object):
         # we also store the results in the CV folder and merge them with
         # possible other results from other folds
         if exists(join(self.model_cv_path, 'results.pkl')):
-            print('Found exsiting results of other folds. Merge and save!\n')
+            print('Found exsiting results of other folds. Merge and save!')
             merged_results = io.load_pkl(join(self.model_cv_path,
                                               'results.pkl'))
             merged_results.update(results)
         else:
             print('Found no existing results of other folds. Saving only '
-                  'these results.\n')
+                  'these results.')
             merged_results = results
 
         # the merged results are kept in the model_cv_path

@@ -71,9 +71,9 @@ class TrainingBase():
 
             self.on_epoch_start()
 
-            for data_tpl in self.trn_dl:
+            for batch in self.trn_dl:
 
-                self.do_trn_step(data_tpl)
+                self.do_trn_step(batch)
 
             self.on_epoch_end()
             # we save the checkpoint after calling on_epoch_end so that
@@ -152,7 +152,8 @@ class TrainingBase():
 
             for key in self.checkpoint_attributes:
 
-                self.__setattr__(key, attribute_dict[key])
+                item = attribute_dict[key]
+                self.__setattr__(key, item)
             return True
         else:
             return False

@@ -5,7 +5,7 @@ from os import mkdir
 from ovseg.utils.io import save_nii
 import pickle
 import matplotlib.pyplot as plt
-from ovseg.networks.recon_networks import Subho_recon_network
+from ovseg.networks.recon_networks import learned_reconstruction_model, get_operator
 from ovseg.training.ReconstructionNetworkTraining import \
     ReconstructionNetworkTraining
 from ovseg.data.ReconstructionData import ReconstructionData
@@ -40,7 +40,8 @@ class ReconstructionModel(ModelBase):
         print('no augmentation needed')
 
     def initialise_network(self):
-        self.network = Subho_recon_network()
+        self.operator = get_operator()
+        self.network = learned_reconstruction_model(self.operator)
 
     def initialise_postprocessing(self):
         print('postprocessing initialised')
@@ -125,11 +126,13 @@ class ReconstructionModel(ModelBase):
                 out = torch.stack([out[b, 0] for b in range(bs)], -1)
                 pred[..., z: z + bs] = out
 
-        # convert to HU
-        pred = self.postprocessing(pred)
+            # convert to HU
+            pred = self.postprocessing(pred)
 
         if is_np and not return_torch:
             pred = pred.cpu().numpy()
+
+        torch.cuda.empty_cache()
 
         return pred
 
@@ -145,13 +148,10 @@ class ReconstructionModel(ModelBase):
             raise ValueError('proj must be 2d projection, 3d stacked in last '
                              'dim or 4d in batch form.')
 
-        # get radon transform
-        op = self.network.radon
-
         # do the fbp
         with torch.no_grad():
-            filtered_sinogram = op.filter_sinogram(proj.to('cuda'))
-            fbp = op.backprojection(filtered_sinogram).cpu().numpy()
+            filtered_sinogram = self.operator.filter_sinogram(proj.to('cuda'))
+            fbp = self.operator.backprojection(filtered_sinogram).cpu().numpy()
 
         # get the arrays in right shape again
         if len(shape) == 2:

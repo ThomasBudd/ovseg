@@ -50,7 +50,10 @@ def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
     model_parameters['data'] = data_params
 
     # now finally the training!
-    loss_params = {'eps': 1e-5, 'dice_weight': 0.5, 'pyramid_weight': 0.5}
+    loss_params = {'eps': 1e-5,
+                   'dice_weight': 1.0,
+                   'ce_weight': 1.0, 
+                   'pyramid_weight': 0.5}
     opt_params = {'momentum': 0.99, 'weight_decay': 3e-5, 'nesterov': True,
                   'lr': 10**-2}
     lr_params = {'beta': 0.9, 'lr_min': 10**-6}
@@ -58,8 +61,6 @@ def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
                        'num_epochs': 1000, 'opt_params': opt_params,
                        'lr_params': lr_params, 'nu_ema_trn': 0.99,
                        'nu_ema_val': 0.7, 'fp32': False,
-                       'p_plot_list': [0, 0.5, 0.8], 'opt_name': 'SGD'}
+                       'p_plot_list': [1, 0.5, 0.2], 'opt_name': 'SGD'}
     model_parameters['training'] = training_params
-    prediction_parameters = {'mode': 'flip'}
-    model_parameters['prediction'] = prediction_parameters
     return model_parameters

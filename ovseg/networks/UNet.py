@@ -75,38 +75,41 @@ class ConvNormNonlinBlock(nn.Module):
         xb = self.nonlin2(xb)
         return xb
 
+
 # %% transposed convolutions
 class UpConv(nn.Module):
 
     def __init__(self, in_channels, out_channels, is_2d, kernel_size=2):
         super().__init__()
         if is_2d:
-            self.conv = nn.ConvTranspose2d(in_channels, out_channels, 
+            self.conv = nn.ConvTranspose2d(in_channels, out_channels,
                                            kernel_size, stride=kernel_size,
                                            bias=False)
         else:
-            self.conv = nn.ConvTranspose3d(in_channels, out_channels, 
+            self.conv = nn.ConvTranspose3d(in_channels, out_channels,
                                            kernel_size, stride=kernel_size,
                                            bias=False)
         nn.init.kaiming_normal_(self.conv.weight)
 
     def forward(self, xb):
-        return self.conv(xb)   
+        return self.conv(xb)
+
 
 # %% now simply the logits
 class Logits(nn.Module):
-    
+
     def __init__(self, in_channels, out_channels, is_2d):
         super().__init__()
         if is_2d:
-           self.logits = nn.Conv2d(in_channels, out_channels, 1)
+            self.logits = nn.Conv2d(in_channels, out_channels, 1)
         else:
-           self.logits = nn.Conv3d(in_channels, out_channels, 1)
+            self.logits = nn.Conv3d(in_channels, out_channels, 1)
         nn.init.kaiming_normal_(self.logits.weight)
         nn.init.zeros_(self.logits.bias)
 
     def forward(self, xb):
         return self.logits(xb)
+
 
 # %%
 class UNet(nn.Module):
@@ -143,16 +146,16 @@ class UNet(nn.Module):
         self.blocks_down = []
         block = ConvNormNonlinBlock(self.in_channels, self.filters, self.is_2d,
                                     self.kernel_sizes[0], False,
-                                    self.conv_params, self.norm_params, 
+                                    self.conv_params, self.norm_params,
                                     self.nonlin_params)
         self.blocks_down.append(block)
         self.blocks_up = []
         block = ConvNormNonlinBlock(2*self.filters, self.filters, self.is_2d,
                                     self.kernel_sizes[0], False,
-                                    self.conv_params, self.norm_params, 
+                                    self.conv_params, self.norm_params,
                                     self.nonlin_params)
         self.blocks_up.append(block)
-        
+
         self.upconvs = []
         self.all_logits = []
 

@@ -1,6 +1,5 @@
 from ovseg.augmentation.SpatialAugmentation import SpatialAugmentation
 from ovseg.augmentation.GrayValueAugmentation import GrayValueAugmentation
-from ovseg.augmentation.MaskAugmentation import MaskAugmentation
 
 
 class SegmentationAugmentation(object):
@@ -13,40 +12,34 @@ class SegmentationAugmentation(object):
     def __init__(self, augmentation_params):
 
         self.augmentation_params = augmentation_params
-        self.augmentations = {}
-
+        self.augmentations = []
         for key in self.augmentation_params.keys():
             params = self.augmentation_params[key]
-            if key == 'grayvalue':
-                self.augmentations[key] = GrayValueAugmentation(**params)
-            elif key == 'spatial':
-                self.augmentations[key] = SpatialAugmentation(**params)
-            elif key == 'mask':
-                self.augmentations[key] = MaskAugmentation(**params)
+            if key in ['grayvalue', 'grayvalueaugmentation']:
+                self.augmentations.append(GrayValueAugmentation(**params))
+            elif key in ['spatial', 'spatialaugmentation']:
+                self.augmentations.append(SpatialAugmentation(**params))
             else:
                 raise ValueError('key '+str(key)+' of augmentation params'
                                  'did not match implemented augmentation '
                                  'methods.')
-        # the dict of all methods we want to apply in the correct order
-        self.keys = [key for key in ['spatial', 'grayvalue', 'mask']
-                     if key in self.augmentations]
 
     def augment_image(self, img):
         # augment_image(img)
-        for key in self.keys:
-            img = self.augmentation[key].augment_image(img)
+        for augmentation in self.augmentations:
+            img = augmentation.augment_image(img)
         return img
 
     def augment_sample(self, sample):
         # augment_sample(sample)
-        for key in self.keys:
-            sample = self.augmentation[key].augment_sample(sample)
+        for augmentation in self.augmentations:
+            sample = augmentation.augment_sample(sample)
         return sample
 
     def augment_batch(self, batch):
         # augment_batch(batch)
-        for key in self.keys:
-            batch = self.augmentation[key].augment_batch(batch)
+        for augmentation in self.augmentations:
+            batch = augmentation.augment_batch(batch)
         return batch
 
     def augment_volume(self, volume, is_inverse: bool = False, do_augs=None):
@@ -65,7 +58,7 @@ class SegmentationAugmentation(object):
             do_augs = [True for _ in range(len(self.augmentations))]
         assert len(do_augs) == len(self.augmentations)
         # apply each augmentation
-        for do_aug, key in zip(do_augs, self.keys):
+        for do_aug, augmentation in zip(do_augs, self.augmentations):
             if do_aug:
-                volume = self.augmentations[key].augment_volume(volume, is_inverse)
+                volume = augmentation.augment_volume(volume, is_inverse)
         return volume
