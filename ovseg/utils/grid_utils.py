@@ -73,13 +73,13 @@ def rotate_grid_3d(grid, alpha, is_inverse=False):
         raise ValueError('Input alphas must be of length 3 for 3d rotataions')
     gx, gy, gz = grid
     if is_inverse:
-        gy, gz = rotate_axes(gy, gz, -1*alpha[2])
+        gy, gz = rotate_axes(gy, gz, -1*alpha[0])
         gx, gz = rotate_axes(gx, gz, -1*alpha[1])
-        gx, gy = rotate_axes(gx, gy, -1*alpha[0])
+        gx, gy = rotate_axes(gx, gy, -1*alpha[2])
     else:
-        gx, gy = rotate_axes(gx, gy, alpha[0])
+        gx, gy = rotate_axes(gx, gy, alpha[2])
         gx, gz = rotate_axes(gx, gz, alpha[1])
-        gy, gz = rotate_axes(gy, gz, alpha[2])
+        gy, gz = rotate_axes(gy, gz, alpha[0])
     return stack([gx, gy, gz])
 
 

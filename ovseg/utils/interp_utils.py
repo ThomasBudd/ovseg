@@ -104,36 +104,26 @@ def torch_interp_img(img, grid, order, cval=None):
             if dim == 3:
                 xi = xi.unsqueeze(-1)
 
-            # get the image values in the corners
-            I0 = img_pad[inds[0], inds[1]]
-            I1 = img_pad[inds[0], inds[1]+1]
-            I2 = img_pad[inds[0]+1, inds[1]]
-            I3 = img_pad[inds[0]+1, inds[1]+1]
-            # interpolation in x direction
-            Ix0 = I0 + xi[0]*(I1-I0)
-            Ix1 = I2 + xi[0]*(I3-I2)
-            # interpolation in y direction
-            img_trsf = Ix0 + xi[1]*(Ix1-Ix0)
+            # this formulation is neither inplace (so we can differentiate)
+            # nor does it keep the image evaluated in the different cornes in VRAM
+            img_trsf = (1 - xi[0]) * (1 - xi[1]) * img_pad[inds[0], inds[1]]
+            img_trsf = img_trsf + (1 - xi[0]) * xi[1] * img_pad[inds[0], inds[1] + 1]
+            img_trsf = img_trsf + xi[0] * (1 - xi[1]) * img_pad[inds[0] + 1, inds[1]]
+            img_trsf = img_trsf + xi[0] * xi[1] * img_pad[inds[0] + 1, inds[1] + 1]
+
         elif idim == 3:
-            # get the image values in the corners
-            I0 = img_pad[inds[0], inds[1], inds[2]]
-            I1 = img_pad[inds[0], inds[1]+1, inds[2]]
-            I2 = img_pad[inds[0]+1, inds[1], inds[2]]
-            I3 = img_pad[inds[0]+1, inds[1]+1, inds[2]]
-            I4 = img_pad[inds[0], inds[1], inds[2]+1]
-            I5 = img_pad[inds[0], inds[1]+1, inds[2]+1]
-            I6 = img_pad[inds[0]+1, inds[1], inds[2]+1]
-            I7 = img_pad[inds[0]+1, inds[1]+1, inds[2]+1]
-            # interpolation in x direction
-            Ix0 = I0 + xi[0] * (I1 - I0)
-            Ix1 = I2 + xi[0] * (I3 - I2)
-            Ix2 = I4 + xi[0] * (I5 - I4)
-            Ix3 = I6 + xi[0] * (I7 - I6)
-            # interpolation in y direction
-            Iy0 = Ix0 + xi[1] * (Ix1 - Ix0)
-            Iy1 = Ix2 + xi[1] * (Ix3 - Ix2)
-            # interpolation in z direction
-            img_trsf = Iy0 + xi[2] * (Iy1 - Iy0)
+            
+            # this formulation is neither inplace (so we can differentiate)
+            # nor does it keep the image evaluated in the different cornes in VRAM
+            img_trsf = (1 - xi[0]) * (1 - xi[1]) * (1 - xi[2]) * img_pad[inds[0], inds[1], inds[2]]
+            img_trsf = img_trsf + xi[0] * (1 - xi[1]) * (1 - xi[2]) * img_pad[inds[0] + 1, inds[1], inds[2]]
+            img_trsf = img_trsf + (1 - xi[0]) * xi[1] * (1 - xi[2]) * img_pad[inds[0], inds[1] + 1, inds[2]]
+            img_trsf = img_trsf + xi[0] * xi[1] * (1 - xi[2]) * img_pad[inds[0] + 1, inds[1] + 1, inds[2]]
+            img_trsf = img_trsf + (1 - xi[0]) * (1 - xi[1]) * xi[2] * img_pad[inds[0], inds[1], inds[2]+1]
+            img_trsf = img_trsf + xi[0] * (1 - xi[1]) * xi[2] * img_pad[inds[0] + 1, inds[1], inds[2]+1]
+            img_trsf = img_trsf + (1 - xi[0]) * xi[1] * xi[2] * img_pad[inds[0], inds[1] + 1, inds[2]+1]
+            img_trsf = img_trsf + xi[0] * xi[1] * xi[2] * img_pad[inds[0] + 1, inds[1] + 1, inds[2]+1]
+
         else:
             raise ValueError('grid must be of shape (2,nx,ny) for 2d or '
                              + '(3,nx,ny,nz) for 3d interpolation.'
