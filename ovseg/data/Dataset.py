@@ -49,7 +49,7 @@ class Dataset(object):
 
         # last but not least the name
         scan = self.scans[ind]
-        case = basename(scan).split('.')[0]
-        data_dict['case'] = case
+        name = basename(scan).split('.')[0]
+        data_dict['name'] = name
 
         return data_dict

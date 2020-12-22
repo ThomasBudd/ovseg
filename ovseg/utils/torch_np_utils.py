@@ -19,5 +19,6 @@ def check_type(inpt):
     is_np = isinstance(inpt, np.ndarray)
     is_torch = torch.is_tensor(inpt)
     if not is_np and not is_torch:
-        raise TypeError('Expected input to be np.ndarray or torch.tensor')
+        raise TypeError('Expected input to be np.ndarray or torch.tensor. '
+                        'Got {}'.format(type(inpt)))
     return is_np, is_torch

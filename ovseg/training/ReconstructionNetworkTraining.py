@@ -21,6 +21,8 @@ class ReconstructionNetworkTraining(NetworkTraining):
         return (1 - self.weight_loss) * self.mse(x1, x2) + self.weight_loss * \
             self.l1loss(x1, x2)
 
-    def _prepare_data(self, data_tpl):
-        xb, yb = data_tpl[0].to(self.dev), data_tpl[1].to(self.dev)
-        return xb[0], yb[0]
+    def compute_batch_loss(self, batch):
+        xb, yb = batch[0][0].to(self.dev), batch[1][0].to(self.dev)
+        out = self.network(xb)
+        loss = self.loss_fctn(out, yb)
+        return loss

@@ -56,7 +56,7 @@ def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
                    'pyramid_weight': 0.5}
     opt_params = {'momentum': 0.99, 'weight_decay': 3e-5, 'nesterov': True,
                   'lr': 10**-2}
-    lr_params = {'beta': 0.9, 'lr_min': 10**-6}
+    lr_params = {'beta': 0.9, 'lr_min': 0}
     training_params = {'loss_params': loss_params,
                        'num_epochs': 1000, 'opt_params': opt_params,
                        'lr_params': lr_params, 'nu_ema_trn': 0.99,
