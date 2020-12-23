@@ -4,6 +4,7 @@ from ovseg.augmentation.SegmentationAugmentation import \
     SegmentationAugmentation
 from ovseg.data.SegmentationData import SegmentationData
 from ovseg.networks.UNet import UNet
+from ovseg.networks.iUNet import iUNet
 from ovseg.training.SegmentationTraining import SegmentationTraining
 from ovseg.model.ModelBase import ModelBase
 from ovseg.utils.torch_np_utils import check_type
@@ -79,7 +80,11 @@ class SegmentationModel(ModelBase):
                                  '\'network\'. These must contain the '
                                  'dict of network paramters.')
         params = self.model_parameters['network'].copy()
-        self.network = UNet(**params).cuda()
+        if self.model_parameters['architecture'].lower() in ['unet', 'u-net']:
+            self.network = UNet(**params).cuda()
+        elif self.model_parameters['architecture'].lower() in ['iunet', 'iu-net']:
+            raise NotImplementedError('CHRISTIAN!!! CHRISTIAN!!! Come and do this.')
+            # self.network = iUNet(**params)
         print('Network initialised')
 
     def initialise_postprocessing(self):

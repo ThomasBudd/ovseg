@@ -94,6 +94,7 @@ def torch_interp_img(img, grid, order, cval=None):
 
     elif order == 1:
         # do bi or triliner interpolation
+        img_pad = img_pad.type(torch.float)
         # cample grid (see above)
         grid = torch.stack([torch.clamp(grid[i], 0, shape[i])
                             for i in range(idim)])
@@ -104,8 +105,6 @@ def torch_interp_img(img, grid, order, cval=None):
             if dim == 3:
                 xi = xi.unsqueeze(-1)
 
-            # this formulation is neither inplace (so we can differentiate)
-            # nor does it keep the image evaluated in the different cornes in VRAM
             img_trsf = (1 - xi[0]) * (1 - xi[1]) * img_pad[inds[0], inds[1]]
             img_trsf = img_trsf + (1 - xi[0]) * xi[1] * img_pad[inds[0], inds[1] + 1]
             img_trsf = img_trsf + xi[0] * (1 - xi[1]) * img_pad[inds[0] + 1, inds[1]]
@@ -113,8 +112,6 @@ def torch_interp_img(img, grid, order, cval=None):
 
         elif idim == 3:
             
-            # this formulation is neither inplace (so we can differentiate)
-            # nor does it keep the image evaluated in the different cornes in VRAM
             img_trsf = (1 - xi[0]) * (1 - xi[1]) * (1 - xi[2]) * img_pad[inds[0], inds[1], inds[2]]
             img_trsf = img_trsf + xi[0] * (1 - xi[1]) * (1 - xi[2]) * img_pad[inds[0] + 1, inds[1], inds[2]]
             img_trsf = img_trsf + (1 - xi[0]) * xi[1] * (1 - xi[2]) * img_pad[inds[0], inds[1] + 1, inds[2]]

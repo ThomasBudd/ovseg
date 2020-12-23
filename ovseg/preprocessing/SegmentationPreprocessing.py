@@ -5,9 +5,8 @@ from ovseg.utils.interp_utils import change_img_pixel_spacing,\
 from ovseg.utils.torch_np_utils import check_type, stack
 from ovseg.utils.io import read_nii_files, load_pkl, save_pkl
 from ovseg.utils.path_utils import my_listdir, maybe_create_path
-from os.path import join, isdir, exists
-from os import remove
-import pickle
+from os.path import join, isdir, exists, basename
+from os import remove, environ, listdir
 from tqdm import tqdm
 
 
@@ -38,7 +37,9 @@ class SegmentationPreprocessing(object):
                  downsampling_fac=None,
                  use_only_fg_scans=True,
                  use_only_classes=None,
-                 **kwargs):
+                 reduce_to_single_class=False,
+                 try_preprocess_volumes_on_gpu=True,
+                 label_interpolation='nearest'):
 
         self.apply_resizing = apply_resizing
         self.target_spacing = target_spacing
@@ -50,6 +51,11 @@ class SegmentationPreprocessing(object):
         self.downsampling_fac = downsampling_fac
         self.use_only_fg_scans = use_only_fg_scans
         self.use_only_classes = use_only_classes
+        self.reduce_to_single_class = reduce_to_single_class
+        self.try_preprocess_volumes_on_gpu = try_preprocess_volumes_on_gpu
+        assert label_interpolation in ['nearest', 'nnUNet']
+        self.label_interpolation = label_interpolation
+        self.force_volume_preprocessing_to_cpu = False
 
         if self.apply_scaling and target_spacing is None:
             print('Expected \'target_spacing\' to be list or tuple.'
@@ -83,6 +89,8 @@ class SegmentationPreprocessing(object):
                                          'apply_downsampling',
                                          'downsampling_fac',
                                          'use_only_classes',
+                                         'reduce_to_single_class',
+                                         'label_interpolation',
                                          'use_only_fg_scans']
 
     def _downsample_img_fac_2(self, img, downsample_z=False):
@@ -129,39 +137,18 @@ class SegmentationPreprocessing(object):
             img = self._downsample_img_fac_2(img, downsample_z2)
         return img
 
-    def save_attributes(self, outfolder):
+    def maybe_save_attributes(self, outfolder):
         outfile = join(outfolder, 'preprocessing_parameters.pkl')
-        if exists(outfile):
-            print('Warning: Found existing pickle file of preprocessing '
-                  'attributes. Removing this one.')
-            remove(outfile)
         data = {key: self.__getattribute__(key) for key in
                 self.preprocessing_parameters}
-        save_pkl(data, outfile)
-
-    def check_preprocessing(self, outfolder):
-        pklfile = join(outfolder, 'preprocessing_parameters.pkl')
-        # does the file even exsit?
-        if not exists(pklfile):
-            print('No pickel file with preprocessing parameters found at '
-                  + outfolder)
-            return False
-        # load it!
-        data = load_pkl(pklfile)
-        # do the keys match?
-        for key in self.preprocessing_parameters:
-            if key not in data.keys():
-                print('key ' + key + ' was not found in preprocessing '
-                      'parameter file.')
-                return False
-        # not check if the keys are equal
-        for key in self.preprocessing_parameters:
-            item = self.__getattribute__(key)
-            if data[key] != item:
-                print('Found not matching items for key' + key)
-                return False
-        print('Preprocessing parameters match.')
-        return True
+        if exists(outfile):
+            data_pkl = load_pkl(outfile)
+            if data_pkl == data:
+                return
+            else:
+                raise RuntimeError('Found not matching prerpocessing parameters in '+outfolder+'.')
+        else:
+            save_pkl(data, outfile)
 
     def preprocess_image(self, img, is_seg, spacing=None):
         '''
@@ -208,33 +195,45 @@ class SegmentationPreprocessing(object):
             # if not there's nothing to be done
             if not self.apply_resizing and not self.apply_downsampling:
                 return img
-            # convert to one hot encoding
-            nclasses = int(img.max())
-            img = stack([img == c for c in range(nclasses+1)])
-            if is_np:
-                img = img.astype(np.float32)
-            else:
-                img = img.type(torch.float)
-            # first resizing
-            if self.apply_resizing:
-                idim = len(shape_in)
-                order = 1
-                # the img is a sample, resize all channels
-                img = change_sample_pixel_spacing(img, spacing[:idim],
-                                                  self.target_spacing[:idim],
-                                                  orders=(nclasses+1)*[order])
-            # now potentiall downsampling
-            if self.apply_downsampling:
-                sp = self.target_spacing if self.apply_resizing else\
-                    spacing
-                img = stack([self._downsample_img(img[c], sp) for c in
-                             range(nclasses+1)])
 
-            # bring back to integer encoding
-            if is_np:
-                return np.argmax(img, 0).astype(np.float32)
+            # nearest neighbour interpolation is easy! Plus it should be very similar to
+            # what nnUNet does
+            if self.label_interpolation == 'nearest':
+                
+                idim = len(shape_in)
+                return change_img_pixel_spacing(img, spacing[:idim],
+                                                self.target_spacing[:idim],
+                                                order=0)
             else:
-                return torch.argmax(img, 0).type(torch.float)
+                # this is what nnUNet does
+                # convert to one hot encoding
+                nclasses = int(img.max())
+                img = stack([img == c for c in range(nclasses+1)])
+                if is_np:
+                    img = img.astype(np.float32)
+                else:
+                    img = img.type(torch.float)
+                # first resizing
+                if self.apply_resizing:
+                    idim = len(shape_in)
+                    order = 1
+                    # the img is a sample, resize all channels
+                    img = change_sample_pixel_spacing(img, spacing[:idim],
+                                                      self.target_spacing[:idim],
+                                                      orders=(nclasses+1)*[order])
+                # now potentiall downsampling
+                if self.apply_downsampling:
+                    sp = self.target_spacing if self.apply_resizing else\
+                        spacing
+                    img = stack([self._downsample_img(img[c], sp) for c in
+                                 range(nclasses+1)])
+    
+                # bring back to integer encoding
+                if is_np:
+                    img = np.argmax(img, 0).astype(np.float32)
+                else:
+                    img = torch.argmax(img, 0).type(torch.float)
+                return img
 
         # segmentations are done now! Let's consider only images here
         if self.apply_resizing:
@@ -315,7 +314,7 @@ class SegmentationPreprocessing(object):
 
     def preprocess_volume(self, volume, spacing=None):
         '''
-        Preprocesses a full volume
+        Preprocesses a full volume.
 
         Parameters
         ----------
@@ -330,20 +329,65 @@ class SegmentationPreprocessing(object):
 
         '''
         is_np, _ = check_type(volume)
-        shape = np.array(volume.shape)
-        if len(shape) == 3:
+        shape_inpt = np.array(volume.shape)
+        if len(shape_inpt) == 3:
             if is_np:
                 volume = volume[np.newaxis]
             else:
                 volume = volume.unsqueeze(0)
-        volume = self.preprocess_sample(volume, spacing)
-        if len(shape) == 3:
-            return volume[0]
-        else:
-            return volume
+
+        if not is_np and self.force_volume_preprocessing_to_cpu:
+            dev = volume.device
+            volume = volume.cpu().numpy()
+                    
+        # now let's check if we're using the GPU
+        use_gpu = self.try_preprocess_volumes_on_gpu and torch.cuda.device_count() > 0 \
+            and not self.force_volume_preprocessing_to_cpu
+
+        if use_gpu:
+            if is_np:
+                volume = torch.from_numpy(volume.astype(np.float32))
+            volume = volume.cuda()
+
+        try:        
+            volume = self.preprocess_sample(volume, spacing)
+        except RuntimeError:
+            print('RuntimeError caught! This is most likely due to a cuda oom error when '
+                  'resizing a large volume. Force the preprocessing to the CPU for the future.')
+            self.try_preprocess_volumes_on_gpu = False
+            self.force_volume_preprocessing_to_cpu = True
+
+
+        if use_gpu and is_np:
+            # we're a bit lazy here
+            # if the input is a torch cpu tensor we're not transferring back
+            volume = volume.cpu().numpy()
+        
+        if not is_np and self.force_volume_preprocessing_to_cpu:
+            volume = torch.from_numpy(volume).to(dev)
+
+        if len(shape_inpt) == 3:
+            volume = volume[0]
+
+        return volume
 
     def __call__(self, volume, spacing=None):
         return self.preprocess_volume(volume, spacing)
+
+    def _maybe_reduce_label(self, lb):
+
+        # remove classes from the label for the case we don't want to segment
+        if len(self.use_only_classes) > 0: 
+            lb_new = np.zeros_like(lb)
+            for i, c in enumerate(self.use_only_classes):
+                lb_new[lb == c] = i+1
+            lb = lb_new
+
+        # in case we want to do only differentiate fg and bg (abnormality segmentation)
+        if self.reduce_to_single_class:
+            lb = (lb > 0).astype(lb.dtype)
+
+        return lb
 
     def _find_nii_subfolder(self, nii_folder):
         subdirs = [d for d in my_listdir(nii_folder) if
@@ -366,67 +410,71 @@ class SegmentationPreprocessing(object):
                                     'named \'images\' or \'imagesTr\'.')
         return imp, lbp
 
-    def preprocess_nii_folder(self, nii_folder, outfolder, use_torch=False):
-        # first let's get the image and label path
-        imp, lbp = self._find_nii_subfolder(nii_folder)
+    def _get_all_cases_from_raw_data(self, raw_data):
+        if isinstance(raw_data, str):
+            raw_data = [raw_data]
+        elif not isinstance(raw_data, (tuple, list)):
+            raise ValueError('raw_data must be str if only infered from a sinlge folder or '
+                             'list/tuple.')
+            
+        raw_data_name = '_'.join(raw_data)
+        # check for exsistence and collect cases
+        cases = []
+        raw_data_path = join(environ['OV_DATA_BASE'], 'raw_data')
+        for data_fol in raw_data:
+            data_path = join(raw_data_path, data_fol)
+            if not exists(data_path):
+                raise FileNotFoundError('Did not find path '+data_path)
+            imp, lbp = self._find_nii_subfolder(data_path)
+            for case in listdir(lbp):
+                name = case[:-7]
+                im_cases = [case for case in listdir(imp) if case.startswith(name)]
+                if not len(im_cases) == 1:
+                    raise FileNotFoundError('Assumed exactly one image for case {}. Got {}'
+                                            ''.format(case, len(im_cases)))
+                cases.append((join(imp, im_cases[0]), join(lbp, case)))
+        return cases, raw_data_name
+
+    def preprocess_raw_data(self, raw_data, preprocessed_name='default'):
+
+        # get cases and name
+        cases, raw_data_name = self._get_all_cases_from_raw_data(raw_data)
+
+        # root folder of all saved preprocessed data
+        outfolder = join(environ['OV_DATA_BASE'], 'preprocessed', raw_data_name, preprocessed_name)
         # now let's create the output folders
-        for f in ['images', 'labels', 'spacings', 'orig_shapes']:
+        for f in ['images', 'spacings', 'orig_shapes', 'labels']:
             maybe_create_path(join(outfolder, f))
-        # now let's get all the cases
-        cases = [case[:-7] for case in my_listdir(lbp)
-                 if case.endswith('.nii.gz')]
 
         # Let's quickly store the parameters so we can check later
         # what we've done here.
-        self.save_attributes(outfolder)
+        self.maybe_save_attributes(outfolder)
         # here is the fun
-        for case in tqdm(cases):
-            # first let's take the image nii files
-            nii_files = [join(imp, nii_file) for nii_file in my_listdir(imp)
-                         if nii_file.endswith('.nii.gz')
-                         and nii_file.startswith(case)]
-            if not len(nii_files) == 1:
-                raise FileNotFoundError('Assumend to find exactly one images '
-                                        'starting with ')
-            nii_files.append(join(lbp, case+'.nii.gz'))
-            sample, spacing = read_nii_files(nii_files)
-            sample[1] = self._remove_classes(sample[1])
-            if self.use_only_fg_scans and sample[1].max() == 0:
-                continue
-            else:
-                orig_shape = sample[0].shape
-                if use_torch:
-                    sample = torch.tensor(sample).to('cuda')
-                sample = self.preprocess_sample(sample, spacing)
-                if use_torch:
-                    sample = sample.cpu().numpy()
-                im, lb = sample[0].astype(np.float32),\
-                    sample[1].astype(np.int8)
-                for arr, folder in [[im, 'images'], [lb, 'labels'],
-                                    [orig_shape, 'orig_shapes'],
-                                    [spacing, 'spacings']]:
-                    np.save(join(outfolder, folder, case), arr)
+        for case_pair in tqdm(cases):
+            # read files
+            volume, spacing = read_nii_files(case_pair)
+            im, lb = volume
+            
+            name = basename(case_pair[1])[:-7]
+            orig_shape = volume[0].shape
+            volume = self.preprocess_volume(volume, spacing)
+            im, lb = volume[0].astype(np.float32), volume[1].astype(np.int8)
+            lb = self._maybe_reduce_label(lb)
+            # first save the image related stuff
+            for arr, folder in [[im, 'images'],
+                                [lb, 'labels'],
+                                [orig_shape, 'orig_shapes'],
+                                [spacing, 'spacings']]:
+                np.save(join(outfolder, folder, name), arr)
+
         print('Preprocessing done!')
 
-    def _remove_classes(self, lb):
-
-        # remove classes from the label for the case we don't want to segment
-        # all classes with one network
-        if self.use_only_classes is None:
-            return lb
-        else:
-            lb_new = np.zeros_like(lb)
-            for i, c in enumerate(self.use_only_classes):
-                lb_new[lb == c] = i+1
-            return lb_new
-
-    def plan_preprocessing_from_nii(self, nii_folder, percentiles=[0.5, 99.5]):
-        print('Infering preprocessing parameters from '+nii_folder)
+    def plan_preprocessing_raw_data(self, raw_data, percentiles=[0.5, 99.5]):
+    
+        
         # first let's get the image and label path
-        imp, lbp = self._find_nii_subfolder(nii_folder)
-        # now let's get all the cases
-        cases = [case[:-7] for case in my_listdir(lbp)
-                 if case.endswith('.nii.gz')]
+        cases, raw_data_name = self._get_all_cases_from_raw_data(raw_data)
+        print('Infering preprocessing parameters from '+raw_data_name)
         # foreground vals for windowing
         fg_cvals = []
         # mean and std for scaling
@@ -436,19 +484,11 @@ class SegmentationPreprocessing(object):
         # spacings for resampling
         spacings = []
         # here is the fun
-        for case in tqdm(cases):
-            # first let's take the image nii files
-            nii_files = [join(imp, nii_file) for nii_file in my_listdir(imp)
-                         if nii_file.endswith('.nii.gz')
-                         and nii_file.startswith(case)]
-            if not len(nii_files) == 1:
-                raise FileNotFoundError('Assumend to find exactly one images '
-                                        'starting with ')
-            nii_files.append(join(lbp, case+'.nii.gz'))
+        for case_pair in tqdm(cases):
             # read files
-            sample, spacing = read_nii_files(nii_files)
-            sample[1] = self._remove_classes(sample[1])
+            sample, spacing = read_nii_files(case_pair)
             im, lb = sample
+            lb = self._maybe_reduce_label(lb)
             # store spacing
             spacings.append(spacing)
             if lb.max() > 0:
@@ -457,6 +497,8 @@ class SegmentationPreprocessing(object):
                 mean += np.mean(fg_cval)
                 mean2 += np.mean(fg_cval**2)
                 fg_cases += 1
+        print()
+        print('Done')
         mean = mean/fg_cases
         mean2 = mean2/fg_cases
         std = np.sqrt(mean2 - mean**2)
