@@ -28,7 +28,7 @@ class ModelBase(object):
     def __init__(self, val_fold: int, data_name: str, model_name: str,
                  model_parameters=None, preprocessed_name=None,
                  network_name='network', is_inference_only: bool = False,
-                 fmt_write='{:.4f}'):
+                 fmt_write='{:.4f}', model_parameters_name='model_parameters'):
         # keep all the args
         self.val_fold = val_fold
         self.data_name = data_name
@@ -38,6 +38,7 @@ class ModelBase(object):
         self.network_name = network_name
         self.is_inference_only = is_inference_only
         self.fmt_write = fmt_write
+        self.model_parameters_name = model_parameters_name
 
         # the model path will be pointing to the model of this particular
         # fold
@@ -48,7 +49,7 @@ class ModelBase(object):
                                   self.model_name)
         self.model_path = join(self.model_cv_path, 'fold_%d' % self.val_fold)
         path_utils.maybe_create_path(self.model_path)
-        self.path_to_params = join(self.model_cv_path, 'model_parameters.pkl')
+        self.path_to_params = join(self.model_cv_path, self.model_parameters_name+'.pkl')
         if self.preprocessed_name is None:
             if not self.is_inference_only:
                 print('Model was called not in inference mode and no '
@@ -105,54 +106,25 @@ class ModelBase(object):
             # typical case when loading the model
             print('Loading model parameters')
             self.model_parameters = io.load_pkl(self.path_to_params)
+            self.model_parameters_match_pickled = True
         elif params_given and not params_found:
             # typical case when first creating the model
             print('Saving model parameters to model base path')
             self.save_model_parameters()
+            self.model_parameters_match_pickled = True
         else:
-            # This shouldn't happen by default, but can
-            print('Model parameters were both given and found in the '
-                  'folder. Checking both...')
             model_params_from_pkl = io.load_pkl(self.path_to_params)
-            everything_ok = True
+            if self.model_parameters == model_params_from_pkl:
+                print('Input model parameters match pickled ones')
+                self.model_parameters_match_pickled = True
+            else:
+                print('Found conflict between saved and inputed model parameters. '
+                      'New paramters added will not be stored in the .pkl file automatically. '
+                      'If you want to overwrite, call model.save_model_parameters(). '
+                      'Make sure you want to alter the parameters stored at '+self.path_to_params)
+                
+                self.model_parameters_match_pickled = False
 
-            # first check which keys were given as input but were not found
-            # in the loaded parameters
-            keys_not_in_pkl = [key for key in self.model_parameters.keys()
-                               if key not in model_params_from_pkl.keys()]
-            if len(keys_not_in_pkl) > 0:
-                everything_ok = False
-                print('The following keys were not found in the stored, '
-                      'but in the input model parameters:')
-            for key in keys_not_in_pkl:
-                print(key)
-
-            # now the other way around
-            keys_not_in_inpt = [key for key in model_params_from_pkl.keys()
-                                if key not in self.model_parameters.keys()]
-            if len(keys_not_in_inpt) > 0:
-                everything_ok = False
-                print('The following keys were not found in the input, '
-                      'but in the stored model parameters:')
-            for key in keys_not_in_inpt:
-                print(key)
-
-            # now we check the common parameters for equality
-            # common_keys = [key for key in model_params_from_pkl.keys()
-            #                if key in self.model_parameters.keys()]
-            # for key in common_keys:
-            #     item_pkl = model_params_from_pkl[key]
-            #     item_inpt = self.model_parameters[key]
-            #     if np.any(item_inpt != item_pkl):
-            #         everything_ok = False
-            #         print('Found not matching items for key '+key)
-            #         print('Input:')
-            #         print(item_inpt)
-            #         print('Loaded:')
-            #         print(item_pkl)
-
-            if everything_ok:
-                print('Not issues found.')
 
         # %% now initialise everything we need
         self.initialise_preprocessing()
@@ -183,12 +155,11 @@ class ModelBase(object):
 
     # %% this is just putting the parameters in a nice .txt file so that
     # we can easily see our choices
-    def _model_parameters_to_txt(self, file_name=None):
-        if file_name is None:
-            file_name = 'model_parameters.txt'
+    def _model_parameters_to_txt(self):
+        file_name = self.model_parameters_name+'.txt'
 
         with open(join(self.model_cv_path, file_name), 'w') as file:
-            self._write_parameter_dict_to_txt('model_parameters',
+            self._write_parameter_dict_to_txt(self.model_parameters_name,
                                               self.model_parameters, file, 0)
 
     def _write_parameter_dict_to_txt(self, dict_name, param_dict, file,
@@ -266,14 +237,13 @@ class ModelBase(object):
         # now writing everything to a txt file we can nicely look at
         # yeah this might be stupid but it helped me couple of times in the
         # past...
-        cases = list(results.keys())
+        cases = sorted(list(results.keys()))
         if len(cases) == 0:
             print('results dict is empty.')
             return
 
         metric_names = list(results[cases[0]].keys())
-        metrics = np.array([[results[case][metric] for metric in metric_names]
-                            for case in cases])
+        metrics = np.array([[results[case][metric] for metric in metric_names] for case in cases])
         means = np.nanmean(metrics, 0)
         medians = np.nanmedian(metrics, 0)
         with open(join(path_to_store, file_name+'.txt'), 'w') as file:
