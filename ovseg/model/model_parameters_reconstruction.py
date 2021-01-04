@@ -1,6 +1,6 @@
 
 
-def get_model_params_2d_reconstruction(batch_size=12,
+def get_model_params_2d_reconstruction(dose, batch_size=12,
                                        image_folder='images'):
     model_parameters = {}
 
@@ -8,7 +8,7 @@ def get_model_params_2d_reconstruction(batch_size=12,
     val_dl_params = trn_dl_params.copy()
     val_dl_params['epoch_len'] = 25
     keys = ['image', 'projection', 'spacing']
-    folders = [image_folder, 'projections', 'spacings']
+    folders = [image_folder, 'projections_'+dose, 'spacings']
     data_params = {'n_folds': 5, 'fixed_shuffle': True,
                    'trn_dl_params': trn_dl_params,
                    'val_dl_params': val_dl_params,

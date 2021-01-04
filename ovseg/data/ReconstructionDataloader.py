@@ -40,5 +40,7 @@ def ReconstructionDataloader(vol_ds, batch_size, num_workers=None,
                                       projection_key=projection_key)
     if num_workers is None:
         num_workers = 0 if os.name == 'nt' else 8
+    worker_init_fn = lambda _: np.random.seed()
     return torch.utils.data.DataLoader(dataset, pin_memory=pin_memory,
-                                       num_workers=num_workers)
+                                       num_workers=num_workers,
+                                       worker_init_fn=worker_init_fn)

@@ -5,8 +5,8 @@ import os
 
 class JoinedBatchDataset(object):
 
-    def __init__(self, vol_ds, batch_size, patch_size, epoch_len=250, p_fg=1/3,
-                 mn_fg=1, store_coords_in_ram=True, memmap='r',
+    def __init__(self, vol_ds, batch_size, patch_size, epoch_len=250, p_fg=0,
+                 mn_fg=3, store_coords_in_ram=True, memmap='r',
                  projection_key='projection', image_key='image',
                  label_key='label', spacing_key='spacing'):
         self.vol_ds = vol_ds
@@ -67,7 +67,7 @@ class JoinedBatchDataset(object):
             spacing = np.load(path_dict[self.spacing_key])
 
             # how many fg samples do we alreay have in the batch?
-            k_fg_samples = np.sum([np.sum(samp) for samp in segs])
+            k_fg_samples = np.sum([np.max(samp > 0) for samp in segs])
             if k_fg_samples < n_fg_samples:
                 # if we're not there let's choose a center coordinate
                 # that contains fg
@@ -135,5 +135,7 @@ def JoinedDataloader(vol_ds, batch_size, patch_size, num_workers=None,
                                  store_coords_in_ram=store_coords_in_ram)
     if num_workers is None:
         num_workers = 0 if os.name == 'nt' else 8
+    worker_init_fn = lambda _: np.random.seed()
     return torch.utils.data.DataLoader(dataset, pin_memory=pin_memory,
-                                       num_workers=num_workers)
+                                       num_workers=num_workers,
+                                       worker_init_fn=worker_init_fn)

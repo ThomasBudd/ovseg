@@ -154,7 +154,7 @@ class Reconstruction2dSimModel(ModelBase):
         if len(shape) == 2:
             proj = proj.reshape(1, 1, *shape)
         elif len(shape) == 3:
-            proj = torch.stack([proj[..., z] for z in shape[-1]]).unsqueeze(1)
+            proj = torch.stack([proj[..., z] for z in range(shape[-1])]).unsqueeze(1)
         elif not len(shape) == 4:
             raise ValueError('proj must be 2d projection, 3d stacked in last '
                              'dim or 4d in batch form.')

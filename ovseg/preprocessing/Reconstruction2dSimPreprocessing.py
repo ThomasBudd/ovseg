@@ -54,7 +54,7 @@ class Reconstruction2dSimPreprocessing(object):
             raise ValueError('Preprocessing/simulation of projection data is '
                              'only implemented for 3d volumes. '
                              'Got shape {}'.format(len(volume.shape)))
-        if not volume.shape[0] == 512 or volume.shape[1] == 512:
+        if not volume.shape[0] == 512 or not volume.shape[1] == 512:
             raise ValueError('Volume must be of shape (512, 512, nz). '
                              'Got {}'.format(volume.shape))
         projs = []
