@@ -96,7 +96,8 @@ class Reconstruction2dSimPreprocessing(object):
 
         if data_name is None:
             data_name = '_'.join(sorted(folders))
-        preprocessed_data_base = os.path.join(ov_data_base, 
+        preprocessed_data_base = os.path.join(ov_data_base,
+                                              'preprocessed',
                                               data_name,
                                               preprocessed_name)
         scans = []

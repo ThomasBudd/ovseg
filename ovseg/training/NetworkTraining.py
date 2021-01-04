@@ -158,7 +158,6 @@ class NetworkTraining(TrainingBase):
             # that NetworkTraining was initialised with fp32=True
             # and loaded with fp32=False
             self.scaler = amp.GradScaler()
-            self._trn_step = self._trn_step_fp16
             scaler_pp = join(self.model_path, 'scaler_parameters')
             if exists(scaler_pp):
                 self.scaler.load_state_dict(torch.load(scaler_pp))
@@ -166,8 +165,6 @@ class NetworkTraining(TrainingBase):
                 print('Warning, no state dict for fp16 scaler found. '
                       'It seems like training was continued switching from '
                       'fp32 to fp16.')
-        else:
-            self._trn_step = self._trn_step_fp32
         return True
 
     def train(self, try_continue=True):
