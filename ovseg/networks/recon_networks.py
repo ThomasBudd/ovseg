@@ -5,7 +5,7 @@ from torch_radon import Radon
 from ovseg.networks.UNet import UNet
 
 
-def get_operator(n_angles=256, det_count=736):
+def get_operator(n_angles=256, det_count=724):
     radon = Radon(resolution=512,
                   angles=np.linspace(0, np.pi, n_angles, endpoint=False),
                   clip_to_circle=False,
