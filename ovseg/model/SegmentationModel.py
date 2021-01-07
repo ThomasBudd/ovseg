@@ -3,6 +3,7 @@ from ovseg.preprocessing.SegmentationPreprocessing import \
 from ovseg.augmentation.SegmentationAugmentation import \
     SegmentationAugmentation
 from ovseg.data.SegmentationData import SegmentationData
+from ovseg.prediction.SlidingWindowPrediction import SlidingWindowPrediction
 from ovseg.networks.UNet import UNet
 from ovseg.networks.iUNet import iUNet
 from ovseg.training.SegmentationTraining import SegmentationTraining
@@ -27,6 +28,16 @@ class SegmentationModel(ModelBase):
     a UNet and patch based input (2d or 3d). The prediction is based on the
     sliding window approach.
     '''
+
+    def __init__(self, val_fold: int, data_name: str, model_name: str,
+                 model_parameters=None, preprocessed_name=None,
+                 network_name='network', is_inference_only: bool = False,
+                 fmt_write='{:.4f}', model_parameters_name='model_parameters'):
+        super().__init__(val_fold=val_fold, data_name=data_name, model_name=model_name,
+                         model_parameters=model_parameters, preprocessed_name=preprocessed_name,
+                         network_name=network_name, is_inference_only=is_inference_only,
+                         fmt_write=fmt_write, model_parameters_name=model_parameters_name)
+        self.initialise_prediction()
 
     def initialise_preprocessing(self):
         if 'preprocessing' not in self.model_parameters:
@@ -86,6 +97,17 @@ class SegmentationModel(ModelBase):
             raise NotImplementedError('CHRISTIAN!!! CHRISTIAN!!! Come and do this.')
             # self.network = iUNet(**params)
         print('Network initialised')
+
+    def initialise_prediction(self):
+        params = {'network': self.network,
+                  'patch_size': self.model_parameters['data']['trn_dl_params']['patch_size']}
+        if 'prediction' not in self.model_parameters:
+            print('model_parameters doesn\'t have key \'prediction\' to speficfy how full volumes '
+                  'are processed by the model. Using default parameters')
+        else:
+            params.update(self.model_parameters['prediction'])
+
+        self.prediction = SlidingWindowPrediction(**params)
 
     def initialise_postprocessing(self):
         try:

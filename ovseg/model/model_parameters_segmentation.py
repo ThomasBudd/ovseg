@@ -26,6 +26,7 @@ def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
     model_parameters[aug_device+'_augmentation'] = augmentation_params
 
     # now the network parameters. classic 2d UNet
+    model_parameters['architecture'] = 'UNet'
     network_parameters = {'in_channels': 1, 'out_channels': n_fg_classes+1,
                           'kernel_sizes': n_stages*[3],
                           'is_2d': True, 'filters': 32,
@@ -49,10 +50,17 @@ def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
                    'val_dl_params': val_dl_params, 'folders': folders}
     model_parameters['data'] = data_params
 
+    # prediction object
+    prediction_params = {'batch_size': 1, 'overlap': 0.5, 'fp32': False,
+                         'patch_weight_type': 'constant', 'sigma_gaussian_weight': 1,
+                         'mode': 'flip', 'TTA_n_full_predictions': 1, 'TTA_n_max_augs': 99,
+                         'TTA_eps_stop': 0.02}
+    model_parameters['prediction'] = prediction_params
+
     # now finally the training!
     loss_params = {'eps': 1e-5,
                    'dice_weight': 1.0,
-                   'ce_weight': 1.0, 
+                   'ce_weight': 1.0,
                    'pyramid_weight': 0.5}
     opt_params = {'momentum': 0.99, 'weight_decay': 3e-5, 'nesterov': True,
                   'lr': 10**-2}

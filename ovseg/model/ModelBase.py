@@ -106,25 +106,24 @@ class ModelBase(object):
             # typical case when loading the model
             print('Loading model parameters')
             self.model_parameters = io.load_pkl(self.path_to_params)
-            self.model_parameters_match_pickled = True
+            self.parameters_match_saved_ones = True
         elif params_given and not params_found:
             # typical case when first creating the model
             print('Saving model parameters to model base path')
             self.save_model_parameters()
-            self.model_parameters_match_pickled = True
+            self.parameters_match_saved_ones = True
         else:
             model_params_from_pkl = io.load_pkl(self.path_to_params)
             if self.model_parameters == model_params_from_pkl:
                 print('Input model parameters match pickled ones')
-                self.model_parameters_match_pickled = True
+                self.parameters_match_saved_ones = True
             else:
                 print('Found conflict between saved and inputed model parameters. '
                       'New paramters added will not be stored in the .pkl file automatically. '
                       'If you want to overwrite, call model.save_model_parameters(). '
                       'Make sure you want to alter the parameters stored at '+self.path_to_params)
-                
-                self.model_parameters_match_pickled = False
 
+                self.parameters_match_saved_ones = False
 
         # %% now initialise everything we need
         self.initialise_preprocessing()
