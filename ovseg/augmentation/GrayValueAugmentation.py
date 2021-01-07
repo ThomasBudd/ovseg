@@ -173,7 +173,7 @@ class GrayValueAugmentation(object):
             img = 1 - img
         return img * rng + mn
 
-    def augment_img(self, img):
+    def augment_image(self, img):
         '''
         augment_img(img)
         performs grayvalue augmentation for the input image of shape
@@ -208,7 +208,7 @@ class GrayValueAugmentation(object):
         images like CT
         '''
         for c in self.aug_channels:
-            sample[c] = self.augment_img(sample[c])
+            sample[c] = self.augment_image(sample[c])
         return sample
 
     def augment_batch(self, batch):

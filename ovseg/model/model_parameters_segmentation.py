@@ -3,7 +3,7 @@ import os
 
 def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
                                      n_fg_classes=1, n_stages=7,
-                                     batch_size=12):
+                                     batch_size=12, pred_mode='flip'):
     model_parameters = {}
     # we're doing no preprocessing parameters here as they can be loaded
     # from the preprocessed folder
@@ -21,9 +21,20 @@ def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
                       'scale_mm': [0.7, 1.4], 'p_rot': 0.2,
                       'rot_mm': [-180, 180], 'spatial_aug_3d': False,
                       'p_flip': 0.5, 'spacing': None, 'n_im_channels': 1}
+
     augmentation_params = {'grayvalue': grayvalue_params,
                            'spatial': spatial_params}
-    model_parameters[aug_device+'_augmentation'] = augmentation_params
+
+    model_parameters['augmentation'] = {'GPU_params': None, 'CPU_params': None, 'TTA_params': None}
+    if aug_device == 'gpu':
+        model_parameters['augmentation']['GPU_params'] = augmentation_params
+    elif aug_device == 'cpu':
+        model_parameters['augmentation']['CPU_params'] = augmentation_params
+    else:
+        raise ValueError('aug_device must be \'gpu\' or \'cpu\'.')
+
+    if pred_mode.lower() == 'tta':
+        model_parameters['augmentation']['TTA_params'] = spatial_params
 
     # now the network parameters. classic 2d UNet
     model_parameters['architecture'] = 'UNet'
@@ -53,7 +64,7 @@ def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
     # prediction object
     prediction_params = {'batch_size': 1, 'overlap': 0.5, 'fp32': False,
                          'patch_weight_type': 'constant', 'sigma_gaussian_weight': 1,
-                         'mode': 'flip', 'TTA_n_full_predictions': 1, 'TTA_n_max_augs': 99,
+                         'mode': pred_mode, 'TTA_n_full_predictions': 1, 'TTA_n_max_augs': 99,
                          'TTA_eps_stop': 0.02}
     model_parameters['prediction'] = prediction_params
 

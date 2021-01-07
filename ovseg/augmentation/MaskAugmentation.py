@@ -27,7 +27,7 @@ class MaskAugmentation(object):
         computed as the percentage of the patch size
     '''
 
-    def __init__(self, spacing, p_morph=0.4, radius_mm=[1, 8], p_removal=0.2,
+    def __init__(self, spacing=None, p_morph=0.4, radius_mm=[1, 8], p_removal=0.2,
                  vol_percentage_removal=0.15, vol_threshold_removal=None,
                  aug_channels=[1]):
 
@@ -70,7 +70,6 @@ class MaskAugmentation(object):
 
         # radius in mm, e.g. real world units
         r_mm = np.random.uniform(self.radius_mm[0], self.radius_mm[1])
-        print(r_mm)
         # radius in amount of pixel
         r_pixel = (r_mm / self.spacing).astype(int)
 
@@ -84,7 +83,6 @@ class MaskAugmentation(object):
 
         # binary operation
         operation = np.random.choice(self.morph_operations)
-        print(operation)
 
         for class_idx in classes:
             # change only this one class
@@ -124,7 +122,7 @@ class MaskAugmentation(object):
 
         return img * mask
 
-    def augment_img(self, img):
+    def augment_image(self, img):
         '''
         augment_img(img)
         (nx, ny(, nz))
@@ -165,7 +163,7 @@ class MaskAugmentation(object):
         images like CT
         '''
         for c in self.aug_channels:
-            sample[c] = self.augment_img(sample[c])
+            sample[c] = self.augment_image(sample[c])
         return sample
 
     def augment_batch(self, batch):
