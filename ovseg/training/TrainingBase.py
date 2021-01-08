@@ -122,11 +122,13 @@ class TrainingBase():
         self.trn_end_time = time.asctime()
         self.save_checkpoint()
 
-    def save_checkpoint(self):
+    def save_checkpoint(self, path=None):
         '''
         Saves attributes of this trainer class as .pkl file for
         later restoring
         '''
+        if path is None:
+            path = self.model_path
         attribute_dict = {}
 
         for key in self.checkpoint_attributes:
@@ -134,18 +136,20 @@ class TrainingBase():
             item = self.__getattribute__(key)
             attribute_dict.update({key: item})
 
-        with open(os.path.join(self.model_path, 'attribute_checkpoint.pkl'), 'wb') as outfile:
+        with open(os.path.join(path, 'attribute_checkpoint.pkl'), 'wb') as outfile:
             pickle.dump(attribute_dict, outfile)
 
         self.print_and_log('Training attributes saved')
 
-    def load_last_checkpoint(self):
+    def load_last_checkpoint(self, path=None):
         '''
         Loads trainers checkpoint, if added any custom attributes that are not
         of type scalar, tuple, list or np.ndarray.
         Overload for attributes of other types.
         '''
-        path_to_trainer_checkpoint = join(self.model_path, 'attribute_checkpoint.pkl')
+        if path is None:
+            path = self.model_path
+        path_to_trainer_checkpoint = join(path, 'attribute_checkpoint.pkl')
         if exists(path_to_trainer_checkpoint):
             with open(path_to_trainer_checkpoint, 'rb') as pickle_file:
                 attribute_dict = pickle.load(pickle_file)

@@ -110,31 +110,35 @@ class NetworkTraining(TrainingBase):
         self.opt.param_groups[0]['lr'] = lr
         self.print_and_log('Learning rate now: {:.4e}'.format(lr))
 
-    def save_checkpoint(self):
-        super().save_checkpoint()
+    def save_checkpoint(self, path=None):
+        if path is None:
+            path = self.model_path
+        super().save_checkpoint(path)
         # save network parameters
-        torch.save(self.network.state_dict(), join(self.model_path,
+        torch.save(self.network.state_dict(), join(path,
                                                    self.network_name +
                                                    '_weights'))
         # save optimizer state_dict
-        torch.save(self.opt.state_dict(), join(self.model_path,
+        torch.save(self.opt.state_dict(), join(path,
                                                'opt_parameters'))
 
         # the scaler also has savable parameters
         if not self.fp32:
-            torch.save(self.scaler.state_dict(), join(self.model_path,
+            torch.save(self.scaler.state_dict(), join(path,
                                                       'scaler_parameters'))
 
         self.print_and_log(self.network_name + ' parameters and opt parameters'
                            ' saved.')
 
-    def load_last_checkpoint(self):
+    def load_last_checkpoint(self, path=None):
+        if path is None:
+            path = self.model_path
         # first we try to load the training attributes
-        if not super().load_last_checkpoint():
+        if not super().load_last_checkpoint(path):
             return False
 
         # now let's try to load the network parameters
-        net_pp = join(self.model_path, self.network_name+'_weights')
+        net_pp = join(path, self.network_name+'_weights')
         if exists(net_pp):
             self.network.load_state_dict(torch.load(net_pp))
         else:
@@ -143,7 +147,7 @@ class NetworkTraining(TrainingBase):
         # now the optimizer parameters, but before we should reinitialise it
         # in case the opt parameters chagened after loading
         self.initialise_opt()
-        opt_pp = join(self.model_path, 'opt_parameters')
+        opt_pp = join(path, 'opt_parameters')
         if exists(opt_pp):
             self.opt.load_state_dict(torch.load(opt_pp))
         else:
@@ -158,7 +162,7 @@ class NetworkTraining(TrainingBase):
             # that NetworkTraining was initialised with fp32=True
             # and loaded with fp32=False
             self.scaler = amp.GradScaler()
-            scaler_pp = join(self.model_path, 'scaler_parameters')
+            scaler_pp = join(path, 'scaler_parameters')
             if exists(scaler_pp):
                 self.scaler.load_state_dict(torch.load(scaler_pp))
             else:
