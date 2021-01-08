@@ -98,6 +98,7 @@ class ReconstructionModel(ModelBase):
         '''
         proj = data_dict['projection']
         is_np, _ = check_type(proj)
+        self.network.eval()
 
         # make sure proj is torch tensor
         if is_np:
