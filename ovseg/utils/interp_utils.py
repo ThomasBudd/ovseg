@@ -94,12 +94,11 @@ def torch_interp_img(img, grid, order, cval=None):
 
     elif order == 1:
         # do bi or triliner interpolation
-        img_pad = img_pad.type(torch.float)
+        img_pad = img_pad.type(img.dtype)
         # cample grid (see above)
-        grid = torch.stack([torch.clamp(grid[i], 0, shape[i])
-                            for i in range(idim)])
+        grid = torch.stack([torch.clamp(grid[i], 0, shape[i]) for i in range(idim)])
         inds = torch.floor(grid).long()
-        xi = grid - inds
+        xi = (grid - inds).type(img.dtype)
         if idim == 2:
 
             if dim == 3:
@@ -111,7 +110,7 @@ def torch_interp_img(img, grid, order, cval=None):
             img_trsf = img_trsf + xi[0] * xi[1] * img_pad[inds[0] + 1, inds[1] + 1]
 
         elif idim == 3:
-            
+
             img_trsf = (1 - xi[0]) * (1 - xi[1]) * (1 - xi[2]) * img_pad[inds[0], inds[1], inds[2]]
             img_trsf = img_trsf + xi[0] * (1 - xi[1]) * (1 - xi[2]) * img_pad[inds[0] + 1, inds[1], inds[2]]
             img_trsf = img_trsf + (1 - xi[0]) * xi[1] * (1 - xi[2]) * img_pad[inds[0], inds[1] + 1, inds[2]]

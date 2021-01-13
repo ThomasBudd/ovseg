@@ -34,6 +34,7 @@ class SegmentationPreprocessing(object):
                  window=None,
                  apply_scaling=True,
                  scaling=None,
+                 normalise='window',
                  apply_downsampling=False,
                  downsampling_fac=None,
                  use_only_fg_scans=True,
@@ -48,6 +49,8 @@ class SegmentationPreprocessing(object):
         self.window = window
         self.apply_scaling = apply_scaling
         self.scaling = scaling
+        assert normalise in ['foreground', 'window', 'global']
+        self.normalise = normalise
         self.apply_downsampling = apply_downsampling
         self.downsampling_fac = downsampling_fac
         self.use_only_fg_scans = use_only_fg_scans
@@ -57,6 +60,7 @@ class SegmentationPreprocessing(object):
         assert label_interpolation in ['nearest', 'nnUNet']
         self.label_interpolation = label_interpolation
         self.force_volume_preprocessing_to_cpu = False
+        self.dataset_properties = {}
 
         if self.apply_scaling and target_spacing is None:
             print('Expected \'target_spacing\' to be list or tuple.'
@@ -174,12 +178,6 @@ class SegmentationPreprocessing(object):
         if len(shape_in) not in [2, 3]:
             raise ValueError('Input must be of shape (nx, ny) or '
                              '(nx, ny, nz). Got {}'.fomat(shape_in))
-        # first we case the image to float 32
-        if is_np:
-            img = img.astype(np.float32)
-        else:
-            img = img.type(torch.float32)
-
         # next resizing
         # first let's check for spacing
         if self.apply_resizing or self.apply_downsampling():
@@ -208,12 +206,9 @@ class SegmentationPreprocessing(object):
             else:
                 # this is what nnUNet does
                 # convert to one hot encoding
+                dtype = img.dtype
                 nclasses = int(img.max())
                 img = stack([img == c for c in range(nclasses+1)])
-                if is_np:
-                    img = img.astype(np.float32)
-                else:
-                    img = img.type(torch.float)
                 # first resizing
                 if self.apply_resizing:
                     idim = len(shape_in)
@@ -231,9 +226,9 @@ class SegmentationPreprocessing(object):
 
                 # bring back to integer encoding
                 if is_np:
-                    img = np.argmax(img, 0).astype(np.float32)
+                    img = np.argmax(img, 0).astype(dtype)
                 else:
-                    img = torch.argmax(img, 0).type(torch.float)
+                    img = torch.argmax(img, 0).type(dtype)
                 return img
 
         # segmentations are done now! Let's consider only images here
@@ -347,16 +342,18 @@ class SegmentationPreprocessing(object):
 
         if use_gpu:
             if is_np:
-                volume = torch.from_numpy(volume.astype(np.float32))
-            volume = volume.cuda()
+                volume = torch.from_numpy(volume)
+            volume = volume.type(torch.float16).cuda()
 
         try:
-            volume = self.preprocess_sample(volume, spacing)
+            with torch.no_grad():
+                volume = self.preprocess_sample(volume, spacing).type(torch.float32)
         except RuntimeError:
             print('RuntimeError caught! This is most likely due to a cuda oom error when '
-                  'resizing a large volume. Force the preprocessing to the CPU for the future.')
-            self.try_preprocess_volumes_on_gpu = False
-            self.force_volume_preprocessing_to_cpu = True
+                  'resizing a large volume. Trying again on CPU.')
+            volume = self.preprocess_sample(volume.cpu().numpy(), spacing)
+            volume = torch.from_numpy(volume)
+            torch.cuda.empty_cache()
 
         if use_gpu and is_np:
             # we're a bit lazy here
@@ -475,10 +472,10 @@ class SegmentationPreprocessing(object):
         # what we've done here.
         self.maybe_save_attributes(outfolder)
         # here is the fun
+        print()
         for case_pair, case_info in tqdm(zip(cases, case_infos)):
             # read files
             volume, spacing = read_nii_files(case_pair)
-            im, lb = volume
 
             name = basename(case_pair[1])[:-7]
             orig_shape = volume[0].shape
@@ -496,6 +493,7 @@ class SegmentationPreprocessing(object):
                                 [fingerprint, 'fingerprints']]:
                 np.save(join(outfolder, folder, name), arr)
 
+        torch.cuda.empty_cache()
         print('Preprocessing done!')
 
     def plan_preprocessing_raw_data(self, raw_data, percentiles=[0.5, 99.5]):
@@ -505,13 +503,13 @@ class SegmentationPreprocessing(object):
         print('Infering preprocessing parameters from '+raw_data_name)
         # foreground vals for windowing
         fg_cvals = []
-        # mean and std for scaling
-        mean = 0
-        mean2 = 0
-        fg_cases = 0
         # spacings for resampling
         spacings = []
-        # here is the fun
+        shapes = []
+        # first cycle
+        print()
+        print('First cycle')
+        print()
         for case_pair in tqdm(cases):
             # read files
             sample, spacing = read_nii_files(case_pair)
@@ -519,24 +517,58 @@ class SegmentationPreprocessing(object):
             lb = self._maybe_reduce_label(lb)
             # store spacing
             spacings.append(spacing)
+            shapes.append(im.shape)
             if lb.max() > 0:
                 fg_cval = im[lb > 0].astype(float)
                 fg_cvals.extend(fg_cval.tolist())
-                mean += np.mean(fg_cval)
-                mean2 += np.mean(fg_cval**2)
-                fg_cases += 1
-        print()
-        print('Done')
-        mean = mean/fg_cases
-        mean2 = mean2/fg_cases
-        std = np.sqrt(mean2 - mean**2)
-        if self.apply_scaling and self.scaling is None:
-            self.scaling = np.array([std, mean])
-            print('Scaling: ({:.4f}, {:.4f})'.format(*self.scaling))
+
+        self.dataset_properties['median_shape'] = np.median(shapes, 0)
+        self.dataset_properties['median_spacing'] = np.median(spacings, 0)
+        self.dataset_properties['fg_percentiles'] = np.percentile(fg_cvals, percentiles)
+        self.dataset_properties['percentiles'] = percentiles
+        fg_cvals = np.array(fg_cvals).clip(*self.dataset_properties['fg_percentiles'])
+        self.dataset_properties['scaling_foreground'] = \
+            np.array([np.std(fg_cvals), np.mean(fg_cvals)]).astype(np.float32)
+
         if self.apply_resizing and self.target_spacing is None:
-            self.target_spacing = np.median(np.stack(spacings), 0)
-            print('Spacing: ({:.4f}, {:.4f}, {:.4f})'.
-                  format(*self.target_spacing))
+            self.target_spacing = self.dataset_properties['median_spacing']
         if self.apply_windowing and self.window is None:
-            self.window = np.percentile(fg_cvals, percentiles)
+            self.window = self.dataset_properties['fg_percentiles']
+
+        mean_global = 0
+        mean_window = 0
+        mean2_global = 0
+        mean2_window = 0
+        print()
+        print('Second cycle')
+        print()
+        for case_pair in tqdm(cases):
+            # read files
+            sample, _ = read_nii_files(case_pair)
+            im, _ = sample
+            im_win = im.clip(*self.window)
+            mean_global += np.mean(im)
+            mean_window += np.mean(im_win)
+            mean2_global += np.mean(im**2)
+            mean2_window += np.mean(im_win**2)
+        mean_global, mean2_global = mean_global/len(cases), mean2_global/len(cases)
+        mean_window, mean2_window = mean_window/len(cases), mean2_window/len(cases)
+        std_global = np.sqrt(mean2_global - mean_global**2)
+        std_window = np.sqrt(mean2_window - mean_window**2)
+        self.dataset_properties['scaling_global'] = \
+            np.array([std_global, mean_global]).astype(np.float32)
+        self.dataset_properties['scaling_window'] = \
+            np.array([std_window, mean_window]).astype(np.float32)
+        print('Done')
+        if self.apply_scaling and self.scaling is None:
+            if self.normalise == 'global':
+                self.scaling = self.dataset_properties['scaling_global']
+            elif self.normalise == 'window':
+                self.scaling = self.dataset_properties['scaling_window']
+            elif self.normalise == 'foreground':
+                self.scaling = self.dataset_properties['scaling_foreground']
+            print('Scaling: ({:.4f}, {:.4f})'.format(*self.scaling))
+        if self.apply_resizing:
+            print('Spacing: ({:.4f}, {:.4f}, {:.4f})'.format(*self.target_spacing))
+        if self.apply_windowing:
             print('Window: ({:.4f}, {:.4f})'.format(*self.window))
