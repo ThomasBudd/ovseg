@@ -49,7 +49,7 @@ def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
     ds_params = {}
     num_workers = 0 if os.name == 'nt' else 8
     trn_dl_params = {'patch_size': patch_size, 'batch_size': batch_size,
-                     'epoch_len': 250, 'p_fg': 0, 'mn_fg': 3,
+                     'epoch_len': 250, 'p_bias_sampling': 0, 'min_biased_samples': 3,
                      'padded_patch_size': None, 'memmap': 'r',
                      'store_coords_in_ram': True, 'num_workers': num_workers}
     val_dl_params = trn_dl_params.copy()
@@ -92,7 +92,7 @@ def get_model_params_iUNet_segmentation(patch_size_in=[256, 256, 32],
     model_params['architecture'] = 'iUNet'
     for s in ['val_dl_params', 'trn_dl_params']:
         model_params['data'][s]['patch_size'] = patch_size_aug
-        model_params['data'][s]['mn_fg'] = 1
+        model_params['data'][s]['min_biased_samples'] = 1
 
     # EDIT DEFAULT VALUES FOR NETWORK HERE
     model_params['network'] = {}

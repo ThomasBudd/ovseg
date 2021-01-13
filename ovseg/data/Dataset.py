@@ -47,8 +47,12 @@ class Dataset(object):
         path_dict = self.path_dicts[ind]
         data_dict = {key: np.load(path_dict[key]) for key in self.keys}
 
-        # last but not least the name
+        # last but not least the name and fingerprint
         scan = self.scans[ind]
+        path_to_fp = join(self.preprocessed_path, 'fingerprints', scan)
+        if exists(path_to_fp):
+            f = np.load(path_to_fp, allow_pickle=True).item()
+            data_dict.update(f)
         name = basename(scan).split('.')[0]
         data_dict['name'] = name
 

@@ -96,7 +96,9 @@ class SegmentationPreprocessing(object):
                                          'use_only_classes',
                                          'reduce_to_single_class',
                                          'label_interpolation',
-                                         'use_only_fg_scans']
+                                         'use_only_fg_scans',
+                                         'dataset_properties',
+                                         'normalise']
 
     def _downsample_img_fac_2(self, img, downsample_z=False):
         ndims = len(img.shape)

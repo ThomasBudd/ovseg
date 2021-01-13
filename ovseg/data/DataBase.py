@@ -3,8 +3,7 @@ from os.path import exists, join, basename
 from ovseg.utils import io
 from os import environ, sep, listdir
 import pickle
-from ovseg.data.utils import split_scans_random_uniform, \
-    split_scans_by_patient_id
+from ovseg.data.utils import split_scans_random_uniform, split_scans_by_patient_id
 from ovseg.data.Dataset import Dataset
 
 
