@@ -5,8 +5,9 @@ from ovseg.utils.interp_utils import change_img_pixel_spacing,\
 from ovseg.utils.torch_np_utils import check_type, stack
 from ovseg.utils.io import read_nii_files, load_pkl, save_pkl
 from ovseg.utils.path_utils import my_listdir, maybe_create_path
+from ovseg.utils.dict_equal import dict_equal
 from os.path import join, isdir, exists, basename
-from os import remove, environ, listdir
+from os import environ, listdir
 from tqdm import tqdm
 
 
@@ -143,7 +144,7 @@ class SegmentationPreprocessing(object):
                 self.preprocessing_parameters}
         if exists(outfile):
             data_pkl = load_pkl(outfile)
-            if data_pkl == data:
+            if dict_equal(data_pkl, data):
                 return
             else:
                 raise RuntimeError('Found not matching prerpocessing parameters in '+outfolder+'.')
@@ -199,7 +200,7 @@ class SegmentationPreprocessing(object):
             # nearest neighbour interpolation is easy! Plus it should be very similar to
             # what nnUNet does
             if self.label_interpolation == 'nearest':
-                
+
                 idim = len(shape_in)
                 return change_img_pixel_spacing(img, spacing[:idim],
                                                 self.target_spacing[:idim],
@@ -227,7 +228,7 @@ class SegmentationPreprocessing(object):
                         spacing
                     img = stack([self._downsample_img(img[c], sp) for c in
                                  range(nclasses+1)])
-    
+
                 # bring back to integer encoding
                 if is_np:
                     img = np.argmax(img, 0).astype(np.float32)
@@ -339,7 +340,7 @@ class SegmentationPreprocessing(object):
         if not is_np and self.force_volume_preprocessing_to_cpu:
             dev = volume.device
             volume = volume.cpu().numpy()
-                    
+
         # now let's check if we're using the GPU
         use_gpu = self.try_preprocess_volumes_on_gpu and torch.cuda.device_count() > 0 \
             and not self.force_volume_preprocessing_to_cpu
@@ -349,7 +350,7 @@ class SegmentationPreprocessing(object):
                 volume = torch.from_numpy(volume.astype(np.float32))
             volume = volume.cuda()
 
-        try:        
+        try:
             volume = self.preprocess_sample(volume, spacing)
         except RuntimeError:
             print('RuntimeError caught! This is most likely due to a cuda oom error when '
@@ -357,12 +358,11 @@ class SegmentationPreprocessing(object):
             self.try_preprocess_volumes_on_gpu = False
             self.force_volume_preprocessing_to_cpu = True
 
-
         if use_gpu and is_np:
             # we're a bit lazy here
             # if the input is a torch cpu tensor we're not transferring back
             volume = volume.cpu().numpy()
-        
+
         if not is_np and self.force_volume_preprocessing_to_cpu:
             volume = torch.from_numpy(volume).to(dev)
 
@@ -377,7 +377,7 @@ class SegmentationPreprocessing(object):
     def _maybe_reduce_label(self, lb):
 
         # remove classes from the label for the case we don't want to segment
-        if len(self.use_only_classes) > 0: 
+        if len(self.use_only_classes) > 0:
             lb_new = np.zeros_like(lb)
             for i, c in enumerate(self.use_only_classes):
                 lb_new[lb == c] = i+1
@@ -416,15 +416,25 @@ class SegmentationPreprocessing(object):
         elif not isinstance(raw_data, (tuple, list)):
             raise ValueError('raw_data must be str if only infered from a sinlge folder or '
                              'list/tuple.')
-            
+
         raw_data_name = '_'.join(raw_data)
         # check for exsistence and collect cases
         cases = []
+        case_infos = []
+
         raw_data_path = join(environ['OV_DATA_BASE'], 'raw_data')
         for data_fol in raw_data:
             data_path = join(raw_data_path, data_fol)
             if not exists(data_path):
                 raise FileNotFoundError('Did not find path '+data_path)
+            data_info_file = join(data_path, 'data_info.pkl')
+            if not exists(data_info_file):
+                print('No data information file {} found. '
+                      'Some information in the fingerprints will be not '
+                      'avialble'.format(data_info_file))
+                data_info = {}
+            else:
+                data_info = load_pkl(data_info_file)
             imp, lbp = self._find_nii_subfolder(data_path)
             for case in listdir(lbp):
                 name = case[:-7]
@@ -433,47 +443,65 @@ class SegmentationPreprocessing(object):
                     raise FileNotFoundError('Assumed exactly one image for case {}. Got {}'
                                             ''.format(case, len(im_cases)))
                 cases.append((join(imp, im_cases[0]), join(lbp, case)))
-        return cases, raw_data_name
+
+                # now add some infos
+                case_info = {}
+                for key in ['pat_id', 'dataset', 'timepoint', 'date']:
+                    try:
+                        case_info[key] = data_info[name][key]
+                    except KeyError:
+                        case_info['key'] = 'anonymised'
+
+                # this one is easy to guess
+                if case_info['dataset'] == 'anonymised':
+                    case_info['dataset'] = basename(data_fol)
+
+                case_infos.append(case_info)
+
+        return cases, raw_data_name, case_infos
 
     def preprocess_raw_data(self, raw_data, preprocessed_name='default'):
 
         # get cases and name
-        cases, raw_data_name = self._get_all_cases_from_raw_data(raw_data)
+        cases, raw_data_name, case_infos = self._get_all_cases_from_raw_data(raw_data)
 
         # root folder of all saved preprocessed data
         outfolder = join(environ['OV_DATA_BASE'], 'preprocessed', raw_data_name, preprocessed_name)
         # now let's create the output folders
-        for f in ['images', 'spacings', 'orig_shapes', 'labels']:
+        for f in ['images', 'labels', 'fingerprints']:
             maybe_create_path(join(outfolder, f))
 
         # Let's quickly store the parameters so we can check later
         # what we've done here.
         self.maybe_save_attributes(outfolder)
         # here is the fun
-        for case_pair in tqdm(cases):
+        for case_pair, case_info in tqdm(zip(cases, case_infos)):
             # read files
             volume, spacing = read_nii_files(case_pair)
             im, lb = volume
-            
+
             name = basename(case_pair[1])[:-7]
             orig_shape = volume[0].shape
             volume = self.preprocess_volume(volume, spacing)
             im, lb = volume[0].astype(np.float32), volume[1].astype(np.int8)
             lb = self._maybe_reduce_label(lb)
+            fingerprint = {'spacing': spacing,
+                           'orig_shape': orig_shape,
+                           'raw_image_file': case_pair[0],
+                           'raw_label_file': case_pair[1],
+                           **case_info}
             # first save the image related stuff
             for arr, folder in [[im, 'images'],
                                 [lb, 'labels'],
-                                [orig_shape, 'orig_shapes'],
-                                [spacing, 'spacings']]:
+                                [fingerprint, 'fingerprints']]:
                 np.save(join(outfolder, folder, name), arr)
 
         print('Preprocessing done!')
 
     def plan_preprocessing_raw_data(self, raw_data, percentiles=[0.5, 99.5]):
-    
-        
+
         # first let's get the image and label path
-        cases, raw_data_name = self._get_all_cases_from_raw_data(raw_data)
+        cases, raw_data_name, _ = self._get_all_cases_from_raw_data(raw_data)
         print('Infering preprocessing parameters from '+raw_data_name)
         # foreground vals for windowing
         fg_cvals = []

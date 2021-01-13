@@ -1,10 +1,10 @@
 from os.path import join, exists, basename
 from ovseg.utils import io, path_utils
+from ovseg.utils.dict_equal import dict_equal
 import os
 import torch
 from tqdm import tqdm
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 NO_NAME_FOUND_WARNING_PRINTED = False
@@ -114,7 +114,7 @@ class ModelBase(object):
             self.parameters_match_saved_ones = True
         else:
             model_params_from_pkl = io.load_pkl(self.path_to_params)
-            if self.model_parameters == model_params_from_pkl:
+            if dict_equal(self.model_parameters, model_params_from_pkl):
                 print('Input model parameters match pickled ones')
                 self.parameters_match_saved_ones = True
             else:

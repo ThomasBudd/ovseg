@@ -71,6 +71,8 @@ class JoinedTraining(TrainingBase):
         self.initialise_loss()
 
         # setup optimizer
+        self.model1.network = self.model1.network.to(self.dev)
+        self.model2.network = self.model2.network.to(self.dev)
         self.initialise_opt()
 
     def initialise_loss(self):
@@ -220,8 +222,6 @@ class JoinedTraining(TrainingBase):
         return True
 
     def train(self, try_continue=True):
-        self.model1.network = self.model1.network.to(self.dev)
-        self.model2.network = self.model2.network.to(self.dev)
         loaded = False
         if try_continue:
             if self.load_last_checkpoint():
@@ -263,20 +263,24 @@ class JoinedTraining(TrainingBase):
         spacing = data_tpl['spacing'][0].numpy()
         xycoords = data_tpl['xycoords'][0].numpy()
         recon = self.model1.network(proj)
+        # print('recon device: '+str(recon.device))
         recon_hu = self.model1.postprocessing(recon)
-        recon_prep = self.model2.preprocessing.preprocess_batch(recon_hu,
-                                                                spacing)
+        # print('recon_hu device: '+str(recon_hu.device))
+        recon_prep = self.model2.preprocessing.preprocess_batch(recon_hu, spacing)
+        # print('recon_prep device: '+str(recon_prep[0].device))
         # now crop recon_pred and seg
         batch = []
         for b in range(len(recon_prep)):
             # augment and crop sample by sample
-            sample = self._pad_or_crop_recon(recon_prep[b], seg[b],
-                                             xycoords[b])
+            sample = self._pad_or_crop_recon(recon_prep[b], seg[b], xycoords[b])
             batch.append(torch.cat([sample, seg[b]]))
         batch = torch.stack(batch)
-        batch = self.model2.gpu_augmentation.augment_batch(batch)
+        # print('batch device: '+str(batch.device))
+        batch = self.model2.augmentation.GPU_augmentation.augment_batch(batch)
+        # print('batch_aug device: '+str(batch.device))
         recon_aug, seg_aug = batch[:, :-1], batch[:, -1:]
         pred = self.model2.network(recon_aug)
+        # print('pred device: '+str(pred.device))
         return recon, pred, im_att, seg_aug
 
     def _trn_step_fp32(self, data_tpl):
