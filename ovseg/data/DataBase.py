@@ -10,7 +10,7 @@ from ovseg.data.Dataset import Dataset
 
 class DataBase():
 
-    def __init__(self, val_fold, preprocessed_path, keys, folders, n_folds=5,
+    def __init__(self, val_fold, preprocessed_path, keys, folders, n_folds=4,
                  fixed_shuffle=True, trn_dl_params={}, ds_params={},
                  val_dl_params={}):
         '''
@@ -50,31 +50,15 @@ class DataBase():
             print('Computing new one..')
 
             self.scans = listdir(join(self.preprocessed_path, self.folders[0]))
-            # try to find existing split
-            data_name = self.preprocessed_path.split(sep)[-2]
-            ov_data_base = environ['OV_DATA_BASE']
-            if exists(join(self.preprocessed_path, 'decode.pkl')):
-                decode = io.load_pkl(join(self.preprocessed_path,
-                                          'decode.pkl'))
-                self.splits = split_scans_by_patient_id(self.scans, decode,
-                                                        self.n_folds,
-                                                        self.fixed_shuffle)
-            elif exists(join(ov_data_base, data_name, 'decode.pkl')):
-                decode = io.load_pkl(join(ov_data_base, data_name,
-                                          'decode.pkl'))
-                self.splits = split_scans_by_patient_id(self.scans, decode,
-                                                        self.n_folds,
-                                                        self.fixed_shuffle)
-            else:
-                print('WARNING: no file decode.pkl found in neither the '
-                      'preprocessed nor the raw data path. Random uniform '
-                      'splitting is applied, make sure to create the '
-                      'decode.pkl file if patients have multiple scans in '
-                      'your data.\n In this case remove the splits file and '
-                      'leave the decode.pkl instead.')
-                self.splits = split_scans_random_uniform(self.scans,
-                                                         self.n_folds,
-                                                         self.fixed_shuffle)
+            patient_ids = {}
+            for scan in self.scans:
+                fngprnt = np.load(join(self.preprocessed_path, 'fingerprints', scan),
+                                  allow_pickle=True).item()
+                patient_ids[scan] = fngprnt['dataset'] + '_' + fngprnt['pat_id']
+            self.splits = split_scans_by_patient_id(self.scans,
+                                                    patient_ids,
+                                                    self.n_folds,
+                                                    self.fixed_shuffle)
             io.save_pkl(self.splits, path_to_splits)
             print('New split saved')
 

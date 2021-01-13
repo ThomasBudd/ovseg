@@ -49,14 +49,14 @@ def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
     ds_params = {}
     num_workers = 0 if os.name == 'nt' else 8
     trn_dl_params = {'patch_size': patch_size, 'batch_size': batch_size,
-                     'epoch_len': 250, 'p_fg': 1/3, 'mn_fg': 1,
+                     'epoch_len': 250, 'p_fg': 0, 'mn_fg': 3,
                      'padded_patch_size': None, 'memmap': 'r',
                      'store_coords_in_ram': True, 'num_workers': num_workers}
     val_dl_params = trn_dl_params.copy()
     val_dl_params['epoch_len'] = 25
     keys = ['image', 'label']
     folders = ['images', 'labels']
-    data_params = {'n_folds': 5, 'fixed_shuffle': True, 'ds_params': ds_params,
+    data_params = {'n_folds': 4, 'fixed_shuffle': True, 'ds_params': ds_params,
                    'trn_dl_params': trn_dl_params, 'keys': keys,
                    'val_dl_params': val_dl_params, 'folders': folders}
     model_parameters['data'] = data_params
@@ -83,3 +83,17 @@ def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
                        'p_plot_list': [1, 0.5, 0.2], 'opt_name': 'SGD'}
     model_parameters['training'] = training_params
     return model_parameters
+
+
+def get_model_params_iUNet_segmentation(patch_size_in=[256, 256, 32],
+                                        patch_size_aug=[320, 320, 32]):
+    model_params = get_model_params_2d_segmentation(batch_size=2)
+    model_params['augmentation']['GPU_params']['spatial']['patch_size'] = patch_size_in
+    model_params['architecture'] = 'iUNet'
+    for s in ['val_dl_params', 'trn_dl_params']:
+        model_params['data'][s]['patch_size'] = patch_size_aug
+        model_params['data'][s]['mn_fg'] = 1
+
+    # EDIT DEFAULT VALUES FOR NETWORK HERE
+    model_params['network'] = {}
+    return model_params

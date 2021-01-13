@@ -2,11 +2,12 @@ import torch
 import numpy as np
 from ovseg.data.utils import crop_and_pad_image
 import os
+from tqdm import tqdm
 
 
 class SegmentationBatchDataset(object):
 
-    def __init__(self, vol_ds, patch_size, batch_size, epoch_len=250, p_fg=1/3,
+    def __init__(self, vol_ds, patch_size, batch_size, epoch_len=250, p_fg=0,
                  mn_fg=1, augmentation=None, padded_patch_size=None,
                  store_coords_in_ram=True, memmap='r', image_key='image',
                  label_key='label'):
@@ -38,9 +39,9 @@ class SegmentationBatchDataset(object):
         if self.store_coords_in_ram:
             print('Precomputing foreground coordinates to store them in RAM')
             self.coords_list = []
-            for ind in range(len(self.vol_ds)):
+            for ind in tqdm(range(len(self.vol_ds))):
                 data_dict = self.vol_ds[ind]
-                seg = data_dict['label']
+                seg = data_dict[self.label_key]
                 coords = np.stack(np.where(seg > 0))
                 self.coords_list.append(coords)
             print('Done')
