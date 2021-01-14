@@ -35,6 +35,7 @@ class GrayValueAugmentation(object):
                  p_bright=0.15, fac_bright_mm=[0.7, 1.3],
                  p_contr=0.15, fac_contr_mm=[0.65, 1.5],
                  p_gamma=0.15, gamma_mm=[0.7, 1.5], p_gamma_inv=0.15,
+                 p_alter_mean_std=0, std_mean=0.1, std_std=0.125,
                  aug_channels=[0]):
         # gaussian noise
         self.p_noise = p_noise
@@ -53,16 +54,18 @@ class GrayValueAugmentation(object):
         self.p_gamma = p_gamma
         self.gamma_mm = gamma_mm
         self.p_gamma_inv = p_gamma_inv
+        # altering mean and std
+        self.p_alter_mean_std = p_alter_mean_std
+        self.std_mean = std_mean
+        self.std_std = std_std
         # all channels in this list will be augmented
         self.aug_channels = aug_channels
 
         # torch filters for gaussian blur
         if self.blur_3d:
-            self.gfilter = torch.nn.Conv3d(1, 1, kernel_size=11, bias=False,
-                                           padding=5)
+            self.gfilter = torch.nn.Conv3d(1, 1, kernel_size=11, bias=False, padding=5)
         else:
-            self.gfilter = torch.nn.Conv2d(1, 1, kernel_size=11, bias=False,
-                                           padding=5)
+            self.gfilter = torch.nn.Conv2d(1, 1, kernel_size=11, bias=False, padding=5)
 
     def _torch_uniform(self, mm, device='cpu'):
         return (mm[1] - mm[0]) * torch.rand([], device=device) + mm[0]
@@ -173,6 +176,19 @@ class GrayValueAugmentation(object):
             img = 1 - img
         return img * rng + mn
 
+    def _alter_mean_std(self, img, is_np):
+        if is_np:
+            mean_new = np.random.randn() * self.std_mean
+            std_new = np.random.randn() * self.std_std + 1
+        else:
+            mean_new = torch.randn() * self.std_mean
+            std_new = torch.randn() * self.std_std + 1
+        mean_old = img.mean()
+        std_old = img.std()
+        if std_old < 0.625:
+            std_old = 0.625
+        return (std_new/std_old) * img - mean_old/std_old + mean_new
+
     def augment_image(self, img):
         '''
         augment_img(img)
@@ -186,6 +202,7 @@ class GrayValueAugmentation(object):
         self.do_bright = np.random.rand() < self.p_bright
         self.do_contr = np.random.rand() < self.p_contr
         self.do_gamma = np.random.rand() < self.p_gamma
+        self.do_alter = np.random.rand() < self.p_alter_mean_std
         if self.do_gamma:
             self.invert = np.random.rand() < self.p_gamma_inv
         # Let's-a go!
@@ -199,6 +216,8 @@ class GrayValueAugmentation(object):
             img = self._contrast(img, is_np)
         if self.do_gamma:
             img = self._gamma(img, self.invert, is_np)
+        if self.do_alter:
+            img = self._alter_mean_std(img, is_np)
         return img
 
     def augment_sample(self, sample):
