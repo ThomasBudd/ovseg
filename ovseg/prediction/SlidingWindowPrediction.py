@@ -158,6 +158,8 @@ class SlidingWindowPrediction(object):
         if mode is None:
             mode = self.mode
 
+        self.network.eval()
+
         # check the type and bring to device
         is_np, _ = check_type(volume)
         if is_np:
