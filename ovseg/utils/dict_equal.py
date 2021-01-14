@@ -8,8 +8,20 @@ def dict_equal(dict1, dict2):
 
     keys = dict1.keys()
 
-    is_equal = [dict1[key] == dict2[key] for key in keys]
-    for i, key in enumerate(keys):
-        if isinstance(is_equal[i], np.ndarray):
-            is_equal[i] = np.all(is_equal[i])
-    return np.all(is_equal)
+    for key in keys:
+        item1, item2 = dict1[key], dict2[key]
+        if not isinstance(item1, type(item2)):
+            return False
+
+        if isinstance(item1, np.ndarray):
+            if not np.all(item1 == item2):
+                return False
+
+        elif isinstance(item1, dict):
+            if not dict_equal(item1, item2):
+                return False
+        else:
+            if not item1 == item2:
+                return False
+
+    return True
