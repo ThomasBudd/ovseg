@@ -41,7 +41,8 @@ class SegmentationPreprocessing(object):
                  use_only_classes=None,
                  reduce_to_single_class=False,
                  try_preprocess_volumes_on_gpu=True,
-                 label_interpolation='nearest'):
+                 label_interpolation='nearest',
+                 **kwargs):
 
         self.apply_resizing = apply_resizing
         self.target_spacing = target_spacing
@@ -459,13 +460,16 @@ class SegmentationPreprocessing(object):
 
         return cases, raw_data_name, case_infos
 
-    def preprocess_raw_data(self, raw_data, preprocessed_name='default'):
+    def preprocess_raw_data(self, raw_data, data_name=None, preprocessed_name='default'):
 
         # get cases and name
         cases, raw_data_name, case_infos = self._get_all_cases_from_raw_data(raw_data)
 
+        if data_name is None:
+            data_name = raw_data_name
+
         # root folder of all saved preprocessed data
-        outfolder = join(environ['OV_DATA_BASE'], 'preprocessed', raw_data_name, preprocessed_name)
+        outfolder = join(environ['OV_DATA_BASE'], 'preprocessed', data_name, preprocessed_name)
         # now let's create the output folders
         for f in ['images', 'labels', 'fingerprints']:
             maybe_create_path(join(outfolder, f))

@@ -1,5 +1,9 @@
 import torch.nn as nn
-from iunets import iUNet as iUNetModel
+try:
+    from iunets import iUNet as iUNetModel
+except ModuleNotFoundError:
+    print('iUNet not found.')
+
 
 class iUNet(nn.Module):
     """Implements the invertible U-Net.
@@ -29,7 +33,7 @@ class iUNet(nn.Module):
             padding=1
         )
 
-        iunet = iUNet(
+        iunet = iUNetModel(
             in_channels=intermediate_channels,
             dim=2 if is_2d else 3,
         )

@@ -5,17 +5,8 @@ import torch
 
 class SegmentationTraining(NetworkTraining):
 
-    def __init__(self, network, trn_dl,  model_path, loss_params={},
-                 num_epochs=1000, opt_params=None, lr_params=None,
-                 augmentation=None, val_dl=None, dev='cuda', nu_ema_trn=0.99,
-                 nu_ema_val=0.7, network_name='network', fp32=False,
-                 p_plot_list=[1, 0.5, 0.2], opt_name=None, image_key='image',
-                 label_key='label'):
-        super().__init__(network, trn_dl,  model_path, loss_params={},
-                         num_epochs=1000, opt_params=None, lr_params=None,
-                         augmentation=None, val_dl=None, dev='cuda', nu_ema_trn=0.99,
-                         nu_ema_val=0.7, network_name='network', fp32=False,
-                         p_plot_list=[1, 0.5, 0.2], opt_name=None)
+    def __init__(self, *args, image_key='image', label_key='label', **kwargs):
+        super().__init__(*args, **kwargs)
         self.image_key = image_key
         self.label_key = label_key
 

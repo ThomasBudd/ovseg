@@ -19,7 +19,7 @@ def eval_prediction_segmentation(seg, pred):
         tp = np.sum(seg_c * pred_c)
         seg_c_vol = np.sum(seg_c)
         pred_c_vol = np.sum(pred_c)
-        if has_fg and fg_pred:
+        if has_fg or fg_pred:
             dice = 200 * tp / (seg_c_vol + pred_c_vol)
         else:
             dice = 100

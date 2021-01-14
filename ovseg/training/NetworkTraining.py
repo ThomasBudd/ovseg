@@ -22,7 +22,7 @@ class NetworkTraining(TrainingBase):
                  num_epochs=1000, opt_params=None, lr_params=None,
                  augmentation=None, val_dl=None, dev='cuda', nu_ema_trn=0.99,
                  nu_ema_val=0.7, network_name='network', fp32=False,
-                 p_plot_list=[1, 0.5, 0.2], opt_name=None):
+                 p_plot_list=[1, 0.5, 0.2], opt_name='SGD'):
         super().__init__(trn_dl, num_epochs, model_path)
 
         self.network = network
@@ -58,7 +58,7 @@ class NetworkTraining(TrainingBase):
         if self.opt_params is None:
             self.print_and_log('No modifications from standard opt parameters'
                                ' found, load default.')
-            
+
             if self.opt_name.lower() == 'sgd':
                 self.opt_params = default_SGD_params
             elif self.opt_name.lower() == 'adam':
