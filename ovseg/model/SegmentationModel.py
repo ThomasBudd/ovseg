@@ -142,8 +142,7 @@ class SegmentationModel(ModelBase):
                                  **params)
         print('Training initialised')
 
-    def predict(self, data, do_preprocessing=False, do_postprocessing=True,
-                to_original_shape=False):
+    def predict(self, data, is_preprocessed):
         '''
         There are a lot of differnt ways to do prediction. Some do require direct preprocessing
         some don't need the postprocessing imidiately (e.g. when ensembling)
@@ -162,15 +161,16 @@ class SegmentationModel(ModelBase):
         # Validation scans should be prepocessed and when we perform ensembling to testing
         # we would only preprocess the data once and then hand these images in each model
         with torch.no_grad():
-            if do_preprocessing:
+            if not is_preprocessed:
+                orig_shape = im.shape
                 im = self.preprocessing(im, data['spacing'])
+            else:
+                orig_shape = None
 
             # no the importat part: the sliding window evaluation (or derivatices of it)
             pred = self.prediction(im)
 
-            if do_postprocessing:
-                orig_shape = data['orgi_shape'] if to_original_shape else None
-                pred = self.postprocessing(pred, orig_shape)
+            pred = self.postprocessing(pred, orig_shape)
 
         if torch.is_tensor(pred):
             pred = pred.cpu().numpy()

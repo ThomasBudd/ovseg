@@ -54,6 +54,9 @@ class Dataset(object):
             f = np.load(path_to_fp, allow_pickle=True).item()
             data_dict.update(f)
         name = basename(scan).split('.')[0]
+        for key in ['dataset', 'pat_id', 'timepoint']:
+            if key in f:
+                name = name + '_' + f[key]
         data_dict['name'] = name
 
         return data_dict

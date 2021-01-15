@@ -145,7 +145,7 @@ class SegmentationPreprocessing(object):
             img = self._downsample_img_fac_2(img, downsample_z2)
         return img
 
-    def maybe_save_attributes(self, outfolder):
+    def maybe_save_preprocessing_parameters(self, outfolder):
         outfile = join(outfolder, 'preprocessing_parameters.pkl')
         data = {key: self.__getattribute__(key) for key in
                 self.preprocessing_parameters}
@@ -157,6 +157,14 @@ class SegmentationPreprocessing(object):
                 raise RuntimeError('Found not matching prerpocessing parameters in '+outfolder+'.')
         else:
             save_pkl(data, outfile)
+
+    def load_preprocessing_parameters(self, path_to_params):
+        if not path_to_params.endswith('preprocessing_parameters.pkl'):
+            path_to_params = join(path_to_params, 'preprocessing_parameters.pkl')
+        print('Loading preprocessing parameters from '+path_to_params)
+        data = load_pkl(path_to_params)
+        for key in data:
+            self.__setattr__(key, data[key])
 
     def preprocess_image(self, img, is_seg, spacing=None):
         '''
@@ -476,7 +484,7 @@ class SegmentationPreprocessing(object):
 
         # Let's quickly store the parameters so we can check later
         # what we've done here.
-        self.maybe_save_attributes(outfolder)
+        self.maybe_save_preprocessing_parameters(outfolder)
         # here is the fun
         print()
         for case_pair, case_info in tqdm(zip(cases, case_infos)):

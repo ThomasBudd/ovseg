@@ -16,6 +16,7 @@ class ModelBase(object):
         - preprocessing
         - augmentation
         - network
+        - prediction
         - postprocessing
         - data
         - training
@@ -212,7 +213,7 @@ class ModelBase(object):
                                   ' implement an empty function, or use '
                                   '\'is_inferece_only=True.')
 
-    def predict(self, data_dict, mode='test'):
+    def predict(self, data_dict, is_preprocessed):
         raise NotImplementedError('predict function must be implemented in '
                                   'childclass.')
 
@@ -260,7 +261,7 @@ class ModelBase(object):
                                        for metric in metric_names])
                 file.write(s.format(*metrics[j]) + '\n')
 
-    def validate(self, save_preds=True, plot=True):
+    def eval_ds(self, ds, is_preprocessed, ds_name, save_preds=True, plot=True):
         '''
         iterates over the validation set and does the evaluation of the
         full 3d volumes. Results will be saved in the model (cv) path.
@@ -268,13 +269,13 @@ class ModelBase(object):
         global NO_NAME_FOUND_WARNING_PRINTED
 
         # we're going to store the validation results here
-        val_folder = join(self.model_path, 'validation')
-        folder_list = [val_folder]
+        eval_folder = join(self.model_path, ds_name)
+        folder_list = [eval_folder]
         if save_preds:
-            pred_folder = join(val_folder, 'predictions')
+            pred_folder = join(eval_folder, 'predictions')
             folder_list.append(pred_folder)
         if plot:
-            plot_folder = join(val_folder, 'plots')
+            plot_folder = join(eval_folder, 'plots')
             folder_list.append(plot_folder)
 
         # make folders
@@ -283,36 +284,23 @@ class ModelBase(object):
                 os.mkdir(folder)
 
         results = {}
-        for i in tqdm(range(len(self.data.val_ds))):
-            data_dict = self.data.val_ds[i]
+        for i in tqdm(range(len(ds))):
+            data_dict = ds[i]
             # first let's try to find the name
             if 'name' in data_dict.keys():
                 name = data_dict['name']
-            elif 'case' in data_dict.keys():
-                name = data_dict['case']
-            elif 'scan' in data_dict.keys():
-                name = data_dict['scan']
-            elif hasattr(self.data.val_ds, 'names'):
-                name = basename(self.data.val_ds.names[i]).split('.')[0]
-            elif hasattr(self.data.val_ds, 'scans'):
-                name = basename(self.data.val_ds.scans[i]).split('.')[0]
-            elif hasattr(self.data.val_ds, 'cases'):
-                name = basename(self.data.val_ds.cases[i]).split('.')[0]
             else:
-                d = str(int(np.ceil(np.log10(len(self.data.val_ds)))))
+                d = str(int(np.ceil(np.log10(len(ds)))))
                 name = 'case_%0'+d+'d'
                 name = name % i
                 if not NO_NAME_FOUND_WARNING_PRINTED:
                     print('Warning! Could not find a name for the prediction.'
-                          'Please make sure that either the data of val_ds '
-                          'has a key \'name\', \'case\' or \'scan\', or '
-                          'that at least the data set has \'names\', \'scans\''
-                          ' or \'cases\' as an attribute. Now we have to '
-                          'choose the generic naming case_xxx')
+                          'Please make sure that the items of the dataset have a key \'name\'.'
+                          'Choose generic naming case_xxx as names.')
                     NO_NAME_FOUND_WARNING_PRINTED = True
 
             # predict from this datapoint
-            pred = self.predict(data_dict)
+            pred = self.predict(data_dict, is_preprocessed)
 
             # now compute the error metrics that we like
             metrics = self.compute_error_metrics(pred, data_dict)
@@ -328,7 +316,7 @@ class ModelBase(object):
 
         # iteration done. Let's store the results and get out of here!
         # first we store the results for this fold in the validation folder
-        self._save_results_to_pkl_and_txt(results, val_folder)
+        self._save_results_to_pkl_and_txt(results, eval_folder)
 
         # we also store the results in the CV folder and merge them with
         # possible other results from other folds
@@ -344,3 +332,11 @@ class ModelBase(object):
 
         # the merged results are kept in the model_cv_path
         self._save_results_to_pkl_and_txt(merged_results, self.model_cv_path)
+
+    def eval_validation_set(self, save_preds=True, plot=True):
+        self.eval_ds(self.data.val_ds, is_preprocessed=True, ds_name='validation',
+                     save_preds=save_preds, plot=plot)
+
+    def eval_training_set(self, save_preds=False, plot=True):
+        self.eval_ds(self.data.trn_ds, is_preprocessed=True, ds_name='training',
+                     save_preds=save_preds, plot=plot)
