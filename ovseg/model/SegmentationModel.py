@@ -32,12 +32,14 @@ class SegmentationModel(ModelBase):
     def __init__(self, val_fold: int, data_name: str, model_name: str,
                  model_parameters=None, preprocessed_name=None,
                  network_name='network', is_inference_only: bool = False,
-                 fmt_write='{:.4f}', model_parameters_name='model_parameters'):
+                 fmt_write='{:.4f}', model_parameters_name='model_parameters',
+                 plot_n_random_slices=1):
         super().__init__(val_fold=val_fold, data_name=data_name, model_name=model_name,
                          model_parameters=model_parameters, preprocessed_name=preprocessed_name,
                          network_name=network_name, is_inference_only=is_inference_only,
                          fmt_write=fmt_write, model_parameters_name=model_parameters_name)
         self.initialise_prediction()
+        self.plot_n_random_slices = plot_n_random_slices
 
     def initialise_preprocessing(self):
         if 'preprocessing' not in self.model_parameters:
@@ -198,14 +200,23 @@ class SegmentationModel(ModelBase):
         seg = (data['label'] > 0).astype(float)
         pred = (pred.copy() > 0).astype(float)
 
-        contains = np.where(np.sum(seg, (0, 1)))[0]
+        contains = np.where(np.sum((seg + pred) > 0, (0, 1)))[0]
         if len(contains) == 0:
             return
-        z_max = np.argmax(np.sum(seg, (0, 1)))
-        z_random = np.random.choice(contains)
+
+        z_list = []
+        s_list = []
+        if seg.max() > 0:
+            z_list.append(np.argmax(np.sum(seg, (0, 1))))
+            s_list.append('_largest')
+        z_list.extend(np.random.choice(contains, size=self.plot_n_random_slices))
+        if self.plot_n_random_slices > 1:
+            s_list.extend(['_random_{}'.format(i) for i in range(self.plot_n_random_slices)])
+        else:
+            s_list.append('_random')
 
         # now plot largest and random slice
-        for z, s in zip([z_max, z_random], ['_largest', '_random']):
+        for z, s in zip(z_list, s_list):
             fig = plt.figure()
             plt.imshow(im[..., z], cmap='gray')
             plt.contour(seg[..., z] > 0, linewidths=0.5, colors='r', linestyles='solid')
