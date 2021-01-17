@@ -109,7 +109,7 @@ class Reconstruction2dSimPreprocessing(object):
             maybe_create_path(os.path.join(preprocessed_data_base, f))
 
         for scan in tqdm(scans):
-            name = os.path.basename(scan)[:-7]
+            name = os.path.basename(scan)[:8]
             volume = nib.load(scan).get_fdata()
             try:
                 proj, im = self.preprocess_volume(volume)

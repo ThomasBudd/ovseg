@@ -8,8 +8,8 @@ def get_model_params_2d_reconstruction(architecture='reconstruction_network_fbp_
     trn_dl_params = {'batch_size': batch_size, 'epoch_len': 250}
     val_dl_params = trn_dl_params.copy()
     val_dl_params['epoch_len'] = 25
-    keys = ['image', 'projection', 'spacing']
-    folders = [image_folder, projection_folder, 'spacings']
+    keys = ['image', 'projection']
+    folders = [image_folder, projection_folder]
     data_params = {'n_folds': 4, 'fixed_shuffle': True,
                    'trn_dl_params': trn_dl_params,
                    'val_dl_params': val_dl_params,
