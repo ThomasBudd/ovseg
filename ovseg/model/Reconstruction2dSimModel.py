@@ -24,6 +24,7 @@ class Reconstruction2dSimModel(ModelBase):
                  network_name='network', is_inference_only: bool = False,
                  fmt_write='{:.4f}', mu=0.0192, batch_size_val=4,
                  fp32_val=False, plot_window=[-150, 250]):
+        self.dev = 'cuda' if torch.cuda.device_count() > 0 else 'cpu'
         super().__init__(val_fold=val_fold, data_name=data_name,
                          model_name=model_name,
                          model_parameters=model_parameters,
@@ -35,7 +36,6 @@ class Reconstruction2dSimModel(ModelBase):
         self.batch_size_val = batch_size_val
         self.fp32_val = fp32_val
         self.plot_window = plot_window
-        self.dev = 'cuda' if torch.cuda.device_count() > 0 else 'cpu'
 
     def initialise_preprocessing(self):
         operator_kwargs = self.model_parameters['operator']
