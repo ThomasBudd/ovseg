@@ -1,27 +1,29 @@
 
 
-def get_model_params_2d_reconstruction(dose, batch_size=12,
-                                       image_folder='images'):
+def get_model_params_2d_reconstruction(architecture='reconstruction_network_fbp_convs',
+                                       image_folder='images_att',
+                                       projection_folder='projections'):
     model_parameters = {}
-
+    batch_size = 12 if architecture == 'reconstruction_network_fbp_convs' else 1
     trn_dl_params = {'batch_size': batch_size, 'epoch_len': 250}
     val_dl_params = trn_dl_params.copy()
     val_dl_params['epoch_len'] = 25
     keys = ['image', 'projection', 'spacing']
-    folders = [image_folder, 'projections_'+dose, 'spacings']
+    folders = [image_folder, projection_folder, 'spacings']
     data_params = {'n_folds': 4, 'fixed_shuffle': True,
                    'trn_dl_params': trn_dl_params,
                    'val_dl_params': val_dl_params,
                    'keys': keys, 'folders': folders}
     model_parameters['data'] = data_params
-    model_parameters['operator'] = {'n_angles':256, 'det_count':724}
-    model_parameters['preprocessing'] = {'num_photons':2*10**6,
-                                         'mu_water':0.0192}
-    model_parameters['architecture'] = 'reconstruction_network_fbp_convs'
+    model_parameters['operator'] = {}
+    model_parameters['preprocessing'] = {'num_photons': 2*10**6,
+                                         'mu_water': 0.0192}
+    model_parameters['architecture'] = architecture
     # now finally the training!
     loss_params = {'l1weight': 0}
     opt_params = {'lr': 10**-4}
-    lr_params = {'beta': 0.9, 'lr_min': 0}
+    beta = 0.9 if architecture == 'reconstruction_network_fbp_convs' else 0.99
+    lr_params = {'beta': beta, 'lr_min': 0}
     training_params = {'loss_params': loss_params,
                        'num_epochs': 300, 'opt_params': opt_params,
                        'lr_params': lr_params, 'nu_ema_trn': 0.99,
