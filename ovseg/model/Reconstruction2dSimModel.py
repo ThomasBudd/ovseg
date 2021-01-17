@@ -6,7 +6,7 @@ from ovseg.utils.io import save_nii
 import pickle
 import matplotlib.pyplot as plt
 from ovseg.networks.recon_networks import reconstruction_network_fbp_convs, get_operator, \
-    reconstruction_network_fbp_ops
+    learned_primal_dual
 from ovseg.training.ReconstructionNetworkTraining import \
     ReconstructionNetworkTraining
 from ovseg.data.ReconstructionData import ReconstructionData
@@ -35,6 +35,7 @@ class Reconstruction2dSimModel(ModelBase):
         self.batch_size_val = batch_size_val
         self.fp32_val = fp32_val
         self.plot_window = plot_window
+        self.dev = 'cuda' if torch.cuda.device_count() > 0 else 'cpu'
 
     def initialise_preprocessing(self):
         operator_kwargs = self.model_parameters['operator']
@@ -51,8 +52,9 @@ class Reconstruction2dSimModel(ModelBase):
         architecture = self.model_parameters['architecture'].lower()
         if architecture == 'reconstruction_network_fbp_convs':
             self.network = reconstruction_network_fbp_convs(self.operator)
-        elif architecture == 'reconstruction_network_fbp_ops':
-            self.network = reconstruction_network_fbp_ops(self.operator)
+        elif architecture in ['lpd', 'learnedprimaldual', 'learned-primal-dual']:
+            self.network = learned_primal_dual(self.operator)
+        self.network = self.network.to(self.dev)
 
     def initialise_postprocessing(self):
         print('postprocessing initialised')
@@ -223,4 +225,9 @@ class Reconstruction2dSimModel(ModelBase):
         Imax2 = (im - im.min()).max()**2
         PSNR = 10 * np.log10(Imax2 / mse)
         rel_mse = mse / np.mean(im**2)
-        return {'PSNR': PSNR, 'rel_mse': rel_mse}
+        im_win = im.clip(*self.plot_window)
+        pred_win = pred.clip(*self.plot_window)
+        mse_win = np.mean((pred_win - im_win)**2)
+        Imax2_win = (im_win - im_win.min()).max()**2
+        PSNR_win = 10 * np.log10(Imax2_win / mse_win)
+        return {'PSNR': PSNR, 'PSNR_win': PSNR_win, 'rel_mse': rel_mse}
