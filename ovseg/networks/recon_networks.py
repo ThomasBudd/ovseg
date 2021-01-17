@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch_radon import Radon
-from ovseg.networks.UNet import UNet
 
 
 def get_operator(n_angles=256, det_count=724):
