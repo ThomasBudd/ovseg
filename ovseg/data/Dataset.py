@@ -25,17 +25,19 @@ class Dataset(object):
         # these will carry all the pathes to data we need for training
         self.path_dicts = []
         for scan in self.scans:
-            path_dict = {}
-            for key, folder in zip(self.keys, self.folders):
-                path_dict[key] = join(self.preprocessed_path, folder, scan)
-            self.path_dicts.append(path_dict)
+            path_dict = {key: join(join(self.preprocessed_path, folder, scan))
+                         for key, folder in zip(self.keys, self.folders)}
+            if np.all([exists(path_dict[key]) for key in self.keys]):
+                self.path_dicts.append(path_dict)
+            else:
+                print('Warning some .npy files of scan {} missing'.format(scan))
 
         for key in kwargs:
             print('Got unexcpected keyword '+key+' with value' +
                   str(kwargs[key]) + ' as input to dataset.')
 
     def __len__(self):
-        return len(self.scans)
+        return len(self.path_dicts)
 
     def __getitem__(self, ind=None):
 
