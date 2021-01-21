@@ -301,6 +301,8 @@ class ModelBase(object):
 
             # predict from this datapoint
             pred = self.predict(data_dict, is_preprocessed)
+            if torch.is_tensor(pred):
+                pred = pred.cpu().numpy()
 
             # now compute the error metrics that we like
             metrics = self.compute_error_metrics(pred, data_dict)
