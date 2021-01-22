@@ -54,6 +54,8 @@ def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
                      'store_coords_in_ram': True, 'num_workers': num_workers}
     val_dl_params = trn_dl_params.copy()
     val_dl_params['epoch_len'] = 25
+    val_dl_params['store_data_in_ram'] = True
+    val_dl_params['n_max_volumes'] = 50
     keys = ['image', 'label']
     folders = ['images', 'labels']
     data_params = {'n_folds': 4, 'fixed_shuffle': True, 'ds_params': ds_params,
