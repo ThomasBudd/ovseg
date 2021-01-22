@@ -318,7 +318,7 @@ class ModelBase(object):
 
         # iteration done. Let's store the results and get out of here!
         # first we store the results for this fold in the validation folder
-        self._save_results_to_pkl_and_txt(results, eval_folder)
+        self._save_results_to_pkl_and_txt(results, eval_folder, name=ds_name)
 
         # we also store the results in the CV folder and merge them with
         # possible other results from other folds

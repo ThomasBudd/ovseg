@@ -4,6 +4,11 @@ import torch
 
 class ReconstructionNetworkTraining(NetworkTraining):
 
+    def __init__(self, *args, image_key='image', projection_key='projection', **kwargs):
+        super().__init__(*args, **kwargs)
+        self.image_key = image_key
+        self.projection_key = projection_key
+
     def initialise_loss(self):
         self.mse = torch.nn.MSELoss()
         self.l1loss = torch.nn.L1Loss()
@@ -22,7 +27,7 @@ class ReconstructionNetworkTraining(NetworkTraining):
             self.l1loss(x1, x2)
 
     def compute_batch_loss(self, batch):
-        xb, yb = batch[0][0].to(self.dev), batch[1][0].to(self.dev)
+        xb, yb = batch[self.projection_key].to(self.dev), batch[self.image_key].to(self.dev)
         out = self.network(xb)
         loss = self.loss_fctn(out, yb)
         return loss
