@@ -8,14 +8,15 @@ import nibabel as nib
 
 
 class Reconstruction2dSimPreprocessing(object):
-
     '''
     Does what the name comes from: Simulation of the 2d sinograms
     '''
-    def __init__(self, operator, num_photons=2*10**6, mu_water=0.0192):
+
+    def __init__(self, operator, num_photons=2*10**6, mu_water=0.0192, window=[-50, 350]):
         self.operator = operator
         self.num_photons = num_photons
         self.mu_water = mu_water
+        self.window = window
 
     def preprocess_image(self, img):
         # input img must be in HU
@@ -33,22 +34,31 @@ class Reconstruction2dSimPreprocessing(object):
                              'only implemented for 2d images. '
                              'Got shape {}'.format(len(img.shape)))
 
-        im_att = img/1000 * self.mu_water + self.mu_water
+        # bring the image to the desired coordinates
+        # the mu_scale makes sure that the number of photons adds the same noise regardless
+        # of the image scaling
+        if self.window is None:
+            im_att = img/1000 * self.mu_water + self.mu_water
+            mu_scale = 1
+        else:
+            im_att = (img.clip(*self.window) - self.window[0])/(self.window[1] - self.window[0])
+            mu_scale = (self.window[1] - self.window[0]) * self.mu_water / 1000
+
         im_att = im_att.type(torch.float).clamp(0).to('cuda')
 
         clean_proj = self.operator.forward(im_att)
-        clean_proj_exp = torch.exp(-1 * clean_proj)
+        clean_proj_exp = torch.exp(-1 * mu_scale * clean_proj)
         noisy_proj = torch.poisson(clean_proj_exp * self.num_photons) / \
             self.num_photons
-        noisy_proj = -1 * torch.log(noisy_proj + 1e-6)
-        
+        noisy_proj = -1 * torch.log(noisy_proj + 1e-6) / mu_scale
+
         if is_np:
             return noisy_proj.cpu().numpy(), im_att.cpu().numpy()
         else:
             return noisy_proj, im_att
 
     def preprocess_volume(self, volume):
-        #input volume must be in HU
+        # input volume must be in HU
         check_type(volume)
         if not len(volume.shape) == 3:
             raise ValueError('Preprocessing/simulation of projection data is '

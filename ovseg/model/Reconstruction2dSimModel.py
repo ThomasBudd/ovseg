@@ -22,7 +22,7 @@ class Reconstruction2dSimModel(ModelBase):
     def __init__(self, val_fold: int, data_name: str, model_name: str,
                  model_parameters=None, preprocessed_name=None,
                  network_name='network', is_inference_only: bool = False,
-                 fmt_write='{:.4f}', mu=0.0192, batch_size_val=4,
+                 fmt_write='{:.4f}', batch_size_val=4,
                  fp32_val=False, plot_window=[-150, 250]):
         self.dev = 'cuda' if torch.cuda.device_count() > 0 else 'cpu'
         super().__init__(val_fold=val_fold, data_name=data_name,
@@ -32,7 +32,6 @@ class Reconstruction2dSimModel(ModelBase):
                          network_name=network_name,
                          is_inference_only=is_inference_only,
                          fmt_write=fmt_write)
-        self.mu = mu
         self.batch_size_val = batch_size_val
         self.fp32_val = fp32_val
         self.plot_window = plot_window
@@ -57,6 +56,8 @@ class Reconstruction2dSimModel(ModelBase):
         self.network = self.network.to(self.dev)
 
     def initialise_postprocessing(self):
+        self.mu_water = self.preprocessing.mu_water
+        self.window = self.preprocessing.window
         print('postprocessing initialised')
 
     def initialise_data(self):
@@ -93,13 +94,18 @@ class Reconstruction2dSimModel(ModelBase):
         maps image gary values to HU
 
         '''
+        mm = [0] if self.window is None else [0, 1]
         if isinstance(im, np.ndarray):
-            im = np.maximum(im, 0)
+            im = im.clip(*mm)
         elif torch.is_tensor(im):
-            im = im.clip(0)
+            im = im.clamp(*mm)
         else:
             raise TypeError('Input must be np.ndarray or torch tensor')
-        im_HU = (im - self.mu)/self.mu*1000
+        if self.window is None:
+            im_HU = (im - self.mu_water)/self.mu_water*1000
+        else:
+            im_HU = im * (self.window[1] - self.window[0]) + self.window[0]
+
         return im_HU
 
     def predict(self, data_dict, return_torch=False):
