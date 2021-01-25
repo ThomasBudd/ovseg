@@ -289,6 +289,7 @@ class ModelBase(object):
                       '. Their content wasn\'t checked, but the evaluation will be skipped.\n'
                       'If you want to force the evaluation please delete the old files and folders '
                       'or pass force_evaluation=True.\n\n')
+                return
 
         # make folders
         for folder in folder_list:
@@ -296,6 +297,7 @@ class ModelBase(object):
                 os.mkdir(folder)
 
         results = {}
+        print('Evaluation '+ds_name+'...\n\n')
         for i in tqdm(range(len(ds))):
             data_dict = ds[i]
             # first let's try to find the name

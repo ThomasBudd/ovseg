@@ -34,7 +34,7 @@ class TrainingBase():
         # with the attributes you want to save
         self.checkpoint_attributes = ['epochs_done', 'trn_start_time', 'trn_end_time',
                                       'total_train_time']
-
+        self.print_attributes = ['model_path', 'num_epochs', 'trn_dl.dataset.scans']
         # make model_path and training_log
         maybe_create_path(self.model_path)
         self.training_log = join(self.model_path, 'training_log.txt')

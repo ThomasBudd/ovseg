@@ -4,7 +4,7 @@ def get_model_params_2d_reconstruction(architecture='reconstruction_network_fbp_
                                        image_folder='images_att',
                                        projection_folder='projections'):
     model_parameters = {}
-    batch_size = 12 if architecture == 'reconstruction_network_fbp_convs' else 1
+    batch_size = 12 if architecture == 'reconstruction_network_fbp_convs' else 4
     trn_dl_params = {'batch_size': batch_size, 'epoch_len': 250}
     val_dl_params = trn_dl_params.copy()
     val_dl_params['epoch_len'] = 25

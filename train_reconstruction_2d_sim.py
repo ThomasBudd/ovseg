@@ -29,6 +29,6 @@ for architecture in ['reconstruction_network_fbp_convs', 'LPD']:
                                      model_name=architecture,
                                      model_parameters=model_parameters)
     model.training.train()
-    model.eval_validation_set(save_preds=False)
-    model.eval_training_set(save_preds=False)
+    model.eval_validation_set(save_preds=True)
+    model.eval_training_set(save_preds=True)
     torch.cuda.empty_cache()
