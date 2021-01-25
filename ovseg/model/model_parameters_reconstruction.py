@@ -23,8 +23,9 @@ def get_model_params_2d_reconstruction(architecture='reconstruction_network_fbp_
     model_parameters['architecture'] = architecture
     # now finally the training!
     loss_params = {'l1weight': 0}
-    beta1 = 0.9 if architecture == 'reconstruction_network_fbp_convs' else 0.99
-    opt_params = {'lr': 10**-4, 'betas': (beta1, 0.999)}
+    betas = (0.9, 0.999) if architecture == 'reconstruction_network_fbp_convs' else (0.5, 0.99)
+    lr = 10**-4 if architecture == 'reconstruction_network_fbp_convs' else 5*10**-5
+    opt_params = {'lr': lr, 'betas': betas}
     lr_params = {'beta': 0.9, 'lr_min': 0}
     training_params = {'loss_params': loss_params,
                        'num_epochs': 300, 'opt_params': opt_params,
