@@ -19,6 +19,13 @@ class Reconstruction2dSimPreprocessing(object):
         self.window = window
 
     def preprocess_image(self, img):
+        '''
+        Simulation of 2d sinograms and windowing/rescaling of images
+        If im is the image after rescaling (and windowing) and R the Ray transform we simulate as
+
+            proj = -1/mu x log( Poisson(n_photons x exp(-mu R(im)))/n_photons )
+        mu is just a scaling constant to
+        '''
         # input img must be in HU
         if isinstance(img, np.ndarray):
             img = torch.from_numpy(img)

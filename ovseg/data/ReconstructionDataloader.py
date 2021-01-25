@@ -51,8 +51,8 @@ class Reconstruction2dDataset(object):
     def __getitem__(self, index):
         proj, im = self._get_volume_tuple()
         z = np.random.randint(im.shape[-1])
-        proj = proj[np.newaxis, np.newaxis, ..., z]
-        im = im[np.newaxis, np.newaxis, ..., z]
+        proj = proj[np.newaxis, ..., z]
+        im = im[np.newaxis, ..., z]
         if self.return_fp16:
             proj, im = proj.astype(np.float16), im.astype(np.float16)
         return {self.image_key: im, self.projection_key: proj}
