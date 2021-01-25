@@ -107,26 +107,26 @@ class proximal_convs(nn.Module):
 
 
 class proximal_dual(nn.Module):
-    def __init__(self, radon, sigma_init=0.001):
+    def __init__(self, radon, sigma_init=0.025):
         super().__init__()
         self.prox_conv = proximal_convs(7)
         self.radon = radon
         self.sigma = nn.Parameter(torch.ones(1)*sigma_init)
 
     def forward(self, h, f, g):
-        Kf = self.radon.forward(f[:, 1:2])
+        Kf = self.sigma * self.radon.forward(f[:, 1:2])
         return h + self.prox_conv(torch.cat([h, Kf, g], 1))
 
 
 class proximal_primal(nn.Module):
-    def __init__(self, radon, tau_init=0.001):
+    def __init__(self, radon, tau_init=0.00025):
         super().__init__()
         self.prox_conv = proximal_convs(6)
         self.radon = radon
         self.tau = nn.Parameter(torch.ones(1)*tau_init)
 
     def forward(self, h, f):
-        Kadjh = self.radon.backprojection(h[:, 0:1])
+        Kadjh = self.tau * self.radon.backprojection(h[:, 0:1])
         return f + self.prox_conv(torch.cat([f, Kadjh], 1))
 
 
