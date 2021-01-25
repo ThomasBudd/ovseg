@@ -96,9 +96,9 @@ class reconstruction_network_fbp_convs(nn.Module):
 class proximal_convs(nn.Module):
     def __init__(self, n_in, n_hid=32, n_out=5):
         super().__init__()
-        self.conv1 = nn.Conv2d(n_in, n_hid, 5, padding=1)
-        self.conv2 = nn.Conv2d(n_hid, n_hid, 5, padding=1)
-        self.conv3 = nn.Conv2d(n_hid, n_out, 5, padding=1)
+        self.conv1 = nn.Conv2d(n_in, n_hid, 5, padding=2)
+        self.conv2 = nn.Conv2d(n_hid, n_hid, 5, padding=2)
+        self.conv3 = nn.Conv2d(n_hid, n_out, 5, padding=2)
         self.act1 = nn.PReLU(num_parameters=1, init=0.25)
         self.act2 = nn.PReLU(num_parameters=1, init=0.25)
 
