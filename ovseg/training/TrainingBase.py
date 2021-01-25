@@ -34,7 +34,7 @@ class TrainingBase():
         # with the attributes you want to save
         self.checkpoint_attributes = ['epochs_done', 'trn_start_time', 'trn_end_time',
                                       'total_train_time']
-        self.print_attributes = ['model_path', 'num_epochs', 'trn_dl.dataset.scans']
+        self.print_attributes = ['model_path', 'num_epochs', 'trn_dl.dataset.vol_ds.scans']
         # make model_path and training_log
         maybe_create_path(self.model_path)
         self.training_log = join(self.model_path, 'training_log.txt')
@@ -91,6 +91,19 @@ class TrainingBase():
         if self.trn_start_time == -1:
             # keep date when training started
             self.trn_start_time = time.asctime()
+
+        if self.epochs_done == 0:
+            # print some training infos
+            self.print_and_log('Training parameters:', 1)
+            for key in self.print_attributes:
+                item = self
+                try:
+                    for k in key.split('.'):
+                        item = item.__getattribute__(k)
+                        self.print_and_log(str(key)+': '+str(item))
+                except AttributeError:
+                    self.print_and_log(str(key)+': ERROR, item not found.')
+            self.print_and_log('', 1)
 
     def on_epoch_start(self):
 

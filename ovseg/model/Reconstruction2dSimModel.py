@@ -183,7 +183,7 @@ class Reconstruction2dSimModel(ModelBase):
         return fbp
 
     def save_prediction(self, pred, data, pred_folder, name):
-        save_nii(pred, join(pred_folder, name + '.nii.gz'), data['spacing'])
+        save_nii(pred, join(pred_folder, basename(data['raw_label_file'])), data['spacing'])
 
     def plot_prediction(self, pred, data, plot_folder, name):
         im = self.postprocessing(data['image']).clip(*self.plot_window)

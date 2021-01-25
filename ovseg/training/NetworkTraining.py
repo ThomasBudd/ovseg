@@ -41,6 +41,9 @@ class NetworkTraining(TrainingBase):
         self.checkpoint_attributes.extend(['nu_ema_trn', 'network_name',
                                            'opt_params', 'fp32', 'lr_params',
                                            'p_plot_list'])
+        self.print_attributes = ['model_path', 'num_epochs', 'opt_name', 'opt_params',
+                                 'lr_params', 'nu_ema_trn', 'nu_ema_val', 'fp32',
+                                 'trn_dl.dataset.vol_ds.scans']
         # training loss
         self.trn_loss = None
         self.trn_losses = []
@@ -49,7 +52,9 @@ class NetworkTraining(TrainingBase):
             self.nu_ema_val = nu_ema_val
             self.val_losses = []
             self.checkpoint_attributes.extend(['val_losses', 'nu_ema_val'])
+            self.print_attributes.append('val_dl.dataset.vol_ds.scans')
 
+        self.print_attributes.append('network')
         # check if we apply augmentation on the GPU
         if not self.fp32:
             self.scaler = amp.GradScaler()

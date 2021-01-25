@@ -183,7 +183,7 @@ class SegmentationModel(ModelBase):
 
     def save_prediction(self, pred, data, pred_folder, name):
 
-        out_file = join(pred_folder, name+'.nii.gz')
+        out_file = join(pred_folder, basename(data['raw_label_file']))
 
         if self.preprocessing.apply_resizing:
             spacing = self.preprocessing.target_spacing
