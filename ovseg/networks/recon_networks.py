@@ -87,7 +87,7 @@ class reconstruction_network_fbp_convs(nn.Module):
             res_filt = self.filt[iteration](res)
             x += self.tau[iteration]*self.radon.backprojection(res_filt)
             dx = self.filt_image[iteration](x)
-            x = x + self.tau[iteration]*dx
+            x = x + self.sigma[iteration]*dx
         # the UNet is returning a list of predictions on the different scales.
         # that's why we use the [0]
         return x
