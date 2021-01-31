@@ -25,7 +25,7 @@ class Dataset(object):
         # these will carry all the pathes to data we need for training
         self.path_dicts = []
         for scan in self.scans:
-            path_dict = {key: join(join(self.preprocessed_path, folder, scan))
+            path_dict = {key: join(self.preprocessed_path, folder, scan)
                          for key, folder in zip(self.keys, self.folders)}
             if np.all([exists(path_dict[key]) for key in self.keys]):
                 self.path_dicts.append(path_dict)
@@ -50,7 +50,7 @@ class Dataset(object):
         data_dict = {key: np.load(path_dict[key]) for key in self.keys}
 
         # last but not least the name and fingerprint
-        scan = self.scans[ind]
+        scan = basename(data_dict[self.keys[0]])
         path_to_fp = join(self.preprocessed_path, 'fingerprints', scan)
         if exists(path_to_fp):
             f = np.load(path_to_fp, allow_pickle=True).item()
