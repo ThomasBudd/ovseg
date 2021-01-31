@@ -50,7 +50,7 @@ class Dataset(object):
         data_dict = {key: np.load(path_dict[key]) for key in self.keys}
 
         # last but not least the name and fingerprint
-        scan = basename(data_dict[self.keys[0]])
+        scan = basename(path_dict[self.keys[0]])
         path_to_fp = join(self.preprocessed_path, 'fingerprints', scan)
         if exists(path_to_fp):
             f = np.load(path_to_fp, allow_pickle=True).item()
