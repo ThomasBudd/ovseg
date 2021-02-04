@@ -41,7 +41,7 @@ class Reconstruction2dSimModel(ModelBase):
         self.operator = get_operator(**operator_kwargs)
         preprocessing_kwargs = self.model_parameters['preprocessing']
         self.preprocessing = Reconstruction2dSimPreprocessing(self.operator,
-                                                              *preprocessing_kwargs)
+                                                              **preprocessing_kwargs)
         print('preprocessing initialised')
 
     def initialise_augmentation(self):
@@ -101,7 +101,7 @@ class Reconstruction2dSimModel(ModelBase):
             im = im.clamp(*mm)
         else:
             raise TypeError('Input must be np.ndarray or torch tensor')
-        if self.window is None:
+        if self.preprocessing.window is None:
             im_HU = (im - self.mu_water)/self.mu_water*1000
         else:
             im_HU = im * (self.window[1] - self.window[0]) + self.window[0]

@@ -520,6 +520,7 @@ class SegmentationPreprocessing(object):
         # spacings for resampling
         spacings = []
         shapes = []
+        n_fg_classes = 0
         # first cycle
         print()
         print('First cycle')
@@ -535,6 +536,7 @@ class SegmentationPreprocessing(object):
             if lb.max() > 0:
                 fg_cval = im[lb > 0].astype(float)
                 fg_cvals.extend(fg_cval.tolist())
+                n_fg_classes = np.max([n_fg_classes, lb.max()])
 
         self.dataset_properties['median_shape'] = np.median(shapes, 0)
         self.dataset_properties['median_spacing'] = np.median(spacings, 0)
@@ -543,6 +545,7 @@ class SegmentationPreprocessing(object):
         fg_cvals = np.array(fg_cvals).clip(*self.dataset_properties['fg_percentiles'])
         self.dataset_properties['scaling_foreground'] = \
             np.array([np.std(fg_cvals), np.mean(fg_cvals)]).astype(np.float32)
+        self.dataset_properties['n_fg_classes'] = n_fg_classes
 
         if self.apply_resizing and self.target_spacing is None:
             self.target_spacing = self.dataset_properties['median_spacing']
