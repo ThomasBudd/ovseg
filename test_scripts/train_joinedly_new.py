@@ -40,10 +40,10 @@ print()
 # %% build data
 trn_dl_params = {'batch_size': 12, 'patch_size': [512, 512],
                  'num_workers': None, 'pin_memory': True,
-                 'epoch_len': 250, 'store_coords_in_ram': True}
+                 'epoch_len': 250, 'store_coords_in_ram': False}
 val_dl_params = {'batch_size': 12, 'patch_size': [512, 512],
                  'num_workers': None, 'pin_memory': True,
-                 'epoch_len': 25, 'store_coords_in_ram': True, 'store_data_in_ram': True,
+                 'epoch_len': 25, 'store_coords_in_ram': False, 'store_data_in_ram': False,
                  'n_max_volumes': 10}
 preprocessed_path = os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed',
                                  data_name, 'pod_default')
@@ -53,16 +53,16 @@ data = JoinedData(val_fold, preprocessed_path, keys, folders,
                   trn_dl_params=trn_dl_params,
                   val_dl_params=val_dl_params)
 # %% load models
-model1 = Reconstruction2dSimModel(val_fold, data_name, recon_model)
+model1 = Reconstruction2dSimModel(val_fold, data_name, recon_model, is_inference_only=True)
 model_path = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models',
                           data_name, 'pretrained_segmentation')
 model_params = pickle.load(open(os.path.join(model_path, 'model_parameters.pkl'), 'rb'))
 del model_params['augmentation']['GPU_params']['grayvalue']
-prep_params = pickle.load(open(os.path.join(preprocessed_path, 'preprocessing_parameters.pkl'), 
+prep_params = pickle.load(open(os.path.join(preprocessed_path, 'preprocessing_parameters.pkl'),
                                'rb'))
 model_params['preprocessing'] = prep_params
 model2 = SegmentationModel(val_fold, data_name, 'pretrained_segmentation',
-                           model_parameters=model_params)
+                           model_parameters=model_params, is_inference_only=True)
 
 # %% opt and lr params
 opt1_params = {'lr': 0.5*10**-4, 'betas': (0.9, 0.999)}
@@ -94,9 +94,12 @@ for tpl, scan in tqdm(zip(data.val_ds, data.val_scans)):
     with torch.cuda.amp.autocast():
         recon = model1.predict(tpl, return_torch=True)
         tpl['image'] = recon
+        print('recon: shape: {}, min-max: {}-{}'.format(recon.shape, recon.min(), recon.max()))
         pred = model2.predict(tpl, True)
+        print('pred: shape: {}, min-max: {}-{}'.format(pred.shape, pred.min(), pred.max()))
     case_id = scan.split('.')[0]
     lb = tpl['label']
+    print('label: shape: {}'.format(lb.shape))
     if lb.max() > 0:
         results[case_id] = 200*np.sum(lb * pred) / np.sum(lb + pred)
     if scan in cases_save_img:

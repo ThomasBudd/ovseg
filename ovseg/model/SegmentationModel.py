@@ -188,7 +188,7 @@ class SegmentationModel(ModelBase):
             else:
                 orig_shape = None
 
-            # no the importat part: the sliding window evaluation (or derivatices of it)
+            # now the importat part: the sliding window evaluation (or derivatices of it)
             pred = self.prediction(im)
 
             pred = self.postprocessing(pred, orig_shape)
