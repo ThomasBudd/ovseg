@@ -44,7 +44,7 @@ class JoinedBatchDataset(object):
         if self.store_coords_in_ram:
             print('Precomputing foreground coordinates to store them in RAM')
             self.coords_list = []
-            for ind in range(len(self.vol_ds)):
+            for ind in tqdm(range(len(self.vol_ds))):
                 if self.store_data_in_ram:
                     seg = self.data[ind][2]
                 else:
