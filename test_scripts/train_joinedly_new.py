@@ -40,11 +40,11 @@ print()
 # %% build data
 trn_dl_params = {'batch_size': 12, 'patch_size': [512, 512],
                  'num_workers': None, 'pin_memory': True,
-                 'epoch_len': 250, 'store_coords_in_ram': False}
+                 'epoch_len': 250, 'store_coords_in_ram': True}
 val_dl_params = {'batch_size': 12, 'patch_size': [512, 512],
                  'num_workers': None, 'pin_memory': True,
-                 'epoch_len': 25, 'store_coords_in_ram': False, 'store_data_in_ram': False,
-                 'n_max_volumes': 10}
+                 'epoch_len': 25, 'store_coords_in_ram': True, 'store_data_in_ram': True,
+                 'n_max_volumes': 50}
 preprocessed_path = os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed',
                                  data_name, 'pod_default')
 keys = ['projection', 'image', 'label', 'spacing']
@@ -62,7 +62,8 @@ prep_params = pickle.load(open(os.path.join(preprocessed_path, 'preprocessing_pa
                                'rb'))
 model_params['preprocessing'] = prep_params
 model2 = SegmentationModel(val_fold, data_name, 'pretrained_segmentation',
-                           model_parameters=model_params)
+                           model_parameters=model_params,
+                           dont_store_data_in_ram=True)
 
 # %% opt and lr params
 opt1_params = {'lr': 0.5*10**-4, 'betas': (0.9, 0.999)}
@@ -75,7 +76,7 @@ lr2_params = {'beta': 0.9, 'lr_min': 0}
 model_path = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models',
                           data_name, 'joined_{:.1f}_{}'.format(loss_weight, simulation))
 training = JoinedTraining(model1, model2, data.trn_dl,  model_path,
-                          loss_weight, num_epochs=5,
+                          loss_weight, num_epochs=500,
                           lr1_params=lr1_params, lr2_params=lr2_params,
                           opt1_params=opt1_params, opt2_params=opt2_params,
                           val_dl=data.val_dl)
@@ -89,6 +90,7 @@ if not os.path.exists(val_path):
     os.mkdir(val_path)
 val_scans = data.val_scans.copy()
 cases_save_img = val_scans[:10]
+print()
 print()
 for tpl, scan in tqdm(zip(data.val_ds, data.val_scans)):
     with torch.cuda.amp.autocast():
@@ -107,3 +109,9 @@ for tpl, scan in tqdm(zip(data.val_ds, data.val_scans)):
         io.save_nii(pred, os.path.join(val_path, case_id+'_pred'),
                     model2.preprocessing.target_spacing)
 io.save_pkl(results, os.path.join(val_path, 'results_val'))
+
+dices = [results[key] for key in results]
+with open(os.path.join(val_path, 'results_val.txt'), 'wb') as outfile:
+    outfile.write('Mean: {:.3f}, Median: {:.3f}'.format(np.nanmean(dices), np.nanmedian(dices)))
+    for case in results:
+        outfile.write(case + ': {:.3f}'.format(results[case]))

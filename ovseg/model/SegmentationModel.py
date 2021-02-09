@@ -33,13 +33,14 @@ class SegmentationModel(ModelBase):
                  model_parameters=None, preprocessed_name=None,
                  network_name='network', is_inference_only: bool = False,
                  fmt_write='{:.4f}', model_parameters_name='model_parameters',
-                 plot_n_random_slices=1):
+                 plot_n_random_slices=1, dont_store_data_in_ram=False):
         super().__init__(val_fold=val_fold, data_name=data_name, model_name=model_name,
                          model_parameters=model_parameters, preprocessed_name=preprocessed_name,
                          network_name=network_name, is_inference_only=is_inference_only,
                          fmt_write=fmt_write, model_parameters_name=model_parameters_name)
         self.initialise_prediction()
         self.plot_n_random_slices = plot_n_random_slices
+        self.dont_store_data_in_ram = dont_store_data_in_ram
 
         if 'prediction_key' not in self.model_parameters:
             model_parameters['prediction_key'] = 'learned_segmentation'
@@ -142,6 +143,12 @@ class SegmentationModel(ModelBase):
                 params[key]['augmentation'] = data_aug
             except KeyError:
                 continue
+
+        # if we don't want to store our data in ram...
+        if self.dont_store_data_in_ram:
+            for key in ['trn_dl_params', 'val_dl_params']:
+                params[key]['store_data_in_ram'] = False
+                params[key]['store_coords_in_ram'] = False
         self.data = SegmentationData(val_fold=self.val_fold,
                                      preprocessed_path=self.preprocessed_path,
                                      **params)
