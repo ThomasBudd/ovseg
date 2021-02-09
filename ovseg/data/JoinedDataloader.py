@@ -7,7 +7,7 @@ import tqdm
 class JoinedBatchDataset(object):
 
     def __init__(self, vol_ds, batch_size, patch_size, epoch_len=250, p_fg=0,
-                 mn_fg=3, store_coords_in_ram=True, store_data_in_ram=False, 
+                 mn_fg=3, store_coords_in_ram=True, store_data_in_ram=False,
                  n_max_volumes=None, memmap='r',
                  projection_key='projection', image_key='image',
                  label_key='label', spacing_key='spacing'):
@@ -158,11 +158,14 @@ class JoinedBatchDataset(object):
 
 def JoinedDataloader(vol_ds, batch_size, patch_size, num_workers=None,
                      pin_memory=True, epoch_len=250, p_fg=1/3,
-                     mn_fg=1, store_coords_in_ram=True, memmap='r'):
+                     mn_fg=1, store_coords_in_ram=True, memmap='r',
+                     store_data_in_ram=False, n_max_volumes=None):
     dataset = JoinedBatchDataset(vol_ds, batch_size, patch_size,
                                  epoch_len=epoch_len,
                                  p_fg=p_fg, mn_fg=mn_fg,
-                                 store_coords_in_ram=store_coords_in_ram)
+                                 store_coords_in_ram=store_coords_in_ram,
+                                 store_data_in_ram=store_coords_in_ram,
+                                 n_max_volumes=n_max_volumes)
     if num_workers is None:
         num_workers = 0 if os.name == 'nt' else 8
     worker_init_fn = lambda _: np.random.seed()
