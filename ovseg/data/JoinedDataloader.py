@@ -45,7 +45,7 @@ class JoinedBatchDataset(object):
         if self.store_coords_in_ram:
             print('Precomputing foreground coordinates to store them in RAM')
             self.coords_list = []
-            for ind in tqdm(range(len(self.vol_ds))):
+            for ind in tqdm(range(self.n_max_volumes)):
                 if self.store_data_in_ram:
                     seg = self.data[ind][2]
                 else:
@@ -92,7 +92,7 @@ class JoinedBatchDataset(object):
         for b in range(self.batch_size):
 
             # draw random index
-            ind = np.random.randint(len(self.vol_ds))
+            ind = np.random.randint(self.n_max_volumes)
 
             # load the memory maps of the data
             proj, im, seg, spacing = self._get_volume_tuple(ind)
@@ -166,7 +166,7 @@ def JoinedDataloader(vol_ds, batch_size, patch_size, num_workers=None,
                                  epoch_len=epoch_len,
                                  p_fg=p_fg, mn_fg=mn_fg,
                                  store_coords_in_ram=store_coords_in_ram,
-                                 store_data_in_ram=store_coords_in_ram,
+                                 store_data_in_ram=store_data_in_ram,
                                  n_max_volumes=n_max_volumes,
                                  return_fp16=return_fp16)
     if num_workers is None:
