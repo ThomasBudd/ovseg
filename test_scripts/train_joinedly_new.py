@@ -53,7 +53,7 @@ data = JoinedData(val_fold, preprocessed_path, keys, folders,
                   trn_dl_params=trn_dl_params,
                   val_dl_params=val_dl_params)
 # %% load models
-model1 = Reconstruction2dSimModel(val_fold, data_name, recon_model, is_inference_only=True)
+model1 = Reconstruction2dSimModel(val_fold, data_name, recon_model)
 model_path = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models',
                           data_name, 'pretrained_segmentation')
 model_params = pickle.load(open(os.path.join(model_path, 'model_parameters.pkl'), 'rb'))
@@ -62,7 +62,7 @@ prep_params = pickle.load(open(os.path.join(preprocessed_path, 'preprocessing_pa
                                'rb'))
 model_params['preprocessing'] = prep_params
 model2 = SegmentationModel(val_fold, data_name, 'pretrained_segmentation',
-                           model_parameters=model_params, is_inference_only=True)
+                           model_parameters=model_params)
 
 # %% opt and lr params
 opt1_params = {'lr': 0.5*10**-4, 'betas': (0.9, 0.999)}
@@ -93,17 +93,15 @@ print()
 for tpl, scan in tqdm(zip(data.val_ds, data.val_scans)):
     with torch.cuda.amp.autocast():
         recon = model1.predict(tpl, return_torch=True)
-        tpl['image'] = recon
-        print('recon: shape: {}, min-max: {}-{}'.format(recon.shape, recon.min(), recon.max()))
+        recon_prep = model2.preprocessing(recon, tpl['spacing'])
+        tpl['image'] = recon_prep
         pred = model2.predict(tpl, True)
-        print('pred: shape: {}, min-max: {}-{}'.format(pred.shape, pred.min(), pred.max()))
     case_id = scan.split('.')[0]
     lb = tpl['label']
-    print('label: shape: {}'.format(lb.shape))
     if lb.max() > 0:
         results[case_id] = 200*np.sum(lb * pred) / np.sum(lb + pred)
     if scan in cases_save_img:
-        recon_prep = model2.preprocessing(recon.cpu().numpy(), tpl['spacing'])
+        recon_prep = recon_prep.cpu().numpy()
         io.save_nii(recon_prep, os.path.join(val_path, case_id+'_recon'),
                     model2.preprocessing.target_spacing)
         io.save_nii(pred, os.path.join(val_path, case_id+'_pred'),
