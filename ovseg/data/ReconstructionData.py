@@ -1,5 +1,4 @@
 from ovseg.data.DataBase import DataBase
-from ovseg.data.ReconstructionDataset import ReconstructionDataset
 from ovseg.data.ReconstructionDataloader import ReconstructionDataloader
 from os import listdir
 from os.path import join
