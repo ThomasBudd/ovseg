@@ -83,11 +83,12 @@ class ModelBase(object):
                                               'preprocessed',
                                               self.data_name,
                                               self.preprocessed_name)
-            else:
-                self.preprocessed_path = join(self.ov_data_base,
-                                              'preprocessed',
-                                              self.data_name,
-                                              'default')
+            # else:
+            # in inference mode we shouldn't have a preprocessed path
+            #     self.preprocessed_path = join(self.ov_data_base,
+            #                                   'preprocessed',
+            #                                   self.data_name,
+            #                                   'default')
 
         else:
             self.preprocessed_path = join(self.ov_data_base,

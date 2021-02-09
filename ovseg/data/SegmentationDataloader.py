@@ -39,8 +39,9 @@ class SegmentationBatchDataset(object):
             self.padded_patch_size = np.array(self.padded_patch_size)
 
         if self.store_data_in_ram:
+            print('Store data in RAM.\n')
             self.data = []
-            for ind in range(self.n_max_volumes):
+            for ind in tqdm(range(self.n_max_volumes)):
                 path_dict = self.vol_ds.path_dicts[ind]
                 seg = np.load(path_dict[self.label_key])
                 im = np.load(path_dict[self.image_key])
@@ -50,7 +51,7 @@ class SegmentationBatchDataset(object):
 
         # store coords in ram
         if self.store_coords_in_ram:
-            print('Precomputing foreground coordinates to store them in RAM')
+            print('Precomputing foreground coordinates to store them in RAM.\n')
             self.coords_list = []
             for ind in tqdm(range(self.n_max_volumes)):
                 if self.store_data_in_ram:

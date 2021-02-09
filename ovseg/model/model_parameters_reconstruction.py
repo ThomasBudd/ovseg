@@ -33,4 +33,5 @@ def get_model_params_2d_reconstruction(architecture='reconstruction_network_fbp_
                        'nu_ema_val': 0.7, 'fp32': False,
                        'p_plot_list': [1, 0.5, 0.2], 'opt_name': 'ADAM'}
     model_parameters['training'] = training_params
+    model_parameters['prediction_key'] = 'learned_reconstruction'
     return model_parameters

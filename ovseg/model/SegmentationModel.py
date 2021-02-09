@@ -41,6 +41,10 @@ class SegmentationModel(ModelBase):
         self.initialise_prediction()
         self.plot_n_random_slices = plot_n_random_slices
 
+        if 'prediction_key' not in self.model_parameters:
+            model_parameters['prediction_key'] = 'learned_segmentation'
+            print('\'prediction_key\' not initialised, set to \'learned_segmentation\'.')
+
     def initialise_preprocessing(self):
         if 'preprocessing' not in self.model_parameters:
             print('No preprocessing parameters found in model_parameters. '
@@ -52,12 +56,17 @@ class SegmentationModel(ModelBase):
                                      'to the preprocessed folder were an '
                                      'extra copy is stored.')
             else:
-                print('Loaded preprocessing parameters and updating model '
-                      'parameters. Consider saving them again to keep '
-                      'preprocessing parameters for the future!')
                 prep_params = load_pkl(join(self.preprocessed_path,
                                             'preprocessing_parameters.pkl'))
                 self.model_parameters.update({'preprocessing': prep_params})
+                if self.parameters_match_saved_ones:
+                    print('Loaded preprocessing parameters and updating model '
+                          'parameters.')
+                    self.save_model_parameters()
+                    self._model_parameters_to_txt()
+                else:
+                    print('Loaded preprocessing parameters without saving them to the model '
+                          'parameters as current model parameters don\'t match saved ones.')
         params = self.model_parameters['preprocessing'].copy()
         self.preprocessing = SegmentationPreprocessing(**params)
         if self.preprocessing.use_only_classes is not None:
@@ -154,7 +163,7 @@ class SegmentationModel(ModelBase):
                                  **params)
         print('Training initialised')
 
-    def predict(self, data, is_preprocessed):
+    def predict(self, data_tpl, is_preprocessed):
         '''
         There are a lot of differnt ways to do prediction. Some do require direct preprocessing
         some don't need the postprocessing imidiately (e.g. when ensembling)
@@ -162,7 +171,7 @@ class SegmentationModel(ModelBase):
         some postprocessing (argmax and removing of small lesions) but not the resizing.
         '''
         self.network = self.network.eval()
-        im = data['image']
+        im = data_tpl['image']
         is_np,  _ = check_type(im)
         if is_np:
             im = torch.from_numpy(im).cuda()
@@ -175,7 +184,7 @@ class SegmentationModel(ModelBase):
         with torch.no_grad():
             if not is_preprocessed:
                 orig_shape = im.shape
-                im = self.preprocessing(im, data['spacing'])
+                im = self.preprocessing(im, data_tpl['spacing'])
             else:
                 orig_shape = None
 
@@ -187,7 +196,7 @@ class SegmentationModel(ModelBase):
         if torch.is_tensor(pred):
             pred = pred.cpu().numpy()
 
-        torch.cuda.empty_cache()
+        data_tpl[self.model_parameters['prediction_key']] = pred
 
         return pred
 
@@ -235,8 +244,7 @@ class SegmentationModel(ModelBase):
             plt.savefig(join(plot_folder, name + s + '.png'))
             plt.close(fig)
 
-    def compute_error_metrics(self, pred, data):
-        seg = data['label']
+    def compute_error_metrics(self, pred, seg):
         results = {}
         for c in range(1, self.n_fg_classes+1):
             results = {}

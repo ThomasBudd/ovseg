@@ -3,7 +3,7 @@ import torch
 from ovseg.utils.interp_utils import change_img_pixel_spacing,\
     change_sample_pixel_spacing
 from ovseg.utils.torch_np_utils import check_type, stack
-from ovseg.utils.io import read_nii_files, load_pkl, save_pkl
+from ovseg.utils.io import read_data_tpl_from_nii, load_pkl, save_pkl
 from ovseg.utils.path_utils import my_listdir, maybe_create_path
 from ovseg.utils.dict_equal import dict_equal
 from os.path import join, isdir, exists, basename
@@ -269,7 +269,7 @@ class SegmentationPreprocessing(object):
 
         return img
 
-    def preprocess_sample(self, sample, spacing=None):
+    def preprocess_sample(self, sample, spacing=None, is_seg=None):
         '''
         Preprocesses a sample. Assumes first channel to be the image and
         the following to be segmentation maps
@@ -288,7 +288,10 @@ class SegmentationPreprocessing(object):
         '''
         check_type(sample)
         nch = sample.shape[0]
-        is_seg = [False] + [True for _ in range(nch-1)]
+        if is_seg is None:
+            is_seg = [False] + [True for _ in range(nch-1)]
+        elif isinstance(is_seg, bool):
+            is_seg = nch * [is_seg]
         return stack([self.preprocess_image(sample[c], is_seg[c], spacing)
                       for c in range(nch)])
 
@@ -319,7 +322,7 @@ class SegmentationPreprocessing(object):
         assert len(batch) == len(spacings)
         return [self.preprocess_sample(b, s) for b, s in zip(batch, spacings)]
 
-    def preprocess_volume(self, volume, spacing=None):
+    def preprocess_volume(self, volume, spacing=None, is_seg=None):
         '''
         Preprocesses a full volume.
 
@@ -358,7 +361,7 @@ class SegmentationPreprocessing(object):
 
         try:
             with torch.no_grad():
-                volume = self.preprocess_sample(volume, spacing).type(torch.float32)
+                volume = self.preprocess_sample(volume, spacing, is_seg).type(torch.float32)
         except RuntimeError:
             print('RuntimeError caught! This is most likely due to a cuda oom error when '
                   'resizing a large volume. Trying again on CPU.')
@@ -427,51 +430,32 @@ class SegmentationPreprocessing(object):
 
         raw_data_name = '_'.join(raw_data)
         # check for exsistence and collect cases
-        cases = []
-        case_infos = []
+        folders_and_cases = []
 
         raw_data_path = join(environ['OV_DATA_BASE'], 'raw_data')
         for data_fol in raw_data:
             data_path = join(raw_data_path, data_fol)
             if not exists(data_path):
                 raise FileNotFoundError('Did not find path '+data_path)
-            data_info_file = join(data_path, 'data_info.pkl')
-            if not exists(data_info_file):
-                print('No data information file {} found. '
-                      'Some information in the fingerprints will be not '
-                      'avialble'.format(data_info_file))
-                data_info = {}
-            else:
-                data_info = load_pkl(data_info_file)
+
             imp, lbp = self._find_nii_subfolder(data_path)
             for case in listdir(lbp):
                 name = case[:-7]
                 im_cases = [case for case in listdir(imp) if case.startswith(name)]
-                if not len(im_cases) == 1:
-                    raise FileNotFoundError('Assumed exactly one image for case {}. Got {}'
-                                            ''.format(case, len(im_cases)))
-                cases.append((join(imp, im_cases[0]), join(lbp, case)))
+                if not len(im_cases) == 0:
+                    print('Found not image file for label file {}.'.format(case))
+                    continue
+                folders_and_cases.append((data_fol, case))
 
-                # now add some infos
-                case_info = {}
-                for key in ['pat_id', 'dataset', 'timepoint', 'date']:
-                    try:
-                        case_info[key] = data_info[name][key]
-                    except KeyError:
-                        case_info['key'] = 'anonymised'
+        return folders_and_cases, raw_data_name
 
-                # this one is easy to guess
-                if case_info['dataset'] == 'anonymised':
-                    case_info['dataset'] = basename(data_fol)
+    def preprocess_raw_data(self, raw_data, data_name=None, preprocessed_name='default',
+                            save_as_fp16=False):
 
-                case_infos.append(case_info)
-
-        return cases, raw_data_name, case_infos
-
-    def preprocess_raw_data(self, raw_data, data_name=None, preprocessed_name='default'):
+        im_dtype = np.float16 if save_as_fp16 else np.float32
 
         # get cases and name
-        cases, raw_data_name, case_infos = self._get_all_cases_from_raw_data(raw_data)
+        folders_and_cases, raw_data_name = self._get_all_cases_from_raw_data(raw_data)
 
         if data_name is None:
             data_name = raw_data_name
@@ -487,21 +471,21 @@ class SegmentationPreprocessing(object):
         self.maybe_save_preprocessing_parameters(outfolder)
         # here is the fun
         print()
-        for case_pair, case_info in tqdm(zip(cases, case_infos)):
+        for folder, case in tqdm(folders_and_cases):
             # read files
-            volume, spacing = read_nii_files(case_pair)
+            data_tpl = read_data_tpl_from_nii(folder, case)
 
-            name = basename(case_pair[1])[:-7]
-            orig_shape = volume[0].shape
-            volume = self.preprocess_volume(volume, spacing)
-            im, lb = volume[0].astype(np.float32), volume[1].astype(np.int8)
+            im, lb, spacing = data_tpl['image'], data_tpl['label'], data_tpl['spacing']
+
+            orig_shape = im.shape[-3:]
+            im = self.preprocess_volume(im, spacing, is_seg=False).astype(im_dtype)
+            lb = self.preprocess_volume(lb, spacing, is_seg=True).astype(np.int8)
             lb = self._maybe_reduce_label(lb)
-            fingerprint = {'spacing': spacing,
-                           'orig_shape': orig_shape,
-                           'raw_image_file': case_pair[0],
-                           'raw_label_file': case_pair[1],
-                           **case_info}
+            fingerprint_keys = [key for key in data_tpl if key not in ['image', 'label']]
+            fingerprint = {key: data_tpl[key] for key in fingerprint_keys}
+            fingerprint['orig_shape'] = orig_shape
             # first save the image related stuff
+            name = case[:-7]
             for arr, folder in [[im, 'images'],
                                 [lb, 'labels'],
                                 [fingerprint, 'fingerprints']]:
@@ -513,7 +497,7 @@ class SegmentationPreprocessing(object):
     def plan_preprocessing_raw_data(self, raw_data, percentiles=[0.5, 99.5]):
 
         # first let's get the image and label path
-        cases, raw_data_name, _ = self._get_all_cases_from_raw_data(raw_data)
+        folders_and_cases, raw_data_name = self._get_all_cases_from_raw_data(raw_data)
         print('Infering preprocessing parameters from '+raw_data_name)
         # foreground vals for windowing
         fg_cvals = []
@@ -525,10 +509,11 @@ class SegmentationPreprocessing(object):
         print()
         print('First cycle')
         print()
-        for case_pair in tqdm(cases):
+        for folder, case in tqdm(folders_and_cases):
             # read files
-            sample, spacing = read_nii_files(case_pair)
-            im, lb = sample
+            data_tpl = read_data_tpl_from_nii(folder, case)
+
+            im, lb, spacing = data_tpl['image'], data_tpl['label'], data_tpl['spacing']
             lb = self._maybe_reduce_label(lb)
             # store spacing
             spacings.append(spacing)
@@ -559,17 +544,19 @@ class SegmentationPreprocessing(object):
         print()
         print('Second cycle')
         print()
-        for case_pair in tqdm(cases):
+        for folder, case in tqdm(folders_and_cases):
             # read files
-            sample, _ = read_nii_files(case_pair)
-            im, _ = sample
+            data_tpl = read_data_tpl_from_nii(folder, case)
+
+            im, lb, spacing = data_tpl['image'], data_tpl['label'], data_tpl['spacing']
             im_win = im.clip(*self.window)
             mean_global += np.mean(im)
             mean_window += np.mean(im_win)
             mean2_global += np.mean(im**2)
             mean2_window += np.mean(im_win**2)
-        mean_global, mean2_global = mean_global/len(cases), mean2_global/len(cases)
-        mean_window, mean2_window = mean_window/len(cases), mean2_window/len(cases)
+        n_cases = len(folders_and_cases)
+        mean_global, mean2_global = mean_global/n_cases, mean2_global/n_cases
+        mean_window, mean2_window = mean_window/n_cases, mean2_window/n_cases
         std_global = np.sqrt(mean2_global - mean_global**2)
         std_window = np.sqrt(mean2_window - mean_window**2)
         self.dataset_properties['scaling_global'] = \

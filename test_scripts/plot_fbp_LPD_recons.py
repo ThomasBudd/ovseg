@@ -50,3 +50,15 @@ for case in os.listdir(fbp_conv_path):
             if i == 0:
                 plt.contour(lb[x:x+dx, y:y+dy, z], linewidths=0.5, colors='red', linestyles='solid')
                 plt.title(titels[j])
+
+# %% Let's compute the PSNR
+
+PSNR_win = []
+PSNR_full = []
+for case in os.listdir(fbp_conv_path):
+    pred_win = nib.load(os.path.join(fbp_conv_path, case)).get_fdata()
+    pred_full = nib.load(os.path.join(LPD_path, case)).get_fdata().clip(-50, 350)
+    gt = nib.load(os.path.join(raw_imp, case[:8]+'_0000.nii.gz')).get_fdata().clip(-50, 350)
+    PSNR_win.append(10*np.log10(400 ** 2 / np.mean( (pred_win-gt)**2)))
+    PSNR_full.append(10*np.log10(400 ** 2 / np.mean( (pred_full-gt)**2)))
+    print(case + ', win: {:.2f}, full: {:.2f}'.format(PSNR_win[-1], PSNR_full[-1]))

@@ -1,8 +1,8 @@
 import numpy as np
 import nibabel as nib
 import pydicom
-from os.path import join
-from os import listdir
+from os.path import join, exists
+from os import listdir, environ
 from skimage.draw import polygon
 import pickle
 
@@ -64,6 +64,89 @@ def read_nii_files(nii_files):
                              + str(spacing) + ' and ' + str(out[1]))
         out_volumes.append(out[0])
     return np.stack(out_volumes), spacing
+
+
+def read_data_tpl_from_nii(folder, case):
+    data_tpl = {}
+
+    if not exists(folder):
+        folder = join(environ['OV_DATA_BASE'], 'raw_data', folder)
+
+    if not exists(folder):
+        raise FileNotFoundError('Can\'t read from folder {}. It doesn\'t exist.'.format(folder))
+
+    if isinstance(case, int):
+        case = 'case_%03d.nii.gz' % case
+
+    if not isinstance(case, str):
+        raise TypeError('Input \'case\' must be string, not {}'.format(type(case)))
+
+    # first let's read the data info
+    if exists(join(folder, 'data_info.pkl')):
+        data_info = load_pkl(join(folder, 'data_info.pkl'))
+        if case[:-7] in data_info:
+            data_tpl.update(data_info[case[:-7]])
+
+    image_folders_ex = [join(folder, imf) for imf in ['images', 'imagesTr', 'imagesTs']
+                        if exists(join(folder, imf))]
+    if len(image_folders_ex) == 0:
+        raise FileNotFoundError('Didn\'t find any image folder in {}.'.format(folder))
+
+    image_files = []
+    for image_folder in image_folders_ex:
+        matching_files = [join(folder, image_folder, file) for file in
+                          listdir(join(folder, image_folder))
+                          if file.startswith(case[:-7])]
+        if len(matching_files) > 0 and len(image_files) > 0:
+            raise FileExistsError('Found images for in multiple image folders at path {} for '
+                                  'case {}.'.format(folder, case))
+        image_files = matching_files
+
+    if len(image_files) == 0:
+        raise FileNotFoundError('No image files found for case {}.'.format(case))
+    elif len(image_files) == 1:
+        raw_image_file = image_files[0]
+        im, spacing = read_nii(raw_image_file)
+    else:
+        raw_image_file = image_files
+        im_data = [read_nii(file) for file in raw_image_file]
+        ims = [im for im, spacing in im_data]
+        spacings = [spacing for im, spacing in im_data]
+
+        if not np.all([np.all(spacings[0] == sp) for sp in spacings[1:]]):
+            raise ValueError('Found unequal spacings when reading the image files {}'
+                             ''.format(image_files))
+        im = np.stack(ims)
+        spacing = spacings[0]
+
+    data_tpl['image'] = im
+    data_tpl['spacing'] = spacing
+    data_tpl['raw_image_file'] = raw_image_file
+
+    label_folders_ex = [join(folder, lbf) for lbf in ['labels', 'labelsTr', 'labelsTs']
+                        if exists(join(folder, lbf))]
+    if len(label_folders_ex) == 0:
+        return data_tpl
+
+    label_files = []
+    for label_folder in label_folders_ex:
+        matching_files = [join(folder, image_folder, file) for file in
+                          listdir(join(folder, image_folder))
+                          if file.startswith(case[:-7])]
+        if len(matching_files) > 0 and len(label_files) > 0:
+            raise FileExistsError('Found labels for in multiple label folders at path {} for '
+                                  'case {}.'.format(folder, case))
+        label_files = matching_files
+    if len(label_files) == 0:
+        return data_tpl
+    elif len(label_files) == 1:
+        lb, spacing = read_nii(label_files[0])
+        if not np.all(spacing == data_tpl['spacing']):
+            raise ValueError('Found not matching spacings for case {}.'.format(case))
+        data_tpl['label'] = lb
+        data_tpl['raw_label_file'] = label_files[0]
+
+    return data_tpl
 
 
 def _is_im_dcm_ds(ds):
@@ -258,14 +341,3 @@ def save_nii(im, out_file, spacing=None, img=None):
         im_nii = nib.Nifti1Image(im, np.eye(4))
         im_nii.header['pixdim'][1:4] = spacing
     nib.save(im_nii, out_file)
-
-
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    dcm_folder = 'D:\\PhD\\Data\\APOLLO2\\Apollo2_Beer\\AP-HGLV'
-    im, spacing = read_dcms(dcm_folder)
-    z = np.argmax(np.sum(im[1], (0, 1)))
-    plt.subplot(121)
-    plt.imshow(im[0, :, :, z], cmap='gray', vmin=-150, vmax=250)
-    plt.subplot(122)
-    plt.imshow(im[1, :, :, z], cmap='gray')

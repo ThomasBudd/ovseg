@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import os
+from tqdm import tqdm
 
 
 class Reconstruction2dDataset(object):
@@ -24,8 +25,9 @@ class Reconstruction2dDataset(object):
         self.n_max_volumes = len(self.vol_ds) if n_max_volumes is None else n_max_volumes
 
         if self.store_data_in_ram:
+            print('Putting data in RAM.\n')
             self.data = []
-            for ind in range(self.n_max_volumes):
+            for ind in tqdm(range(self.n_max_volumes)):
                 path_dict = self.vol_ds.path_dicts[ind]
                 proj = np.load(path_dict[self.projection_key])
                 im = np.load(path_dict[self.image_key])
