@@ -1,12 +1,14 @@
 import torch
 import numpy as np
 import os
+import tqdm
 
 
 class JoinedBatchDataset(object):
 
     def __init__(self, vol_ds, batch_size, patch_size, epoch_len=250, p_fg=0,
-                 mn_fg=3, store_coords_in_ram=True, memmap='r',
+                 mn_fg=3, store_coords_in_ram=True, store_data_in_ram=False, 
+                 n_max_volumes=None, memmap='r',
                  projection_key='projection', image_key='image',
                  label_key='label', spacing_key='spacing'):
         self.vol_ds = vol_ds
@@ -16,25 +18,58 @@ class JoinedBatchDataset(object):
         self.p_fg = p_fg
         self.mn_fg = mn_fg
         self.store_coords_in_ram = store_coords_in_ram
+        self.store_data_in_ram = store_data_in_ram
+        self.n_max_volumes = len(self.vol_ds) if n_max_volumes is None else n_max_volumes
         self.memmap = memmap
         self.image_key = image_key
         self.label_key = label_key
         self.projection_key = projection_key
         self.spacing_key = spacing_key
 
+        if self.store_data_in_ram:
+            print('Store data in RAM.\n')
+            self.data = []
+            for ind in tqdm(range(self.n_max_volumes)):
+                path_dict = self.vol_ds.path_dicts[ind]
+                seg = np.load(path_dict[self.label_key])
+                im = np.load(path_dict[self.image_key])
+                proj = np.load(path_dict[self.projection_key])
+                sp = np.load(path_dict[self.spacing_key])
+                if self.return_fp16:
+                    im = im.astype(np.float16)
+                    proj = proj.astype(np.float16)
+                self.data.append((proj, im, seg, sp))
+
         # store coords in ram
         if self.store_coords_in_ram:
             print('Precomputing foreground coordinates to store them in RAM')
             self.coords_list = []
             for ind in range(len(self.vol_ds)):
-                data_dict = self.vol_ds[ind]
-                seg = data_dict['label']
+                if self.store_data_in_ram:
+                    seg = self.data[ind][2]
+                else:
+                    data_dict = self.vol_ds[ind]
+                    seg = data_dict['label']
                 if seg.max() > 0:
                     coords = np.stack(np.where(np.sum(seg, (0, 1)) > 0)[0])
                 else:
                     coords = np.array([])
                 self.coords_list.append(coords)
             print('Done')
+
+    def _get_volume_tuple(self, ind=None):
+
+        if ind is None:
+            ind = np.random.randint(self.n_max_volumes)
+        if self.store_data_in_ram:
+            proj, im, seg, sp = self.data[ind]
+        else:
+            path_dict = self.vol_ds.path_dicts[ind]
+            proj = np.load(path_dict[self.projection_key], 'r')
+            im = np.load(path_dict[self.image_key], 'r')
+            seg = np.load(path_dict[self.label_key], 'r')
+            sp = np.load(path_dict[self.spacing_key], 'r')
+        return proj, im, seg, sp
 
     def __len__(self):
         return self.epoch_len
@@ -57,14 +92,9 @@ class JoinedBatchDataset(object):
 
             # draw random index
             ind = np.random.randint(len(self.vol_ds))
-            # get the dict with the pathes to the desired data
-            path_dict = self.vol_ds.path_dicts[ind]
 
             # load the memory maps of the data
-            proj = np.load(path_dict[self.projection_key], self.memmap)
-            im = np.load(path_dict[self.image_key], self.memmap)
-            seg = np.load(path_dict[self.label_key], self.memmap)
-            spacing = np.load(path_dict[self.spacing_key])
+            proj, im, seg, spacing = self._get_volume_tuple(ind)
 
             # how many fg samples do we alreay have in the batch?
             k_fg_samples = np.sum([np.max(samp > 0) for samp in segs])
