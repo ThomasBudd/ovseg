@@ -104,7 +104,7 @@ class ImageProcessingModel(ModelBase):
         evaluates the projection data of a full scan and return the 3d image
 
         '''
-        im = data_dict['projection']
+        im = data_dict['image']
         is_np, _ = check_type(im)
 
         # make sure im is torch tensor

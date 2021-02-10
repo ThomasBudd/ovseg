@@ -34,13 +34,13 @@ class SegmentationModel(ModelBase):
                  network_name='network', is_inference_only: bool = False,
                  fmt_write='{:.4f}', model_parameters_name='model_parameters',
                  plot_n_random_slices=1, dont_store_data_in_ram=False):
+        self.dont_store_data_in_ram = dont_store_data_in_ram
         super().__init__(val_fold=val_fold, data_name=data_name, model_name=model_name,
                          model_parameters=model_parameters, preprocessed_name=preprocessed_name,
                          network_name=network_name, is_inference_only=is_inference_only,
                          fmt_write=fmt_write, model_parameters_name=model_parameters_name)
         self.initialise_prediction()
         self.plot_n_random_slices = plot_n_random_slices
-        self.dont_store_data_in_ram = dont_store_data_in_ram
 
         if 'prediction_key' not in self.model_parameters:
             model_parameters['prediction_key'] = 'learned_segmentation'

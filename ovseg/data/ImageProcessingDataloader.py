@@ -37,7 +37,7 @@ class ImageProcessing2dDataset(object):
         if ind is None:
             ind = np.random.randint(self.n_max_volumes)
         if self.store_data_in_ram:
-            proj, im = self.data[ind]
+            im = self.data[ind]
         else:
             path_dict = self.vol_ds.path_dicts[ind]
             im = np.load(path_dict[self.image_key], 'r')

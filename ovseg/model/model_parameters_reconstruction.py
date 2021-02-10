@@ -17,7 +17,6 @@ def get_model_params_2d_reconstruction(architecture='reconstruction_network_fbp_
                    'val_dl_params': val_dl_params,
                    'keys': keys, 'folders': folders}
     model_parameters['data'] = data_params
-    model_parameters['operator'] = {}
     model_parameters['preprocessing'] = {'num_photons': 2*10**6,
                                          'mu_water': 0.0192}
     model_parameters['architecture'] = architecture
