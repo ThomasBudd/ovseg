@@ -22,7 +22,7 @@ def get_stride(kernel_size):
 class ConvNormNonlinBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, is_2d, kernel_size=3,
-                 downsample=False, conv_params=None, norm_params=None,
+                 downsample=False, conv_params=None, norm=None, norm_params=None,
                  nonlin_params=None):
         super().__init__()
         self.in_channels = in_channels
@@ -39,6 +39,9 @@ class ConvNormNonlinBlock(nn.Module):
         else:
             self.stride = 1
 
+        if norm is None:
+            norm = 'batch' if is_2d else 'inst'
+
         if self.conv_params is None:
             self.conv_params = {'bias': False}
         if self.nonlin_params is None:
@@ -47,19 +50,25 @@ class ConvNormNonlinBlock(nn.Module):
             self.norm_params = {'affine': True}
         # init convolutions, normalisation and nonlinearities
         if self.is_2d:
-            conv = nn.Conv2d
-            norm = nn.BatchNorm2d
+            conv_fctn = nn.Conv2d
+            if norm.lower().startswith('batch'):
+                norm_fctn = nn.BatchNorm2d
+            elif norm.lower().startswith('inst'):
+                norm_fctn = nn.InstanceNorm2d
         else:
-            conv = nn.Conv3d
-            norm = nn.InstanceNorm3d
-        self.conv1 = conv(self.in_channels, self.out_channels,
-                          self.kernel_size, padding=self.padding,
-                          stride=self.stride, **self.conv_params)
-        self.conv2 = conv(self.out_channels, self.out_channels,
-                          self.kernel_size, padding=self.padding,
-                          **self.conv_params)
-        self.norm1 = norm(self.out_channels, **self.norm_params)
-        self.norm2 = norm(self.out_channels, **self.norm_params)
+            conv_fctn = nn.Conv3d
+            if norm.lower().startswith('batch'):
+                norm_fctn = nn.BatchNorm3d
+            elif norm.lower().startswith('inst'):
+                norm_fctn = nn.InstanceNorm3d
+        self.conv1 = conv_fctn(self.in_channels, self.out_channels,
+                               self.kernel_size, padding=self.padding,
+                               stride=self.stride, **self.conv_params)
+        self.conv2 = conv_fctn(self.out_channels, self.out_channels,
+                               self.kernel_size, padding=self.padding,
+                               **self.conv_params)
+        self.norm1 = norm_fctn(self.out_channels, **self.norm_params)
+        self.norm2 = norm_fctn(self.out_channels, **self.norm_params)
 
         nn.init.kaiming_normal_(self.conv1.weight)
         nn.init.kaiming_normal_(self.conv2.weight)
@@ -116,7 +125,7 @@ class UNet(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_sizes,
                  is_2d, filters=32, filters_max=384, n_pyramid_scales=None,
-                 conv_params=None, norm_params=None, nonlin_params=None):
+                 conv_params=None, norm=None, norm_params=None, nonlin_params=None):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -126,6 +135,7 @@ class UNet(nn.Module):
         self.filters = filters
         self.filters_max = filters_max
         self.conv_params = conv_params
+        self.norm = norm
         self.norm_params = norm_params
         self.nonlin_params = nonlin_params
         # we double the amount of channels every downsampling step
@@ -146,13 +156,13 @@ class UNet(nn.Module):
         self.blocks_down = []
         block = ConvNormNonlinBlock(self.in_channels, self.filters, self.is_2d,
                                     self.kernel_sizes[0], False,
-                                    self.conv_params, self.norm_params,
+                                    self.conv_params, self.norm, self.norm_params,
                                     self.nonlin_params)
         self.blocks_down.append(block)
         self.blocks_up = []
         block = ConvNormNonlinBlock(2*self.filters, self.filters, self.is_2d,
                                     self.kernel_sizes[0], False,
-                                    self.conv_params, self.norm_params,
+                                    self.conv_params, self.norm, self.norm_params,
                                     self.nonlin_params)
         self.blocks_up.append(block)
 
@@ -166,7 +176,7 @@ class UNet(nn.Module):
             block = ConvNormNonlinBlock(self.filters_list[i],
                                         self.filters_list[i+1],
                                         self.is_2d, ks, True,
-                                        self.conv_params, self.norm_params, 
+                                        self.conv_params, self.norm, self.norm_params,
                                         self.nonlin_params)
             self.blocks_down.append(block)
 
@@ -175,7 +185,7 @@ class UNet(nn.Module):
                 block = ConvNormNonlinBlock(2 * self.filters_list[i+1],
                                             self.filters_list[i+1],
                                             self.is_2d, ks, False,
-                                            self.conv_params, self.norm_params, 
+                                            self.conv_params, self.norm, self.norm_params,
                                             self.nonlin_params)
                 self.blocks_up.append(block)
             # convolutions to this stage
@@ -186,13 +196,12 @@ class UNet(nn.Module):
             if i < self.n_pyramid_scales:
                 logits = Logits(self.filters_list[i], self.out_channels, is_2d)
                 self.all_logits.append(logits)
-        
+
         # now important let's turn everything into a module list
         self.blocks_down = nn.ModuleList(self.blocks_down)
         self.blocks_up = nn.ModuleList(self.blocks_up)
         self.upconvs = nn.ModuleList(self.upconvs)
         self.all_logits = nn.ModuleList(self.all_logits)
-
 
     def forward(self, xb):
         # keep all out tensors from the contracting path
