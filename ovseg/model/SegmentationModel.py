@@ -11,15 +11,12 @@ from ovseg.model.ModelBase import ModelBase
 from ovseg.utils.torch_np_utils import check_type
 from ovseg.postprocessing.SegmentationPostprocessing import \
     SegmentationPostprocessing
-from ovseg.utils.io import save_nii, save_pkl, load_pkl
-from ovseg.utils.eval_predictions import eval_prediction_segmentation
-from torch.nn import functional as F
+from ovseg.utils.io import save_nii, load_pkl
 import torch
 import numpy as np
-from os import listdir, mkdir
-from os.path import join, exists, basename
+from os import environ, makedirs
+from os.path import join, basename, exists
 import matplotlib.pyplot as plt
-from tqdm import tqdm
 
 
 class SegmentationModel(ModelBase):
@@ -42,10 +39,6 @@ class SegmentationModel(ModelBase):
         self.initialise_prediction()
         self.plot_n_random_slices = plot_n_random_slices
 
-        if 'prediction_key' not in self.model_parameters:
-            model_parameters['prediction_key'] = 'learned_segmentation'
-            print('\'prediction_key\' not initialised, set to \'learned_segmentation\'.')
-
     def initialise_preprocessing(self):
         if 'preprocessing' not in self.model_parameters:
             print('No preprocessing parameters found in model_parameters. '
@@ -64,7 +57,6 @@ class SegmentationModel(ModelBase):
                     print('Loaded preprocessing parameters and updating model '
                           'parameters.')
                     self.save_model_parameters()
-                    self._model_parameters_to_txt()
                 else:
                     print('Loaded preprocessing parameters without saving them to the model '
                           'parameters as current model parameters don\'t match saved ones.')
@@ -170,7 +162,7 @@ class SegmentationModel(ModelBase):
                                  **params)
         print('Training initialised')
 
-    def predict(self, data_tpl, is_preprocessed):
+    def predict(self, data_tpl, is_preprocessed=True):
         '''
         There are a lot of differnt ways to do prediction. Some do require direct preprocessing
         some don't need the postprocessing imidiately (e.g. when ensembling)
@@ -207,51 +199,84 @@ class SegmentationModel(ModelBase):
 
         return pred
 
-    def save_prediction(self, pred, data, pred_folder, name):
+    def save_prediction(self, data_tpl, ds_name, filename=None):
 
-        out_file = join(pred_folder, basename(data['raw_label_file']))
+        # find name of the file
+        if filename is None:
+            filename = basename(data_tpl['raw_label_file'])
 
-        if self.preprocessing.apply_resizing:
-            spacing = self.preprocessing.target_spacing
-        else:
-            spacing = data['spacing']
+        # all predictions are stored in the designated 'predictions' folder in the OV_DATA_BASE
+        pred_folder = join(environ['OV_DATA_BASE'], 'predictions', self.data_name,
+                           self.model_name, ds_name+'_{}'.format(self.val_fold))
+        if not exists(pred_folder):
+            makedirs(pred_folder)
 
-        save_nii(pred, out_file, spacing)
+        # get storing info from the data_tpl
+        spacing = data_tpl['spacing']
+        pred = data_tpl[self.pred_key]
 
-    def plot_prediction(self, pred, data, plot_folder, name):
+        save_nii(pred, join(pred_folder, filename), spacing)
+
+    def plot_prediction(self, data_tpl, ds_name, filename=None):
         '''
         We're not diferentiatig between different fg classes for now.
         '''
-        im = data['image']
-        seg = (data['label'] > 0).astype(float)
-        pred = (pred.copy() > 0).astype(float)
+        # find name of the file
+        if filename is None:
+            filename = basename(data_tpl['raw_label_file'])
 
-        contains = np.where(np.sum((seg + pred) > 0, (0, 1)))[0]
+        # remove fileextension e.g. .nii.gz
+        filename = filename.split('.')[0]
+
+        # all predictions are stored in the designated 'plots' folder in the OV_DATA_BASE
+        plot_folder = join(environ['OV_DATA_BASE'], 'plots', self.data_name,
+                           self.model_name, ds_name+'_{}'.format(self.val_fold))
+        if not exists(plot_folder):
+            makedirs(plot_folder)
+
+        # we want the code to work regardless of wether we have manual segmentaions or not
+        # the labels will carry the manual segmentations (in case available) plus the
+        # predictions
+        labels = []
+        im = data_tpl['image']
+        if 'label' in data_tpl:
+            labels.append(data_tpl['label'])
+
+        labels.append(data_tpl[self.pred_key])
+        labels = (np.array(labels) > 0).astype(int)
+        contains = np.where(np.sum(labels, (0, 1, 2)))[0]
         if len(contains) == 0:
             return
 
-        z_list = []
-        s_list = []
-        if seg.max() > 0:
-            z_list.append(np.argmax(np.sum(seg, (0, 1))))
-            s_list.append('_largest')
+        z_list = [np.argmax(np.sum(labels, (0, 1, 2)))]
+        s_list = ['_largest']
         z_list.extend(np.random.choice(contains, size=self.plot_n_random_slices))
         if self.plot_n_random_slices > 1:
             s_list.extend(['_random_{}'.format(i) for i in range(self.plot_n_random_slices)])
         else:
             s_list.append('_random')
 
+        colors = ['r', 'b']
         # now plot largest and random slice
         for z, s in zip(z_list, s_list):
             fig = plt.figure()
             plt.imshow(im[..., z], cmap='gray')
-            plt.contour(seg[..., z] > 0, linewidths=0.5, colors='r', linestyles='solid')
-            plt.contour(pred[..., z] > 0, linewidths=0.5, colors='b', linestyles='solid')
+            for i in range(labels.shape[0]):
+                if labels[i, ..., z].max() > 0:
+                    # this if is purely to avoid annoying UserWarning messages that interrupt
+                    # the beautiful beautiful tqdm bar
+                    plt.contour(labels[i, ..., z] > 0, linewidths=0.5, colors=colors[i],
+                                linestyles='solid')
             plt.axis('off')
-            plt.savefig(join(plot_folder, name + s + '.png'))
+            plt.savefig(join(plot_folder, filename + s + '.png'))
             plt.close(fig)
 
-    def compute_error_metrics(self, pred, seg):
+    def compute_error_metrics(self, data_tpl):
+        if 'label' not in data_tpl:
+            # in this case we're evaluating an unlabeled image so we can\'t compute any metrics
+            return None
+        pred = data_tpl[self.pred_key]
+        seg = data_tpl['label']
         results = {}
         for c in range(1, self.n_fg_classes+1):
             results = {}
@@ -284,3 +309,47 @@ class SegmentationModel(ModelBase):
 
             results.update({'sens_%d' % c: sens, 'prec_%d' % c: prec})
         return results
+
+    def _init_global_metrics(self):
+        self.global_metrics_helper = {}
+        self.global_metrics = {}
+        for i in range(1, self.n_fg_classes + 1):
+            self.global_metrics_helper.update({s+'_'+str(i): 0 for s in ['overlap', 'gt_volume',
+                                                                         'pred_volume']})
+            self.global_metrics.update({'dice_'+str(i): -1,
+                                        'recall_'+str(i): -1,
+                                        'precision_'+str(i): -1})
+
+    def _update_global_metrics(self, data_tpl):
+
+        if 'label' not in data_tpl:
+            return
+        label = data_tpl['label']
+        pred = data_tpl[self.pred_key]
+
+        # volume of one voxel
+        fac = np.prod(data_tpl['spacing'])
+        for i in range(1, self.n_fg_classes + 1):
+            lb_i = (label == i).astype(float)
+            pred_i = (pred == i).astype(float)
+            ovlp = self.global_metrics_helper['overlap_'+str(i)] + fac * np.sum(lb_i * pred_i)
+            gt_vol = self.global_metrics_helper['gt_volume_'+str(i)] + fac * np.sum(lb_i)
+            pred_vol = self.global_metrics_helper['pred_volume_'+str(i)] + fac * np.sum(pred_i)
+            # update global dice, recall and precision
+            if gt_vol + pred_vol > 0:
+                self.global_metrics['dice_'+str(i)] = 200 * ovlp / (gt_vol + pred_vol)
+            else:
+                self.global_metrics['dice_'+str(i)] = 100
+            if gt_vol > 0:
+                self.global_metrics['recall_'+str(i)] = 100 * ovlp / gt_vol
+            else:
+                self.global_metrics['recall_'+str(i)] = 100 if pred_vol == 0 else 0
+            if pred_vol > 0:
+                self.global_metrics['precision_'+str(i)] = 100 * ovlp / pred_vol
+            else:
+                self.global_metrics['precision_'+str(i)] = 100 if gt_vol == 0 else 0
+
+            # now update global metrics helper
+            self.global_metrics_helper['overlap_'+str(i)] = ovlp
+            self.global_metrics_helper['gt_volume'+str(i)] = gt_vol
+            self.global_metrics_helper['pred_volume'+str(i)] = pred_vol

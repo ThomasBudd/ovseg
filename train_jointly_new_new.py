@@ -67,7 +67,7 @@ for loss_weight in [0.5, 0.7, 0.9, 1.0]:
                               val_dl=data.val_dl)
     # %% now the magic!!
     training.train()
-    
+
     # validation. A bit more complicated here. Other models need some improvements...
     results = {}
     val_path = os.path.join(model_path, 'validation')
@@ -94,7 +94,7 @@ for loss_weight in [0.5, 0.7, 0.9, 1.0]:
             io.save_nii(pred, os.path.join(val_path, case_id+'_pred'),
                         model2.preprocessing.target_spacing)
     io.save_pkl(results, os.path.join(val_path, 'results_val'))
-    
+
     dices = [results[key] for key in results]
     with open(os.path.join(val_path, 'results_val.txt'), 'wb') as outfile:
         outfile.write('Mean: {:.3f}, Median: {:.3f}'.format(np.nanmean(dices), np.nanmedian(dices)))

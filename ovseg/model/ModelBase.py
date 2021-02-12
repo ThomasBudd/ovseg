@@ -41,8 +41,8 @@ class ModelBase(object):
         self.fmt_write = fmt_write
         self.model_parameters_name = model_parameters_name
 
-        # the model path will be pointing to the model of this particular
-        # fold
+        # the model path will be pointing to the model of this particular fold
+        # weights and (hyper) parameters are stored here
         self.ov_data_base = os.environ['OV_DATA_BASE']
         self.model_cv_path = join(self.ov_data_base,
                                   'trained_models',
@@ -129,6 +129,17 @@ class ModelBase(object):
                 self.parameters_match_saved_ones = False
 
         # %% now initialise everything we need
+
+        if 'prediction_key' in self.model_parameters:
+            self.pred_key = self.model_parameters['prediction_key']
+        else:
+            print('\'prediction_key\' was not found in model_parameters.'
+                  'Init as \'prediction\'.')
+            self.pred_key = 'prediction'
+            self.model_parameters['prediction_key'] = 'prediction'
+            if self.parameters_match_saved_ones:
+                self.save_model_parameters()
+
         self.initialise_preprocessing()
         self.initialise_augmentation()
         self.initialise_network()
@@ -183,6 +194,7 @@ class ModelBase(object):
 
     def save_model_parameters(self):
         io.save_pkl(self.model_parameters, self.path_to_params)
+        self._model_parameters_to_txt()
 
     # %% functions every childclass should have
     def initialise_preprocessing(self):
@@ -216,22 +228,32 @@ class ModelBase(object):
                                   ' implement an empty function, or use '
                                   '\'is_inferece_only=True.')
 
-    def predict(self, data_dict, is_preprocessed):
+    def predict(self, data_tpl, is_preprocessed):
         raise NotImplementedError('predict function must be implemented in '
                                   'childclass.')
 
-    def save_prediction(self, pred, data_dict, pred_folder, name):
+    def save_prediction(self, data_tpl, ds_name, filename=None):
         raise NotImplementedError('save_prediction not implemented')
 
-    def plot_prediction(self, pred, data_dict, plot_folder, name):
+    def plot_prediction(self, data_tpl, ds_name, filename=None):
         raise NotImplementedError('plot_prediction not implemented')
 
-    def compute_error_metrics(self, pred, data_dict):
+    def compute_error_metrics(self, data_tpl):
         raise NotImplementedError('compute_error_metrics not implemented')
 
-    def _save_results_to_pkl_and_txt(self, results, path_to_store, name):
+    def _init_global_metrics(self):
+        self.global_metrics = {}
+        print('computing no global error metrics')
 
-        file_name = name + '_results'
+    def _update_global_metrics(self, data_tpl):
+        return None
+
+    def _save_results_to_pkl_and_txt(self, results, path_to_store, ds_name, names_for_txt=None):
+
+        file_name = ds_name + '_results'
+
+        if names_for_txt is None:
+            names_for_txt = {k: k for k in results.keys()}
 
         # thats the easy part!
         io.save_pkl(results, join(path_to_store, file_name+'.pkl'))
@@ -242,14 +264,23 @@ class ModelBase(object):
         cases = sorted(list(results.keys()))
         if len(cases) == 0:
             print('results dict is empty.')
-            return
+            return None
 
         metric_names = list(results[cases[0]].keys())
         metrics = np.array([[results[case][metric] for metric in metric_names] for case in cases])
         means = np.nanmean(metrics, 0)
         medians = np.nanmedian(metrics, 0)
         with open(join(path_to_store, file_name+'.txt'), 'w') as file:
-            file.write('RESULTS:\n')
+            # first we write the global stats
+            file.write('GLOBAL RESULTS:\n')
+            file.write('\n')
+            for metric in self.global_metrics:
+                s = metric+': '+self.fmt_write+'\n'
+                file.write(s.format(self.global_metrics[metric]))
+
+            # now the per volume results from the results dict
+            # here the mean and median
+            file.write('PER VOLUME RESULTS:\n')
             file.write('\n')
             for i, metric in enumerate(metric_names):
                 file.write(metric + ':\n')
@@ -257,83 +288,126 @@ class ModelBase(object):
                 file.write(s.format(means[i], medians[i]))
             file.write('\n')
             file.write('\n')
+
+            # now the results for each case
             for j, case in enumerate(cases):
-                file.write(case + ':\n')
+                file.write(names_for_txt[case] + ':\n')
                 s = '\t ' + ', '.join([metric+': '+self.fmt_write
                                        for metric in metric_names])
                 file.write(s.format(*metrics[j]) + '\n')
 
-    def eval_ds(self, ds, is_preprocessed, ds_name, save_preds=True, plot=True,
-                force_evaluation=False):
+    def eval_ds(self, ds, ds_name: str, save_preds: bool = True, save_plots: bool = True,
+                force_evaluation: bool = False, merge_to_CV_results: bool = False):
         '''
-        iterates over the validation set and does the evaluation of the
-        full 3d volumes. Results will be saved in the model (cv) path.
+
+        Parameters
+        ----------
+        ds : Dataset
+            Dataset type object that has a length and return a data_tpl for each index
+        ds_name : string
+            name of the dataset used when saving the results
+        save_preds : bool, optional
+            if save_preds the predictions are kept in the "predictions" folder at OV_DATA_BASE.
+            The default is True.
+        save_plots : bool, optional
+            if save_preds the predictions are kept in the "predictions" folder at OV_DATA_BASE.
+        force_evaluation : bool, optional
+            if not force_evaluation the results files and folders are superficially checked.
+            If everything seems to be there we skip the evaluation
+            The default is False.
+        merge_to_CV_results : bool, optional
+            Set true only for the validation set.
+            Results are merged with the ones from other folds and stored in the CV path.
+            The default is False.
+
+        Returns
+        -------
+        None.
+
         '''
         global NO_NAME_FOUND_WARNING_PRINTED
 
-        # we're going to store the validation results here
-        eval_folder = join(self.model_path, ds_name)
-        folder_list = [eval_folder]
-        if save_preds:
-            pred_folder = join(eval_folder, 'predictions')
-            folder_list.append(pred_folder)
-        if plot:
-            plot_folder = join(eval_folder, 'plots')
-            folder_list.append(plot_folder)
-
+        # first check if the evaluation is already done and quit in case we don't want to force
+        # the evaluation
         if not force_evaluation:
-            exs_folders = [exists(folder) for folder in folder_list]
-            exs_files = [exists(join(self.model_path, ds_name+'_results.'+ext)) for ext in
-                         ['txt', 'pkl']]
-            if np.all(exs_folders) and np.all(exs_files):
-                print('Found existing evaluation folders and files of dataset ' + ds_name +
-                      '. Their content wasn\'t checked, but the evaluation will be skipped.\n'
+            # first check if the two results file exist
+            # if the files do not exist we have an indicator that we have to repeat
+            # the evaluation
+            do_evaluation = not np.all([exists(join(self.model_path, ds_name+'_results.'+ext))
+                                        for ext in ['txt', 'pkl']])
+
+            if save_preds:
+                # next check if the prediction folder exists
+                pred_folder = os.path.join(os.environ['OV_DATA_BASE'], 'predictions',
+                                           self.data_name,
+                                           self.model_name,
+                                           ds_name+'_{}'.format(self.val_fold))
+                if not exists(pred_folder):
+                    do_evaluation = True
+
+            if save_plots:
+                # same for the plot folder, if it doesn't exsist we do the prediction
+                plot_folder = os.path.join(os.environ['OV_DATA_BASE'], 'plots',
+                                           self.data_name,
+                                           self.model_name,
+                                           ds_name+'_{}'.format(self.val_fold))
+                if not exists(plot_folder):
+                    do_evaluation = True
+
+            if not do_evaluation:
+                print('Found existing evaluation folders and files for this dataset (' + ds_name +
+                      '). Their content wasn\'t checked, but the evaluation will be skipped.\n'
                       'If you want to force the evaluation please delete the old files and folders '
                       'or pass force_evaluation=True.\n\n')
                 return
 
-        # make folders
-        for folder in folder_list:
-            if not exists(folder):
-                os.mkdir(folder)
-
+        self._init_global_metrics()
         results = {}
+        names_for_txt = {}
         print('Evaluation '+ds_name+'...\n\n')
         for i in tqdm(range(len(ds))):
-            data_dict = ds[i]
+            # get the data
+            data_tpl = ds[i]
             # first let's try to find the name
-            if 'name' in data_dict.keys():
-                name = data_dict['name']
+            if 'scan' in data_tpl.keys():
+                scan = data_tpl['scan']
             else:
                 d = str(int(np.ceil(np.log10(len(ds)))))
-                name = 'case_%0'+d+'d'
-                name = name % i
+                scan = 'case_%0'+d+'d'
+                scan = scan % i
                 if not NO_NAME_FOUND_WARNING_PRINTED:
-                    print('Warning! Could not find a name for the prediction.'
-                          'Please make sure that the items of the dataset have a key \'name\'.'
+                    print('Warning! Could not find an scan name in the data_tpl.'
+                          'Please make sure that the items of the dataset have a key \'scan\'.'
+                          'A simple choice could be the name of a raw (e.g. segmentation) file.'
                           'Choose generic naming case_xxx as names.\n')
                     NO_NAME_FOUND_WARNING_PRINTED = True
+            if 'name' in data_tpl.keys():
+                names_for_txt[scan] = data_tpl['name']
+            else:
+                names_for_txt[scan] = scan
 
             # predict from this datapoint
-            pred = self.predict(data_dict, is_preprocessed)
+            pred = self.predict(data_tpl)
             if torch.is_tensor(pred):
                 pred = pred.cpu().numpy()
 
             # now compute the error metrics that we like
-            metrics = self.compute_error_metrics(pred, data_dict)
-            results[name] = metrics
+            metrics = self.compute_error_metrics(data_tpl)
+            if metrics is not None:
+                results[scan] = metrics
+            self._update_global_metrics(data_tpl)
 
             # store the prediction for example as nii files
             if save_preds:
-                self.save_prediction(pred, data_dict, pred_folder, name)
+                self.save_prediction(data_tpl, ds_name, filename=scan)
 
             # plot the results, maybe just a single slice?
-            if plot:
-                self.plot_prediction(pred, data_dict, plot_folder, name)
+            if save_plots:
+                self.plot_prediction(data_tpl, ds_name, filename=scan)
 
         # iteration done. Let's store the results and get out of here!
         # first we store the results for this fold in the validation folder
-        self._save_results_to_pkl_and_txt(results, self.model_path, name=ds_name)
+        self._save_results_to_pkl_and_txt(results, self.model_path, ds_name=ds_name)
 
         # we also store the results in the CV folder and merge them with
         # possible other results from other folds
@@ -350,12 +424,15 @@ class ModelBase(object):
             merged_results = results_fold
 
         # the merged results are kept in the model_cv_path
-        self._save_results_to_pkl_and_txt(merged_results, self.model_cv_path, name=ds_name+'_CV')
+        self._save_results_to_pkl_and_txt(merged_results, self.model_cv_path, ds_name=ds_name+'_CV')
 
-    def eval_validation_set(self, save_preds=True, plot=True, force_evaluation=False):
-        self.eval_ds(self.data.val_ds, is_preprocessed=True, ds_name='validation',
-                     save_preds=save_preds, plot=plot, force_evaluation=force_evaluation)
+    def eval_validation_set(self, save_preds=True, save_plots=True, force_evaluation=False):
+        self.eval_ds(self.data.val_ds, ds_name='validation',
+                     save_preds=save_preds, save_plots=save_plots,
+                     force_evaluation=force_evaluation,
+                     merge_to_CV_results=True)
 
-    def eval_training_set(self, save_preds=False, plot=True, force_evaluation=False):
-        self.eval_ds(self.data.trn_ds, is_preprocessed=True, ds_name='training',
-                     save_preds=save_preds, plot=plot, force_evaluation=force_evaluation)
+    def eval_training_set(self, save_preds=False, save_plots=True, force_evaluation=False):
+        self.eval_ds(self.data.trn_ds, ds_name='training',
+                     save_preds=save_preds, save_plots=save_plots,
+                     force_evaluation=force_evaluation)

@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from os.path import join, basename, exists
-from os import mkdir
+from os import makedirs, environ
 from ovseg.utils.io import save_nii
 import pickle
 import matplotlib.pyplot as plt
@@ -182,12 +182,39 @@ class Reconstruction2dSimModel(ModelBase):
         # if fbp is in batch from we don't have to do reshaping
         return fbp
 
-    def save_prediction(self, pred, data, pred_folder, name):
-        save_nii(pred, join(pred_folder, basename(data['raw_label_file'])), data['spacing'])
+    def save_prediction(self, data_tpl, ds_name, filename=None):
+        # if not file name is given
+        if filename is None:
+            filename = basename(data_tpl['raw_label_file'])
 
-    def plot_prediction(self, pred, data, plot_folder, name):
-        im = self.postprocessing(data['image']).clip(*self.plot_window)
-        proj = data['projection']
+        # all predictions are stored in the designated 'predictions' folder in the OV_DATA_BASE
+        pred_folder = join(environ['OV_DATA_BASE'], 'predictions', self.data_name,
+                           self.model_name, ds_name+'_{}'.format(self.val_fold))
+        if not exists(pred_folder):
+            makedirs(pred_folder)
+
+        pred = data_tpl[self.pred_key]
+        spacing = data_tpl['spacing']
+        save_nii(pred, join(pred_folder, filename), spacing)
+
+    def plot_prediction(self, data_tpl, ds_name, filename=None):
+        # find name of the file
+        if filename is None:
+            filename = basename(data_tpl['raw_label_file'])
+
+        # remove fileextension e.g. .nii.gz
+        filename = filename.split('.')[0]
+
+        # all predictions are stored in the designated 'plots' folder in the OV_DATA_BASE
+        plot_folder = join(environ['OV_DATA_BASE'], 'plots', self.data_name,
+                           self.model_name, ds_name+'_{}'.format(self.val_fold))
+        if not exists(plot_folder):
+            makedirs(plot_folder)
+
+        # get the data needed for plotting
+        im = self.postprocessing(data_tpl['image']).clip(*self.plot_window)
+        proj = data_tpl['projection']
+        pred = data_tpl[self.pred_key]
         # extract slices
         z = np.random.randint(im.shape[-1])
         im_sl = im[..., z]
@@ -222,18 +249,54 @@ class Reconstruction2dSimModel(ModelBase):
                    vmax=self.plot_window[1])
         plt.title('CNN: {:.2f}dB'.format(PSNR_pred))
         plt.axis('off')
-        plt.savefig(join(plot_folder, name+'.png'))
+        plt.savefig(join(plot_folder, filename+'.png'))
         plt.close(fig)
 
-    def compute_error_metrics(self, pred, data):
-        im = self.postprocessing(data['image'])
+    def compute_error_metrics(self, data_tpl):
+        pred = data_tpl[self.pred_key]
+        im = self.postprocessing(data_tpl['image'])
         mse = np.mean((pred - im)**2)
         Imax2 = (im - im.min()).max()**2
         PSNR = 10 * np.log10(Imax2 / mse)
-        rel_mse = mse / np.mean(im**2)
         im_win = im.clip(*self.plot_window)
         pred_win = pred.clip(*self.plot_window)
         mse_win = np.mean((pred_win - im_win)**2)
         Imax2_win = (im_win - im_win.min()).max()**2
         PSNR_win = 10 * np.log10(Imax2_win / mse_win)
-        return {'PSNR': PSNR, 'PSNR_win': PSNR_win, 'rel_mse': rel_mse}
+        return {'PSNR': PSNR, 'PSNR_win': PSNR_win}
+
+    def _init_global_metrics(self):
+        self.global_metrics_helper = {'squared_error': 0, 'squared_error_win': 0,
+                                      'Imax_squared': -np.inf, 'Imax_squared_win': -np.inf, 'n': 0}
+        self.global_metrics = {'PSNR': -1, 'PSNR_win': -1}
+
+    def _update_global_metrics(self, data_tpl):
+        im = self.postprocessing(data_tpl['image'])
+        pred = data_tpl[self.pred_key]
+        im_win = im.clip(*self.plot_window)
+        pred_win = pred.clip(*self.plot_window)
+
+        # get the helper variables
+        sq_err = self.global_metrics_helper['squared_error']
+        sq_err_win = self.global_metrics_helper['squared_error_win']
+        Imax_sq = self.global_metrics_helper['Imax_squared']
+        Imax_sq_win = self.global_metrics_helper['Imax_squared_win']
+        n = self.global_metrics_helper['n']
+
+        # update helper variables
+        sq_err += np.sum((im - pred)**2) / 10**7
+        sq_err_win += np.sum((im_win - pred_win)**2) / 10**7
+        n += np.prod(im.shape) / 10**7
+        Imax_sq = max([Imax_sq, (im.max() - im.min())**2])
+        Imax_sq_win = max([Imax_sq, (im_win.max() - im_win.min())**2])
+
+        # now update the metrics
+        self.global_metrics['PSNR'] = 10 * np.log10(Imax_sq / sq_err)
+        self.global_metrics['PSNR_win'] = 10 * np.log10(Imax_sq_win / sq_err_win)
+
+        # and store the helpers again
+        self.global_metrics_helper['squared_error'] = sq_err
+        self.global_metrics_helper['squared_error_win'] = sq_err_win
+        self.global_metrics_helper['Imax_squared'] = Imax_sq
+        self.global_metrics_helper['Imax_squared_win'] = Imax_sq_win
+        self.global_metrics_helper['n'] = n
