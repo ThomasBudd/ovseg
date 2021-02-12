@@ -108,14 +108,17 @@ class Reconstruction2dSimModel(ModelBase):
 
         return im_HU
 
-    def predict(self, data_dict, return_torch=False):
+    def predict(self, data_tpl, return_torch=False):
         '''
         predict(proj)
 
         evaluates the projection data of a full scan and return the 3d image
 
         '''
-        proj = data_dict['projection']
+        if 'projection' in data_tpl:
+            proj = data_tpl['projection']
+        else:
+            proj, _ = self.preprocessing.preprocess_volume(self, data_tpl['image'])
         is_np, _ = check_type(proj)
 
         # make sure proj is torch tensor
@@ -154,6 +157,9 @@ class Reconstruction2dSimModel(ModelBase):
         torch.cuda.empty_cache()
 
         return pred
+
+    def __call__(self, data_tpl, return_torch=False):
+        return self.predict(data_tpl, return_torch)
 
     def fbp(self, proj):
 
@@ -212,7 +218,11 @@ class Reconstruction2dSimModel(ModelBase):
             makedirs(plot_folder)
 
         # get the data needed for plotting
-        im = self.postprocessing(data_tpl['image']).clip(*self.plot_window)
+        im = data_tpl['image']
+        if 'projection' in data_tpl:
+            # in this case the image is not in HU, let's convert
+            im = self.postprocessing(im)
+        im = im.clip(*self.plot_window)
         proj = data_tpl['projection']
         pred = data_tpl[self.pred_key]
         # extract slices
@@ -254,7 +264,10 @@ class Reconstruction2dSimModel(ModelBase):
 
     def compute_error_metrics(self, data_tpl):
         pred = data_tpl[self.pred_key]
-        im = self.postprocessing(data_tpl['image'])
+        im = data_tpl['image']
+        if 'projection' in data_tpl:
+            # in this case the image is not in HU, let's convert
+            im = self.postprocessing(im)
         mse = np.mean((pred - im)**2)
         Imax2 = (im - im.min()).max()**2
         PSNR = 10 * np.log10(Imax2 / mse)

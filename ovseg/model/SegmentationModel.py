@@ -190,6 +190,9 @@ class SegmentationModel(ModelBase):
 
         return data_tpl[self.pred_key]
 
+    def __call__(self, data_tpl):
+        return self.predict(data_tpl)
+
     def save_prediction(self, data_tpl, ds_name, filename=None):
 
         # find name of the file
