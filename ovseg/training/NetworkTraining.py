@@ -42,8 +42,7 @@ class NetworkTraining(TrainingBase):
                                            'opt_params', 'fp32', 'lr_params',
                                            'p_plot_list'])
         self.print_attributes = ['model_path', 'num_epochs', 'opt_name', 'opt_params',
-                                 'lr_params', 'nu_ema_trn', 'nu_ema_val', 'fp32',
-                                 'trn_dl.dataset.vol_ds.scans']
+                                 'lr_params', 'nu_ema_trn', 'nu_ema_val', 'fp32']
         # training loss
         self.trn_loss = None
         self.trn_losses = []
