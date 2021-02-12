@@ -382,8 +382,23 @@ class SegmentationPreprocessing(object):
 
         return volume
 
-    def __call__(self, volume, spacing=None):
-        return self.preprocess_volume(volume, spacing)
+    def preprocess_volume_from_data_tpl(self, data_tpl, return_seg):
+        if 'orig_shape' in data_tpl:
+            # skip! This data_tpl is already preprocessed
+            if return_seg:
+                return data_tpl['label']
+            else:
+                return data_tpl['image']
+        else:
+            # data_tpl is not preprocessed. Let's do some work
+            if return_seg:
+                # in this case we only want to remove the labels and not do any resizing or such
+                return self._maybe_reduce_label(data_tpl['label'])
+            else:
+                return self.preprocess_volume(data_tpl['image'], data_tpl['spacing'])
+
+    def __call__(self, volume, spacing=None, is_seg=None):
+        return self.preprocess_volume(volume, spacing, is_seg=None)
 
     def _maybe_reduce_label(self, lb):
 
@@ -478,12 +493,17 @@ class SegmentationPreprocessing(object):
             im, lb, spacing = data_tpl['image'], data_tpl['label'], data_tpl['spacing']
 
             orig_shape = im.shape[-3:]
+            orig_spacing = spacing.copy()
+            # TODO allow more complex change of spacing here in case of downsampling or such
+            spacing = self.target_spacing if self.apply_resizing else spacing
             im = self.preprocess_volume(im, spacing, is_seg=False).astype(im_dtype)
             lb = self.preprocess_volume(lb, spacing, is_seg=True).astype(np.int8)
             lb = self._maybe_reduce_label(lb)
             fingerprint_keys = [key for key in data_tpl if key not in ['image', 'label']]
             fingerprint = {key: data_tpl[key] for key in fingerprint_keys}
             fingerprint['orig_shape'] = orig_shape
+            fingerprint['orig_spacing'] = orig_spacing
+            fingerprint['spacing'] = spacing
             # first save the image related stuff
             name = case[:-7]
             for arr, folder in [[im, 'images'],

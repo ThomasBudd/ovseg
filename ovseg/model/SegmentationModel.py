@@ -162,7 +162,7 @@ class SegmentationModel(ModelBase):
                                  **params)
         print('Training initialised')
 
-    def predict(self, data_tpl, is_preprocessed=True):
+    def predict(self, data_tpl):
         '''
         There are a lot of differnt ways to do prediction. Some do require direct preprocessing
         some don't need the postprocessing imidiately (e.g. when ensembling)
@@ -177,27 +177,18 @@ class SegmentationModel(ModelBase):
         else:
             im = im.cuda()
 
-        # most of the time we expect this to be False
-        # Validation scans should be prepocessed and when we perform ensembling to testing
-        # we would only preprocess the data once and then hand these images in each model
         with torch.no_grad():
-            if not is_preprocessed:
-                orig_shape = im.shape
-                im = self.preprocessing(im, data_tpl['spacing'])
-            else:
-                orig_shape = None
+            # the preprocessing will only do something if the image is not preprocessed yet
+            im = self.preprocessing.preprocess_volume_from_data_tpl(im, return_seg=False)
 
             # now the importat part: the sliding window evaluation (or derivatices of it)
             pred = self.prediction(im)
 
-            pred = self.postprocessing(pred, orig_shape)
+            data_tpl[self.pred_key] = pred
 
-        if torch.is_tensor(pred):
-            pred = pred.cpu().numpy()
+            self.postprocessing.postprocess_data_tpl(data_tpl, self.pred_key)
 
-        data_tpl[self.model_parameters['prediction_key']] = pred
-
-        return pred
+        return data_tpl[self.pred_key]
 
     def save_prediction(self, data_tpl, ds_name, filename=None):
 
@@ -212,8 +203,13 @@ class SegmentationModel(ModelBase):
             makedirs(pred_folder)
 
         # get storing info from the data_tpl
-        spacing = data_tpl['spacing']
-        pred = data_tpl[self.pred_key]
+        # IMPORTANT: We will always store the prediction in original shape
+        # not in preprocessed shape
+        spacing = data_tpl['orig_spacing'] if 'orig_spacing' in data_tpl else data_tpl['spacing']
+        if self.pred_key+'_orig_shape' in data_tpl:
+            pred = data_tpl[self.pred_key+'_orig_shape']
+        else:
+            pred = data_tpl[self.pred_key]
 
         save_nii(pred, join(pred_folder, filename), spacing)
 

@@ -21,7 +21,7 @@ class SegmentationPostprocessing(object):
     def __call__(self, volume, orig_shape=None):
         return self.postprocess_volume(volume, orig_shape)
 
-    def postprocess_volume(self, volume, orig_shape=None):
+    def postprocess_volume(self, volume, spacing=None, orig_shape=None):
         '''
         postprocess_volume(volume, orig_shape=None)
 
@@ -58,16 +58,7 @@ class SegmentationPostprocessing(object):
             order = 3 if is_np else 1
             volume = resize_sample(volume, orig_shape, order)
 
-            # we will need this factor when removing the small connceted
-            # components. If we have twice as many voxel after resizing
-            # we also only remove the component if it has twice as many
-            # voxel as the threshold
-            vol_threshold_fac = np.prod(orig_shape) / np.prod(inpt_shape)
-        else:
-            # no resizing, no change.
-            vol_threshold_fac = 1
-
-        # no we go from soft to hard labels
+        # now change from soft to hard labels
         if is_np:
             volume = np.argmax(volume, 0)
         else:
@@ -75,15 +66,42 @@ class SegmentationPostprocessing(object):
 
         if self.apply_small_component_removing:
             # this can only be done on the CPU
-            volume = self.remove_small_component(volume, vol_threshold_fac)
+            volume = self.remove_small_components(volume, spacing)
 
         return volume
 
-    def remove_small_component(self, volume, vol_threshold_fac=1):
+    def postprocess_data_tpl(self, data_tpl, prediction_key):
+
+        pred = data_tpl[prediction_key]
+        if 'orig_shape' in data_tpl:
+            # the data_tpl has preprocessed data.
+            # predictions in both preprocessed and original shape will be added
+            data_tpl[prediction_key] = self.postprocess_volume(pred,
+                                                               spacing=data_tpl['spacing'],
+                                                               orig_shape=None)
+            spacing = data_tpl['orig_spacing'] if 'orig_spacing' in data_tpl else None
+            shape = data_tpl['orig_shape']
+            data_tpl[prediction_key+'_orig_shape'] = self.postprocess_volume(pred,
+                                                                             spacing=spacing,
+                                                                             orig_shape=shape)
+        else:
+            # in this case the data is not preprocessed
+            orig_shape = data_tpl['image'].shape
+            data_tpl[prediction_key] = self.postprocess_volume(pred,
+                                                               spacing=data_tpl['spacing'],
+                                                               orig_shape=orig_shape)
+
+        return data_tpl
+
+    def remove_small_components(self, volume, spacing):
         if not isinstance(volume, np.ndarray):
             raise TypeError('Input must be np.ndarray')
         if not len(volume.shape) == 3:
             raise ValueError('Volume must be 3d array')
+
+        if not isinstance(np.ndarray, spacing):
+            raise ValueError('Spacing must be a list of length 3 to represent the spatial length '
+                             'of the voxel')
 
         # stores all coordinates of small components as 0 and rest as 1
         mask = np.ones_like(volume)
@@ -101,12 +119,13 @@ class SegmentationPostprocessing(object):
                                  'for all fg classes or')
 
         # we allow for different thresholds for the different lesions
+        voxel_size = np.prod(spacing)
         for i, tr in enumerate(thresholds):
             components = label(volume == i+1)
             n_comps = components.max()
             for j in range(1, n_comps + 1):
                 comp = components == j
-                if np.sum(comp) < tr * vol_threshold_fac:
+                if np.sum(comp) < tr * voxel_size:
                     mask[comp] = 0
 
         # done! The mask is 0 where all the undesired components are

@@ -82,21 +82,16 @@ for loss_weight in [0.5, 0.7, 0.9, 1.0]:
             recon = model1.predict(tpl, return_torch=True)
             recon_prep = model2.preprocessing(recon, tpl['spacing'])
             tpl['image'] = recon_prep
-            pred = model2.predict(tpl, True)
+            pred = model2.predict(tpl)
         case_id = scan.split('.')[0]
-        lb = tpl['label']
-        if lb.max() > 0:
-            results[case_id] = 200*np.sum(lb * pred) / np.sum(lb + pred)
+        # compute and store results
+        results[case_id] = model2.compute_error_metrics(tpl)
+        # maybe save recon and pred
         if scan in cases_save_img:
             recon_prep = recon_prep.cpu().numpy()
             io.save_nii(recon_prep, os.path.join(val_path, case_id+'_recon'),
                         model2.preprocessing.target_spacing)
             io.save_nii(pred, os.path.join(val_path, case_id+'_pred'),
                         model2.preprocessing.target_spacing)
-    io.save_pkl(results, os.path.join(val_path, 'results_val'))
 
-    dices = [results[key] for key in results]
-    with open(os.path.join(val_path, 'results_val.txt'), 'wb') as outfile:
-        outfile.write('Mean: {:.3f}, Median: {:.3f}'.format(np.nanmean(dices), np.nanmedian(dices)))
-        for case in results:
-            outfile.write(case + ': {:.3f}'.format(results[case]))
+    model2._save_results_to_pkl_and_txt(results, val_path, ds_name='validation')
