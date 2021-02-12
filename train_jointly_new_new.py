@@ -70,6 +70,7 @@ for loss_weight in [0.5, 0.7, 0.9, 1.0]:
 
     # validation. A bit more complicated here. Other models need some improvements...
     results = {}
+    model2._init_global_metrics()
     val_path = os.path.join(model_path, 'validation')
     if not os.path.exists(val_path):
         os.mkdir(val_path)
@@ -86,6 +87,7 @@ for loss_weight in [0.5, 0.7, 0.9, 1.0]:
         case_id = scan.split('.')[0]
         # compute and store results
         results[case_id] = model2.compute_error_metrics(tpl)
+        model2._update_global_metrics(tpl)
         # maybe save recon and pred
         if scan in cases_save_img:
             recon_prep = recon_prep.cpu().numpy()

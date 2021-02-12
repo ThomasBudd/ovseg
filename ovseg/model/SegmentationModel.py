@@ -179,7 +179,7 @@ class SegmentationModel(ModelBase):
 
         with torch.no_grad():
             # the preprocessing will only do something if the image is not preprocessed yet
-            im = self.preprocessing.preprocess_volume_from_data_tpl(im, return_seg=False)
+            im = self.preprocessing.preprocess_volume_from_data_tpl(data_tpl, return_seg=False)
 
             # now the importat part: the sliding window evaluation (or derivatices of it)
             pred = self.prediction(im)
@@ -214,9 +214,7 @@ class SegmentationModel(ModelBase):
         save_nii(pred, join(pred_folder, filename), spacing)
 
     def plot_prediction(self, data_tpl, ds_name, filename=None):
-        '''
-        We're not diferentiatig between different fg classes for now.
-        '''
+
         # find name of the file
         if filename is None:
             filename = basename(data_tpl['raw_label_file'])
@@ -236,7 +234,9 @@ class SegmentationModel(ModelBase):
         labels = []
         im = data_tpl['image']
         if 'label' in data_tpl:
-            labels.append(data_tpl['label'])
+            # in case of raw data this only removes the lables that this model doesn't segment
+            labels.append(self.preprocessing.preprocess_volume_from_data_tpl(data_tpl,
+                                                                             return_seg=True))
 
         labels.append(data_tpl[self.pred_key])
         labels = (np.array(labels) > 0).astype(int)
@@ -272,7 +272,8 @@ class SegmentationModel(ModelBase):
             # in this case we're evaluating an unlabeled image so we can\'t compute any metrics
             return None
         pred = data_tpl[self.pred_key]
-        seg = data_tpl['label']
+        # in case of raw data this only removes the lables that this model doesn't segment
+        seg = self.preprocessing.preprocess_volume_from_data_tpl(data_tpl, return_seg=True)
         results = {}
         for c in range(1, self.n_fg_classes+1):
             results = {}
