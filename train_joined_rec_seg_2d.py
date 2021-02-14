@@ -32,7 +32,7 @@ proj_folder = ['projections_HU', 'projections'][j]
 im_folder = ['images_HU_rescale', 'images_att'][j]
 simulation = ['HU', 'win'][j]
 
-loss_weight = args.loss_weight:
+loss_weight = float(args.loss_weight)
 
 # %% build data
 trn_dl_params = {'batch_size': 12, 'patch_size': [512, 512],

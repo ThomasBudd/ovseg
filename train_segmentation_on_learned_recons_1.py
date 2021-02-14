@@ -7,10 +7,10 @@ data_name = 'OV04'
 
 # %% first segmentation on siemens reconstructions
 model_params = get_model_params_2d_segmentation()
-model_params['network']['norm_params'] = {'track_running_stats': False}
+model_params['network']['norm'] = 'inst'
 
 model = SegmentationModel(val_fold=val_fold, data_name=data_name, model_parameters=model_params,
-                          model_name='segmentation_on_Siemens_recons_bn_not_trs')
+                          model_name='segmentation_on_Siemens_recons_in')
 model.training.train()
 model.eval_validation_set()
 model.eval_training_set()
