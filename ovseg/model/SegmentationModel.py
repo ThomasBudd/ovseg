@@ -328,13 +328,13 @@ class SegmentationModel(ModelBase):
         pred = data_tpl[self.pred_key]
 
         # volume of one voxel
-        fac = np.prod(data_tpl['spacing'])
+        # fac = np.prod(data_tpl['spacing'])
         for i in range(1, self.n_fg_classes + 1):
             lb_i = (label == i).astype(float)
             pred_i = (pred == i).astype(float)
-            ovlp = self.global_metrics_helper['overlap_'+str(i)] + fac * np.sum(lb_i * pred_i)
-            gt_vol = self.global_metrics_helper['gt_volume_'+str(i)] + fac * np.sum(lb_i)
-            pred_vol = self.global_metrics_helper['pred_volume_'+str(i)] + fac * np.sum(pred_i)
+            ovlp = self.global_metrics_helper['overlap_'+str(i)] + np.sum(lb_i * pred_i)
+            gt_vol = self.global_metrics_helper['gt_volume_'+str(i)] + np.sum(lb_i)
+            pred_vol = self.global_metrics_helper['pred_volume_'+str(i)] + np.sum(pred_i)
             # update global dice, recall and precision
             if gt_vol + pred_vol > 0:
                 self.global_metrics['dice_'+str(i)] = 200 * ovlp / (gt_vol + pred_vol)
