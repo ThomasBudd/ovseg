@@ -17,6 +17,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-lw", "--loss_weight")
 parser.add_argument("--use_windowed_simulations", required=False, default=False,
                     action="store_true")
+parser.add_argument("--use_gv_aug", required=False, default=False, action="store_true")
+
 
 # %% collect basic infos for models
 args = parser.parse_args()
@@ -54,7 +56,8 @@ model1 = Reconstruction2dSimModel(val_fold, data_name, recon_model)
 model_path = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models',
                           data_name, 'pretrained_segmentation')
 model_params = pickle.load(open(os.path.join(model_path, 'model_parameters.pkl'), 'rb'))
-del model_params['augmentation']['GPU_params']['grayvalue']
+if not args.use_gv_aug:
+    del model_params['augmentation']['GPU_params']['grayvalue']
 prep_params = pickle.load(open(os.path.join(preprocessed_path, 'preprocessing_parameters.pkl'),
                                'rb'))
 model_params['preprocessing'] = prep_params
@@ -73,6 +76,8 @@ lr2_params = {'beta': 0.9, 'lr_min': 0}
 # %%
 model_path = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models',
                           data_name, 'joined_{:.1f}_{}'.format(loss_weight, simulation))
+if args.use_gv_aug:
+    model_path = model_path + '_gv_aug'
 training = JoinedTraining(model1, model2, data.trn_dl,  model_path,
                           loss_weight, num_epochs=500,
                           lr1_params=lr1_params, lr2_params=lr2_params,
