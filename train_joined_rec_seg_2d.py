@@ -99,7 +99,7 @@ print()
 for tpl, scan in tqdm(zip(data.val_ds, data.val_scans)):
     with torch.cuda.amp.autocast():
         recon = model1.predict(tpl, return_torch=True)
-        recon_prep = model2.preprocessing(recon, tpl['spacing'])
+        recon_prep = model2.preprocessing(recon, tpl['orig_spacing'])
         tpl['image'] = recon_prep
         pred = model2.predict(tpl)
     case_id = scan.split('.')[0]
@@ -109,8 +109,10 @@ for tpl, scan in tqdm(zip(data.val_ds, data.val_scans)):
     # maybe save recon and pred
     if scan in cases_save_img:
         recon_prep = recon_prep.cpu().numpy()
-        io.save_nii(recon_prep, os.path.join(val_path, case_id+'_recon'),
+        io.save_nii(recon_prep, os.path.join(val_path, case_id+'_recon_prep'),
                     model2.preprocessing.target_spacing)
+        io.save_nii(recon.cpu().numpy(), os.path.join(val_path, case_id+'_recon'),
+                    tpl['orig_spacing'])
         io.save_nii(pred, os.path.join(val_path, case_id+'_pred'),
                     model2.preprocessing.target_spacing)
 

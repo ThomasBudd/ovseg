@@ -191,7 +191,9 @@ class Reconstruction2dSimModel(ModelBase):
     def save_prediction(self, data_tpl, ds_name, filename=None):
         # if not file name is given
         if filename is None:
-            filename = basename(data_tpl['raw_label_file'])
+            filename = basename(data_tpl['raw_image_file'])
+            if filename.endswith('_0000.nii.gz'):
+                filename = filename[:-12]
 
         # all predictions are stored in the designated 'predictions' folder in the OV_DATA_BASE
         pred_folder = join(environ['OV_DATA_BASE'], 'predictions', self.data_name,
@@ -206,7 +208,9 @@ class Reconstruction2dSimModel(ModelBase):
     def plot_prediction(self, data_tpl, ds_name, filename=None):
         # find name of the file
         if filename is None:
-            filename = basename(data_tpl['raw_label_file'])
+            filename = basename(data_tpl['raw_image_file'])
+            if filename.endswith('_0000.nii.gz'):
+                filename = filename[:-12]
 
         # remove fileextension e.g. .nii.gz
         filename = filename.split('.')[0]

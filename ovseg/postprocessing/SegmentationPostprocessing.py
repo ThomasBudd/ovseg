@@ -53,10 +53,11 @@ class SegmentationPostprocessing(object):
 
         # first fun step: let's reshape to original size
         # before going to hard labels
-        if orig_shape is not None and orig_shape != inpt_shape:
-            orig_shape = np.array(orig_shape)
-            order = 3 if is_np else 1
-            volume = resize_sample(volume, orig_shape, order)
+        if orig_shape is not None:
+            if np.any(orig_shape != inpt_shape):
+                orig_shape = np.array(orig_shape)
+                order = 3 if is_np else 1
+                volume = resize_sample(volume, orig_shape, order)
 
         # now change from soft to hard labels
         if is_np:

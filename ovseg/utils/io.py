@@ -1,7 +1,7 @@
 import numpy as np
 import nibabel as nib
 import pydicom
-from os.path import join, exists
+from os.path import join, exists, basename, split
 from os import listdir, environ
 from skimage.draw import polygon
 import pickle
@@ -236,7 +236,6 @@ def read_dcms(dcm_folder, reverse=True, names=None):
     im = np.stack([imds.pixel_array*a+b for imds in imdss],
                   -1).astype(np.int16)
     im[im < -1024] = -1024
-    im = im[np.newaxis]
 
     for roids, roidcm in zip(roidss, roidcms):
         seg = np.zeros_like(im)
@@ -274,7 +273,7 @@ def read_dcms(dcm_folder, reverse=True, names=None):
                 # from patient coordinate system to index of the image
                 c = (nodes[:, 0] - pos_c) / spacing[0]
                 rr, cc = polygon(r, c)
-                seg[:, rr, cc, z_index] = num
+                seg[rr, cc, z_index] = num
 
         # we check if all names start with a number
         # in that case we're converting the segmentations to carries these
@@ -298,12 +297,22 @@ def read_dcms(dcm_folder, reverse=True, names=None):
                   'scans do not show all ROIs errors might appear in the '
                   'segmentations. Recommendation: hand ROI names as a list '
                   'to read_dcms or rename ROIS to start with an integer.')
-        im = np.concatenate([im, seg])
 
-    # if no roi files was found we add an empty segmentation array
-    if len(roidcms) == 0:
-        im = np.concatenate([im, np.zeros_like(im)])
-    return im, spacing
+    data_tpl = {}
+    data_tpl['image'] = im
+    data_tpl['raw_image_file'] = dcm_folder
+    if len(roidcms) > 0:
+        data_tpl['label'] = seg
+        if len(roidcms) == 1:
+            roidcms = roidcms[0]
+        data_tpl['raw_label_file'] = roidcms
+    data_tpl['spacing'] = spacing
+    for key, attr in zip(['pat_id', 'date'], ['PatientID', 'AcquisitionDate']):
+        if hasattr(ds, attr):
+            data_tpl[key] = ds.__getattr__(attr)
+    data_tpl['dataset'] = basename(split(dcm_folder)[0])
+
+    return data_tpl
 
 
 def save_nii(im, out_file, spacing=None, img=None):

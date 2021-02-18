@@ -72,7 +72,6 @@ class SegmentationModel(ModelBase):
                       'This will cause a problem when computing evaluation metrics.\n'
                       'Setting the n_fg_classes to 1 (computing only DSC etc. of first class).')
                 self.n_fg_classes = 1
-        print('Preprocessing initialised.\n')
 
     def initialise_augmentation(self):
 
@@ -80,7 +79,6 @@ class SegmentationModel(ModelBase):
         # this happens in the dataloader
         if 'augmentation' in self.model_parameters:
             self.augmentation = SegmentationAugmentation(**self.model_parameters['augmentation'])
-        print('Augmentation initialised')
 
     def initialise_network(self):
         if 'network' not in self.model_parameters:
@@ -93,7 +91,6 @@ class SegmentationModel(ModelBase):
         elif self.model_parameters['architecture'].lower() in ['iunet', 'iu-net']:
             raise NotImplementedError('CHRISTIAN!!! CHRISTIAN!!! Come and do this.')
             # self.network = iUNet(**params)
-        print('Network initialised')
 
     def initialise_prediction(self):
         params = {'network': self.network,
@@ -114,7 +111,6 @@ class SegmentationModel(ModelBase):
                   'values (no removing of small connected components.')
             params = {}
         self.postprocessing = SegmentationPostprocessing(**params)
-        print('Postprocessing initialised')
 
     def initialise_data(self):
         if 'data' not in self.model_parameters:
@@ -160,7 +156,6 @@ class SegmentationModel(ModelBase):
                                  network_name=self.network_name,
                                  augmentation=self.augmentation.GPU_augmentation,
                                  **params)
-        print('Training initialised')
 
     def predict(self, data_tpl):
         '''
@@ -197,7 +192,12 @@ class SegmentationModel(ModelBase):
 
         # find name of the file
         if filename is None:
-            filename = basename(data_tpl['raw_label_file'])
+            filename = basename(data_tpl['raw_image_file'])
+            if filename.endswith('_0000.nii.gz'):
+                filename = filename[:-12]
+
+        # remove fileextension e.g. .nii.gz
+        filename = filename.split('.')[0]
 
         # all predictions are stored in the designated 'predictions' folder in the OV_DATA_BASE
         pred_folder = join(environ['OV_DATA_BASE'], 'predictions', self.data_name,
@@ -220,7 +220,9 @@ class SegmentationModel(ModelBase):
 
         # find name of the file
         if filename is None:
-            filename = basename(data_tpl['raw_label_file'])
+            filename = basename(data_tpl['raw_image_file'])
+            if filename.endswith('_0000.nii.gz'):
+                filename = filename[:-12]
 
         # remove fileextension e.g. .nii.gz
         filename = filename.split('.')[0]
