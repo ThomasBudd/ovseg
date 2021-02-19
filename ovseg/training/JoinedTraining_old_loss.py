@@ -81,7 +81,7 @@ class JoinedTraining(TrainingBase):
     def loss_fctn(self, out1, out2, yb1, yb2):
         loss1 = self.model1.training.loss_fctn(out1, yb1)
         loss2 = self.model2.training.loss_fctn(out2, yb2)
-        combined_loss = loss2 + self.loss_weight * loss1
+        combined_loss = (1-self.loss_weight) * loss1 + self.loss_weight * loss2
         return combined_loss, loss1, loss2
 
     def initialise_opt(self):

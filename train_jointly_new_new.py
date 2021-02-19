@@ -72,8 +72,13 @@ for loss_weight in [0.5, 0.7, 0.9, 1.0]:
     results = {}
     model2._init_global_metrics()
     val_path = os.path.join(model_path, 'validation')
-    if not os.path.exists(val_path):
-        os.mkdir(val_path)
+    recon_path = os.path.join(os.environ['OV_DATA_BASE'], 'predictions',
+                              'joined_{:.1f}_{}'.format(loss_weight, simulation), 'reconstructions')
+    pred_path = os.path.join(os.environ['OV_DATA_BASE'], 'predictions',
+                             'joined_{:.1f}_{}'.format(loss_weight, simulation), 'segmentations')
+    for path in [val_path, pred_path, recon_path]:
+        if not os.path.exists(path):
+            os.makedirs(path)
     val_scans = data.val_scans.copy()
     cases_save_img = val_scans[:10]
     print()
@@ -90,12 +95,10 @@ for loss_weight in [0.5, 0.7, 0.9, 1.0]:
         model2._update_global_metrics(tpl)
         # maybe save recon and pred
         if scan in cases_save_img:
-            recon_prep = recon_prep.cpu().numpy()
-            io.save_nii(recon_prep, os.path.join(val_path, case_id+'_recon'),
-                        model2.preprocessing.target_spacing)
-            io.save_nii(recon.cpu().numpy(), os.path.join(val_path, case_id+'_recon'),
+            io.save_nii(recon.cpu().numpy(),
+                        os.path.join(recon_path, case_id),
                         tpl['orig_spacing'])
-            io.save_nii(pred, os.path.join(val_path, case_id+'_pred'),
-                        model2.preprocessing.target_spacing)
-
+            io.save_nii(pred,
+                        os.path.join(pred_path, case_id+'_pred'),
+                        tpl['spacing'])
     model2._save_results_to_pkl_and_txt(results, val_path, ds_name='validation')

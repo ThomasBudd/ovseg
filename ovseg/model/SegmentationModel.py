@@ -157,7 +157,7 @@ class SegmentationModel(ModelBase):
                                  augmentation=self.augmentation.GPU_augmentation,
                                  **params)
 
-    def predict(self, data_tpl):
+    def predict(self, data_tpl, image_key='image'):
         '''
         There are a lot of differnt ways to do prediction. Some do require direct preprocessing
         some don't need the postprocessing imidiately (e.g. when ensembling)
@@ -165,7 +165,7 @@ class SegmentationModel(ModelBase):
         some postprocessing (argmax and removing of small lesions) but not the resizing.
         '''
         self.network = self.network.eval()
-        im = data_tpl['image']
+        im = data_tpl[image_key]
         is_np,  _ = check_type(im)
         if is_np:
             im = torch.from_numpy(im).cuda()
@@ -216,7 +216,7 @@ class SegmentationModel(ModelBase):
 
         save_nii(pred, join(pred_folder, filename), spacing)
 
-    def plot_prediction(self, data_tpl, ds_name, filename=None):
+    def plot_prediction(self, data_tpl, ds_name, filename=None, image_key='image'):
 
         # find name of the file
         if filename is None:
@@ -237,7 +237,7 @@ class SegmentationModel(ModelBase):
         # the labels will carry the manual segmentations (in case available) plus the
         # predictions
         labels = []
-        im = data_tpl['image']
+        im = data_tpl[image_key]
         if 'label' in data_tpl:
             # in case of raw data this only removes the lables that this model doesn't segment
             labels.append(self.preprocessing.preprocess_volume_from_data_tpl(data_tpl,
