@@ -1,7 +1,7 @@
 from ovseg.model.model_parameters_reconstruction import get_model_params_2d_reconstruction
 from ovseg.model.Reconstruction2dSimModel import Reconstruction2dSimModel
 from ovseg.preprocessing.Reconstruction2dSimPreprocessing import Reconstruction2dSimPreprocessing
-from ovseg.network.recon_networks import get_operator
+from ovseg.networks.recon_networks import get_operator
 import os
 
 
