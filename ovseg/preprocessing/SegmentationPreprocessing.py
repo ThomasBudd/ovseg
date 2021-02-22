@@ -457,8 +457,8 @@ class SegmentationPreprocessing(object):
             for case in listdir(lbp):
                 name = case[:-7]
                 im_cases = [case for case in listdir(imp) if case.startswith(name)]
-                if not len(im_cases) == 0:
-                    print('Found not image file for label file {}.'.format(case))
+                if len(im_cases) == 0:
+                    print('Found no image file for label file {}.'.format(case))
                     continue
                 folders_and_cases.append((data_fol, case))
 
