@@ -508,6 +508,10 @@ class SegmentationPreprocessing(object):
             fingerprint['orig_shape'] = orig_shape
             fingerprint['orig_spacing'] = orig_spacing
             fingerprint['spacing'] = spacing
+            if 'dataset' not in fingerprint:
+                fingerprint['dataset'] = folder
+            if 'pat_id' not in fingerprint:
+                fingerprint['pat_id'] = case.split('.')[0]
             # first save the image related stuff
             name = case[:-7]
             for arr, folder in [[im, 'images'],
