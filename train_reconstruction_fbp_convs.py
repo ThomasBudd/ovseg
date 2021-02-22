@@ -16,7 +16,7 @@ for i, n_photons in enumerate([10 ** 7, 3 * 10 ** 7, 10**8]):
     preprocessed_name = 'pod_default'
     val_fold = 0
     if not os.path.exists(os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', data_name,
-                                       preprocessed_name, 'images_HU_rescale')):
+                                       preprocessed_name, 'projections_'+dose)):
         op = get_operator()
         preprocessing = Reconstruction2dSimPreprocessing(op, **model_params['preprocessing'])
         preprocessing.preprocess_raw_folders(['OV04', 'BARTS', 'ApolloTCGA'],
