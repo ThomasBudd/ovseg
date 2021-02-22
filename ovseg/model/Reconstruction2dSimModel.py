@@ -37,7 +37,10 @@ class Reconstruction2dSimModel(ModelBase):
         self.plot_window = plot_window
 
     def initialise_preprocessing(self):
-        operator_kwargs = self.model_parameters['operator']
+        if 'operator' in self.model_parameters:
+            operator_kwargs = self.model_parameters['operator']
+        else:
+            operator_kwargs = {}
         self.operator = get_operator(**operator_kwargs)
         preprocessing_kwargs = self.model_parameters['preprocessing']
         self.preprocessing = Reconstruction2dSimPreprocessing(self.operator,
