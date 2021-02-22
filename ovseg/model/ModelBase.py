@@ -3,7 +3,11 @@ from ovseg.utils import io, path_utils
 from ovseg.utils.dict_equal import dict_equal
 import os
 import torch
-from tqdm import tqdm
+try:
+    from tqdm import tqdm
+except ModuleNotFoundError:
+    print('No tqdm found, using no pretty progressing bars')
+    tqdm = lambda x: x
 import numpy as np
 
 

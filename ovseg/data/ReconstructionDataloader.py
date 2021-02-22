@@ -1,7 +1,11 @@
 import numpy as np
 import torch
 import os
-from tqdm import tqdm
+try:
+    from tqdm import tqdm
+except ModuleNotFoundError:
+    print('No tqdm found, using no pretty progressing bars')
+    tqdm = lambda x: x
 
 
 class Reconstruction2dDataset(object):

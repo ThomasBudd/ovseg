@@ -8,7 +8,11 @@ from ovseg.utils.path_utils import my_listdir, maybe_create_path
 from ovseg.utils.dict_equal import dict_equal
 from os.path import join, isdir, exists, basename
 from os import environ, listdir
-from tqdm import tqdm
+try:
+    from tqdm import tqdm
+except ModuleNotFoundError:
+    print('No tqdm found, using no pretty progressing bars')
+    tqdm = lambda x: x
 
 
 class SegmentationPreprocessing(object):

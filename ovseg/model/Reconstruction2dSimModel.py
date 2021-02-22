@@ -3,14 +3,12 @@ import torch
 from os.path import join, basename, exists
 from os import makedirs, environ
 from ovseg.utils.io import save_nii
-import pickle
 import matplotlib.pyplot as plt
 from ovseg.networks.recon_networks import reconstruction_network_fbp_convs, get_operator, \
     learned_primal_dual
 from ovseg.training.ReconstructionNetworkTraining import \
     ReconstructionNetworkTraining
 from ovseg.data.ReconstructionData import ReconstructionData
-from tqdm import tqdm
 from ovseg.model.ModelBase import ModelBase
 from ovseg.utils.torch_np_utils import check_type
 from ovseg.preprocessing.Reconstruction2dSimPreprocessing import \

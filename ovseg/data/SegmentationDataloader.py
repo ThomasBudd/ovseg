@@ -2,7 +2,11 @@ import torch
 import numpy as np
 from ovseg.data.utils import crop_and_pad_image
 import os
-from tqdm import tqdm
+try:
+    from tqdm import tqdm
+except ModuleNotFoundError:
+    print('No tqdm found, using no pretty progressing bars')
+    tqdm = lambda x: x
 
 
 class SegmentationBatchDataset(object):
