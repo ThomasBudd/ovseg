@@ -5,7 +5,7 @@ model_params = get_model_params_2d_segmentation()
 
 val_fold = 0
 
-DEBUG = True
+DEBUG = False
 
 if DEBUG:
     data_name = 'Test'
