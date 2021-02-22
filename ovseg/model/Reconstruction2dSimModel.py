@@ -156,6 +156,8 @@ class Reconstruction2dSimModel(ModelBase):
 
         torch.cuda.empty_cache()
 
+        data_tpl[self.pred_key] = pred
+
         return pred
 
     def __call__(self, data_tpl, return_torch=False):
