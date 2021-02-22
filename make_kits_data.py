@@ -2,6 +2,7 @@ from os import listdir, makedirs, environ
 from os.path import join, exists
 from shutil import copyfile
 from ovseg.preprocessing.SegmentationPreprocessing import SegmentationPreprocessing
+from tqdm import tqdm
 
 kits_path = '/local/scratch/public/tb588/kits19/data'
 ov_raw = join(environ['OV_DATA_BASE'], 'raw_data', 'kits19')
@@ -10,7 +11,7 @@ for subf in ['images', 'labels']:
     if not exists(join(ov_raw, subf)):
         makedirs(join(ov_raw, subf))
 
-for case in listdir(kits_path):
+for case in tqdm(listdir(kits_path)):
     if exists(join(kits_path, case, 'segmentation.nii.gz')):
         copyfile(join(kits_path, case, 'segmentation.nii.gz'),
                  join(ov_raw, 'labels', 'case_{}.nii.gz'.format(case[-3:])))
