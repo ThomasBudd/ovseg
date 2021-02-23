@@ -1,7 +1,12 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
-from scipy.ndimage import map_coordinates
+try:
+    from scipy.ndimage import map_coordinates
+except ImportError:
+    print('IMPORT ERROR!!\n'
+          'This was put here because on some devices importing map_coordinates fails if some '
+          'C++ files are missing. The code will crash if one attempts to interpolate np arrays.')
 from ovseg.utils.grid_utils import get_resize_np_grid, get_resize_torch_grid
 from ovseg.utils.torch_np_utils import stack, check_type
 

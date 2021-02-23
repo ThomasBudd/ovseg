@@ -551,13 +551,38 @@ class SegmentationPreprocessing(object):
                 fg_cvals.extend(fg_cval.tolist())
                 n_fg_classes = np.max([n_fg_classes, lb.max()])
 
+        if len(fg_cvals) > 10**8:
+            # in some datasets the length of fg_cvals can become too long
+            # in this case we split up the lists into chunks of data that can be put into an
+            # np array and we compute the mean over the statistics of each batch
+            fg_percentile_list = []
+            n_arrays = len(fg_cvals) // 10 ** 8 + 1
+            array_len = len(fg_cvals) // n_arrays
+            for i in range(n_arrays - 1):
+                fg_percentile_list.append(np.percentile(fg_cvals[i * array_len:
+                                                                 (i+1) * array_len],
+                                                        percentiles))
+            fg_percentile_list.append(np.percentile(fg_cvals[(n_arrays - 1) * array_len:],
+                                                    percentiles))
+            fg_percentiles = np.mean(fg_percentile_list, 0)
+            std_fg_list, mean_fg_list = [], []
+            for i in range(n_arrays - 1):
+                std_fg_list.append(np.std(fg_cvals[i * array_len: (i+1) * array_len]))
+                mean_fg_list.append(np.mean(fg_cvals[i * array_len: (i+1) * array_len]))
+            std_fg_list.append(np.std(fg_cvals[(n_arrays - 1) * array_len:]))
+            mean_fg_list.append(np.mean(fg_cvals[(n_arrays - 1) * array_len:]))
+            std_fg, mean_fg = np.mean(std_fg_list), np.mean(mean_fg_list)
+        else:
+            fg_percentiles = np.percentile(fg_cvals, percentiles)
+            fg_cvals = np.array(fg_cvals).clip(fg_percentiles)
+            std_fg, mean_fg = np.std(fg_cvals), np.mean(fg_cvals)
+
         self.dataset_properties['median_shape'] = np.median(shapes, 0)
         self.dataset_properties['median_spacing'] = np.median(spacings, 0)
-        self.dataset_properties['fg_percentiles'] = np.percentile(fg_cvals, percentiles)
+        self.dataset_properties['fg_percentiles'] = fg_percentiles
         self.dataset_properties['percentiles'] = percentiles
-        fg_cvals = np.array(fg_cvals).clip(*self.dataset_properties['fg_percentiles'])
         self.dataset_properties['scaling_foreground'] = \
-            np.array([np.std(fg_cvals), np.mean(fg_cvals)]).astype(np.float32)
+            np.array([std_fg, mean_fg]).astype(np.float32)
         self.dataset_properties['n_fg_classes'] = n_fg_classes
 
         if self.apply_resizing and self.target_spacing is None:
