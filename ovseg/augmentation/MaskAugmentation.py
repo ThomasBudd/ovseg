@@ -1,8 +1,14 @@
 import numpy as np
 import torch
 from ovseg.utils.torch_np_utils import check_type, stack
-from scipy.ndimage import morphology
-from skimage.measure import label
+try:
+    from scipy.ndimage import morphology
+    from skimage.measure import label
+except ImportError:
+    print('Caught Import Error while importing some function from scipy or skimage. '
+          'This might be due to this problem: '
+          'https://github.com/lhelontra/tensorflow-on-arm/issues/13')
+
 
 TORCH_WARNING_PRINTED = False
 

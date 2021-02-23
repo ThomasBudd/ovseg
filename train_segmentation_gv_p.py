@@ -13,7 +13,7 @@ val_fold = 0
 
 data_name = 'OV04'
 for key in ['p_noise', 'p_blur', 'p_bright', 'p_contr']:
-    model_params['augmentation']['GPU_params']['grayvalue'] = p
+    model_params['augmentation']['GPU_params']['grayvalue'][key] = p
 
 
 model_pretrain = SegmentationModel(val_fold=0, data_name=data_name,

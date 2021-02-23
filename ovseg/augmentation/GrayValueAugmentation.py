@@ -1,8 +1,12 @@
 import numpy as np
 import torch
 from ovseg.utils.torch_np_utils import check_type, stack
-from scipy.ndimage import gaussian_filter
-
+try:
+    from scipy.ndimage import gaussian_filter
+except ImportError:
+    print('Caught Import Error while importing some function from scipy or skimage. '
+          'This might be due to this problem: '
+          'https://github.com/lhelontra/tensorflow-on-arm/issues/13')
 
 class GrayValueAugmentation(object):
     '''

@@ -3,7 +3,12 @@ import nibabel as nib
 import pydicom
 from os.path import join, exists, basename, split
 from os import listdir, environ
-from skimage.draw import polygon
+try:
+    from skimage.draw import polygon
+except ImportError:
+    print('Caught Import Error while importing some function from scipy or skimage. '
+          'This might be due to this problem: '
+          'https://github.com/lhelontra/tensorflow-on-arm/issues/13')
 import pickle
 
 _names_sorting_warning_printed = False
