@@ -407,7 +407,7 @@ class SegmentationPreprocessing(object):
     def _maybe_reduce_label(self, lb):
 
         # remove classes from the label for the case we don't want to segment
-        if len(self.use_only_classes) > 0:
+        if isinstance(self.use_only_classes, (list, tuple)):
             lb_new = np.zeros_like(lb)
             for i, c in enumerate(self.use_only_classes):
                 lb_new[lb == c] = i+1

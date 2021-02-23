@@ -85,7 +85,7 @@ for loss_weight in loss_weights:
 
     # %%
     model_path = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models',
-                              data_name, 'joined_{:.1f}_{}'.format(loss_weight, simulation))
+                              data_name, 'joined_{}_{}'.format(loss_weight, simulation))
     if args.use_gv_aug:
         model_path = model_path + '_gv_aug'
     training = JoinedTraining(model1, model2, data.trn_dl,  model_path,
