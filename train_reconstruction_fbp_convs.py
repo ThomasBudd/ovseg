@@ -24,7 +24,7 @@ for i, n_photons in enumerate([10 ** 7, 3 * 10 ** 7, 10**8]):
                                              data_name=data_name,
                                              proj_folder_name='projections_'+dose,
                                              im_folder_name='images_HU_rescale')
-    
+
     model = Reconstruction2dSimModel(val_fold=val_fold,
                                      data_name=data_name,
                                      preprocessed_name=preprocessed_name,
@@ -32,6 +32,6 @@ for i, n_photons in enumerate([10 ** 7, 3 * 10 ** 7, 10**8]):
                                      model_name='recon_fbp_convs_'+dose,
                                      plot_window=[-50, 350])
     model.training.train()
-    
+
     model.eval_validation_set(save_preds=True)
     model.eval_training_set(save_preds=True)

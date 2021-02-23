@@ -29,6 +29,6 @@ for case in tqdm(listdir(kits_path)):
 
 # %% now preprocessing
 raw_data = 'kits19'
-preprocessing = SegmentationPreprocessing(use_only_classes=[9])
+preprocessing = SegmentationPreprocessing()
 preprocessing.plan_preprocessing_raw_data(raw_data)
 preprocessing.preprocess_raw_data(raw_data)

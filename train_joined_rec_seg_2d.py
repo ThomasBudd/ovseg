@@ -101,9 +101,9 @@ for loss_weight in loss_weights:
     model2._init_global_metrics()
     val_path = os.path.join(model_path, 'validation')
     recon_path = os.path.join(os.environ['OV_DATA_BASE'], 'predictions',
-                              'joined_{:.1f}_{}'.format(loss_weight, simulation), 'reconstructions')
+                              'joined_{:.4f}_{}'.format(loss_weight, simulation), 'reconstructions')
     pred_path = os.path.join(os.environ['OV_DATA_BASE'], 'predictions',
-                             'joined_{:.1f}_{}'.format(loss_weight, simulation), 'segmentations')
+                             'joined_{:.4f}_{}'.format(loss_weight, simulation), 'segmentations')
     for path in [val_path, pred_path, recon_path]:
         if not os.path.exists(path):
             os.makedirs(path)
