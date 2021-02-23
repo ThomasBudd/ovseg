@@ -30,6 +30,6 @@ if copy_data:
 
 # %% now preprocessing
 raw_data = 'kits19'
-preprocessing = SegmentationPreprocessing()
+preprocessing = SegmentationPreprocessing(window=[-79, 304], scaling=[76.69, 101.0])
 preprocessing.plan_preprocessing_raw_data(raw_data)
 preprocessing.preprocess_raw_data(raw_data)
