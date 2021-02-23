@@ -17,7 +17,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("-lw", "--loss_weights", nargs='+', required=False, default=None)
 parser.add_argument("-le", "--loss_exps", nargs='+', required=False, default=None)
-parser.add_argument("--use_windowed_simulations", required=False, default=False,
+parser.add_argument("--use_high_dose_simulations", required=False, default=False,
                     action="store_true")
 parser.add_argument("--use_gv_aug", required=False, default=False, action="store_true")
 
@@ -31,10 +31,10 @@ else:
 val_fold = 0
 data_name = 'OV04'
 
-recon_model = ['recon_fbp_convs_full_HU', 'reconstruction_network_fbp_convs'][j]
+recon_model = ['recon_fbp_convs_full_HU', 'recon_fbp_convs_high_2'][j]
 proj_folder = ['projections_HU', 'projections'][j]
 im_folder = ['images_HU_rescale', 'images_att'][j]
-simulation = ['HU', 'win'][j]
+simulation = ['HU', 'high'][j]
 loss_weights = []
 
 if args.loss_weights is not None:

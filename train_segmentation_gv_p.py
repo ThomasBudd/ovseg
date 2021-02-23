@@ -7,7 +7,7 @@ parser.add_argument("-p", "--p", required=True)
 model_params = get_model_params_2d_segmentation()
 args = parser.parse_args()
 
-p = args.p
+p = float(args.p)
 
 val_fold = 0
 
