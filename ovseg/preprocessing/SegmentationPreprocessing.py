@@ -624,6 +624,7 @@ class SegmentationPreprocessing(object):
                 self.scaling = self.dataset_properties['scaling_window']
             elif self.normalise == 'foreground':
                 self.scaling = self.dataset_properties['scaling_foreground']
+        if self.apply_scaling:
             print('Scaling: ({:.4f}, {:.4f})'.format(*self.scaling))
         if self.apply_resizing:
             print('Spacing: ({:.4f}, {:.4f}, {:.4f})'.format(*self.target_spacing))
