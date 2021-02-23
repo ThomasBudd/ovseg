@@ -24,7 +24,7 @@ parser.add_argument("--use_gv_aug", required=False, default=False, action="store
 
 # %% collect basic infos for models
 args = parser.parse_args()
-if args.use_windowed_simulations:
+if args.use_high_dose_simulations:
     j = 1
 else:
     j = 0
