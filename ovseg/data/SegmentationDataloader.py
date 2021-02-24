@@ -72,7 +72,7 @@ class SegmentationBatchDataset(object):
 
             # now we check if come cases are missing in the folder
             print('Checking if all bias coordinates are stored in '+self.bias_coords_fol)
-            for d in self.vol_ds.path_dict:
+            for d in self.vol_ds.path_dicts:
                 case = os.path.basename(d[self.label_key])
                 if case not in os.listdir(self.bias_coords_fol):
                     lb = np.load(d[self.label_key])
