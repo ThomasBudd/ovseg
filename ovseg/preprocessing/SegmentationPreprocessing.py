@@ -567,14 +567,16 @@ class SegmentationPreprocessing(object):
             fg_percentiles = np.mean(fg_percentile_list, 0)
             std_fg_list, mean_fg_list = [], []
             for i in range(n_arrays - 1):
-                std_fg_list.append(np.std(fg_cvals[i * array_len: (i+1) * array_len]))
-                mean_fg_list.append(np.mean(fg_cvals[i * array_len: (i+1) * array_len]))
+                std_fg_list.append(np.std(np.clip(fg_cvals[i * array_len: (i+1) * array_len],
+                                                  *fg_percentiles)))
+                mean_fg_list.append(np.mean(np.clip(fg_cvals[i * array_len: (i+1) * array_len],
+                                                    *fg_percentiles)))
             std_fg_list.append(np.std(fg_cvals[(n_arrays - 1) * array_len:]))
             mean_fg_list.append(np.mean(fg_cvals[(n_arrays - 1) * array_len:]))
             std_fg, mean_fg = np.mean(std_fg_list), np.mean(mean_fg_list)
         else:
             fg_percentiles = np.percentile(fg_cvals, percentiles)
-            fg_cvals = np.array(fg_cvals).clip(fg_percentiles)
+            fg_cvals = np.array(fg_cvals).clip(*fg_percentiles)
             std_fg, mean_fg = np.std(fg_cvals), np.mean(fg_cvals)
 
         self.dataset_properties['median_shape'] = np.median(shapes, 0)

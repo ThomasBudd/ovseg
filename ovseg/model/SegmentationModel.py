@@ -66,7 +66,7 @@ class SegmentationModel(ModelBase):
             self.n_fg_classes = len(self.preprocessing.use_only_classes)
         else:
             try:
-                self.n_fg_classes = self.preprocessing.dataset_properties.n_fg_classes
+                self.n_fg_classes = self.preprocessing.dataset_properties['n_fg_classes']
             except AttributeError:
                 print('Could not find number of fg classes appearing in the data.\n'
                       'This will cause a problem when computing evaluation metrics.\n'

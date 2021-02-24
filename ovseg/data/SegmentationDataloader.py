@@ -77,7 +77,7 @@ class SegmentationBatchDataset(object):
                 if case not in os.listdir(self.bias_coords_fol):
                     lb = np.load(d[self.label_key])
                     coords = np.array(np.where(lb > 0)).astype(np.int16)
-                    np.save(os.path.join(self.bias_coords_fol, case))
+                    np.save(os.path.join(self.bias_coords_fol, case), coords)
 
     def _get_volume_tuple(self, ind=None):
 
