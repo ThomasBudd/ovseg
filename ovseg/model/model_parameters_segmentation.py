@@ -88,8 +88,8 @@ def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
     return model_parameters
 
 
-def get_model_params_iUNet_segmentation(patch_size_in=[256, 256, 32],
-                                        patch_size_aug=[320, 320, 32]):
+def get_model_params_2d_iunet_segmentation(patch_size_in=[256, 256],
+                                        patch_size_aug=[320, 320]):
     model_params = get_model_params_2d_segmentation(batch_size=2)
     model_params['augmentation']['GPU_params']['spatial']['patch_size'] = patch_size_in
     model_params['architecture'] = 'iUNet'

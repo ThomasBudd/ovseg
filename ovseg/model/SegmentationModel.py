@@ -89,8 +89,7 @@ class SegmentationModel(ModelBase):
         if self.model_parameters['architecture'].lower() in ['unet', 'u-net']:
             self.network = UNet(**params).cuda()
         elif self.model_parameters['architecture'].lower() in ['iunet', 'iu-net']:
-            raise NotImplementedError('CHRISTIAN!!! CHRISTIAN!!! Come and do this.')
-            # self.network = iUNet(**params)
+            self.network = iUNet(**params).cuda()
 
     def initialise_prediction(self):
         params = {'network': self.network,
@@ -107,7 +106,7 @@ class SegmentationModel(ModelBase):
         try:
             params = self.model_parameters['postprocessing'].copy()
         except KeyError:
-            print('No parameter for postprocessing were given. Take defaut '
+            print('No parameter for postprocessing were given. Take default '
                   'values (no removing of small connected components.')
             params = {}
         self.postprocessing = SegmentationPostprocessing(**params)
