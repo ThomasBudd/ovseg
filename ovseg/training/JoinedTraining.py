@@ -392,13 +392,13 @@ class JoinedTraining(TrainingBase):
                         val_loss_ema.append(np.nan)
                     elif np.isnan(self.val_losses[-1][i]) and not np.isnan(val_loss[i]):
                         self.print_and_log('New val loss is not NaN. Starting EMA from this value')
-                        val_loss_ema.append(val_loss)
+                        val_loss_ema.append(val_loss[i])
                     elif not np.isnan(self.val_losses[-1][i]) and np.isnan(val_loss[i]):
                         self.print_and_log('Computed NaN for val loss. Ignoring it for EMA')
-                        val_loss_ema.append(self.val_losses[-1])
+                        val_loss_ema.append(self.val_losses[-1][i])
                     else:
-                        val_loss_ema.append(self.nu_ema_val * self.val_losses[-1]
-                                            + (1-self.nu_ema_val) * val_loss)
+                        val_loss_ema.append(self.nu_ema_val * self.val_losses[-1][i]
+                                            + (1-self.nu_ema_val) * val_loss[i])
                 self.val_losses.append(np.array(val_loss_ema))
 
     def plot_training_progess(self):
