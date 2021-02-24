@@ -11,6 +11,9 @@ val_fold = 0
 
 data_name = 'kits19'
 model_params['data']['n_folds'] = 3
+model_params['data']['trn_dl_params']['store_coords_in_ram'] = False
+model_params['data']['val_dl_params']['store_coords_in_ram'] = False
+
 model_params['network']['out_channels'] = 3
 if args.pretrain_only:
     del model_params['augmentation']['GPU_params']['grayvalue']

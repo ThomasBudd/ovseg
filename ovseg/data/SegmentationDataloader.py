@@ -65,6 +65,19 @@ class SegmentationBatchDataset(object):
                 coords = np.stack(np.where(seg > 0))
                 self.coords_list.append(coords)
             print('Done')
+        else:
+            self.bias_coords_fol = os.path.join(self.vol_ds.preprocessed_path, 'bias_coordinates')
+            if not os.path.exists(self.bias_coords_fol):
+                os.mkdir(self.bias_coords_fol)
+
+            # now we check if come cases are missing in the folder
+            print('Checking if all bias coordinates are stored in '+self.bias_coords_fol)
+            for d in self.vol_ds.path_dicts:
+                case = os.path.basename(d[self.label_key])
+                if case not in os.listdir(self.bias_coords_fol):
+                    lb = np.load(d[self.label_key])
+                    coords = np.array(np.where(lb > 0)).astype(np.int16)
+                    np.save(os.path.join(self.bias_coords_fol, case))
 
     def _get_volume_tuple(self, ind=None):
 
@@ -101,7 +114,8 @@ class SegmentationBatchDataset(object):
                 coords = self.coords_list[ind]
             else:
                 # or not!
-                coords = np.stack(np.where(seg > 0))
+                case = os.path.basename(self.vol_ds.path_dicts[ind][self.label_key])
+                coords = np.load(os.path.join(self.bias_coords_fol, case))
             n_coords = coords.shape[1]
             if n_coords > 0:
                 coord = coords[:, np.random.randint(n_coords)] \
