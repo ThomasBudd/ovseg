@@ -135,8 +135,8 @@ def read_data_tpl_from_nii(folder, case):
 
     label_files = []
     for label_folder in label_folders_ex:
-        matching_files = [join(folder, image_folder, file) for file in
-                          listdir(join(folder, image_folder))
+        matching_files = [join(folder, label_folder, file) for file in
+                          listdir(join(folder, label_folder))
                           if file.startswith(case[:-7])]
         if len(matching_files) > 0 and len(label_files) > 0:
             raise FileExistsError('Found labels for in multiple label folders at path {} for '
