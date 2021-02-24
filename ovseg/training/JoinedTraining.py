@@ -327,7 +327,13 @@ class JoinedTraining(TrainingBase):
     def on_epoch_end(self):
         super().on_epoch_end()
         # keep the training loss from the end of the epoch
-        self.trn_losses.append(self.trn_loss)
+        if not np.isnan(self.trn_loss):
+            self.trn_losses.append(self.trn_loss)
+        else:
+            self.print_and_log('Warning: computed NaN for trn loss, continuing EMA with previous '
+                               'value.')
+            self.trn_losses.append(self.trn_losses[-1])
+            self.trn_loss = self.trn_losses[-1]
         self.print_and_log('Traning losses: {:.4e}, {:.4e}, '
                            '{:.4e}'.format(*self.trn_loss))
 
@@ -376,8 +382,18 @@ class JoinedTraining(TrainingBase):
             if len(self.val_losses) == 0:
                 self.val_losses.append(val_loss)
             else:
-                self.val_losses.append(self.nu_ema_val * self.val_losses[-1]
-                                       + (1-self.nu_ema_val) * val_loss)
+                if np.isnan(self.val_losses[-1]) and np.isnan(val_loss):
+                    self.print_and_log('Warning Both previous and current val loss are NaN.')
+                    self.val_losses.append(np.nan)
+                elif np.isnan(self.val_losses[-1]) and not np.isnan(val_loss):
+                    self.print_and_log('New val loss is not NaN. Starting EMA from this value')
+                    self.val_losses.append(val_loss)
+                elif not np.isnan(self.val_losses[-1]) and np.isnan(val_loss):
+                    self.print_and_log('Computed NaN for val loss. Ignoring it for EMA')
+                    self.val_losses.append(self.val_losses[-1])
+                else:
+                    self.val_losses.append(self.nu_ema_val * self.val_losses[-1]
+                                           + (1-self.nu_ema_val) * val_loss)
 
     def plot_training_progess(self):
         for p in self.p_plot_list:
