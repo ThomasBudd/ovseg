@@ -7,6 +7,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--dose", required=True)
+parser.add_argument("-w", '--window', required=False, default=False, action="store_true")
 args = parser.parse_args()
 
 dose = args.dose
@@ -18,9 +19,11 @@ elif dose == 'high':
 else:
     raise ValueError('Unkown input {} for dose'.format(dose))
 
+window = [-50, 350] if args.window else None
+
 model_params = get_model_params_2d_reconstruction(image_folder='images_HU_rescale',
                                                   projection_folder='projections_'+dose)
-model_params['preprocessing']['window'] = None
+model_params['preprocessing']['window'] = window
 model_params['preprocessing']['num_photons'] = n_photons
 data_name = 'kits19'
 preprocessed_name = 'default'
