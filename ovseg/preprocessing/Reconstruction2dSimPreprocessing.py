@@ -3,7 +3,11 @@ import numpy as np
 from ovseg.utils.torch_np_utils import check_type, stack
 from ovseg.utils.path_utils import maybe_create_path
 import os
-from tqdm import tqdm
+try:
+    from tqdm import tqdm
+except ImportError:
+    print('tqdm not installed. Not pretty progressing bars')
+    tqdm = lambda x: x
 import nibabel as nib
 
 
