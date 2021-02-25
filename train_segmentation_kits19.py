@@ -27,4 +27,5 @@ model_pretrain = SegmentationModel(val_fold=0, data_name=data_name,
                                    model_name=model_name,
                                    model_parameters=model_params)
 model_pretrain.training.train()
-model_pretrain.validate()
+model_pretrain.eval_validation_set(save_preds=True)
+model_pretrain.eval_training_set(save_preds=False)
