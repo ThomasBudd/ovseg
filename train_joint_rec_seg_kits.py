@@ -24,6 +24,7 @@ parser.add_argument("-le", "--loss_exps", nargs='+', required=False, default=Non
 parser.add_argument("--use_windowed_simulations", required=False, default=False,
                     action="store_true")
 parser.add_argument("--use_gv_aug", required=False, default=False, action="store_true")
+parser.add_argument("--fp32", required=False, default=False, action="store_true")
 
 
 # %% collect basic infos for models
@@ -53,11 +54,13 @@ for loss_weight in loss_weights:
     # %% build data
     trn_dl_params = {'batch_size': 12, 'patch_size': [512, 512],
                      'num_workers': None, 'pin_memory': True,
-                     'epoch_len': 250, 'store_coords_in_ram': True}
+                     'epoch_len': 250, 'store_coords_in_ram': True,
+                     'return_fp16': not args.fp32}
     val_dl_params = {'batch_size': 12, 'patch_size': [512, 512],
                      'num_workers': None, 'pin_memory': True,
                      'epoch_len': 25, 'store_coords_in_ram': True, 'store_data_in_ram': True,
-                     'n_max_volumes': 50}
+                     'n_max_volumes': 50,
+                     'return_fp16': not args.fp32}
     preprocessed_path = os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed',
                                      data_name, 'pod_default')
     keys = ['projection', 'image', 'label', 'spacing']
@@ -96,7 +99,7 @@ for loss_weight in loss_weights:
                               loss_weight, num_epochs=500,
                               lr1_params=lr1_params, lr2_params=lr2_params,
                               opt1_params=opt1_params, opt2_params=opt2_params,
-                              val_dl=data.val_dl)
+                              val_dl=data.val_dl, fp32=args.fp32)
     # %% now the magic!!
     training.train()
 
