@@ -6,7 +6,11 @@ from ovseg.model.SegmentationModel import SegmentationModel
 import pickle
 import numpy as np
 import torch
-from tqdm import tqdm
+try:
+    from tqdm import tqdm
+except ImportError:
+    print('No tqdm found, using no pretty progressing bars')
+    tqdm = lambda x: x
 from ovseg.utils import io
 from time import sleep
 
