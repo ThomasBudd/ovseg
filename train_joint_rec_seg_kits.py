@@ -33,11 +33,11 @@ if args.use_windowed_simulations:
 else:
     j = 0
 val_fold = 0
-data_name = 'OV04'
+data_name = 'kits'
 
-recon_model = ['recon_fbp_convs_full_HU', 'reconstruction_network_fbp_convs'][j]
-proj_folder = ['projections_HU', 'projections'][j]
-im_folder = ['images_HU_rescale', 'images_att'][j]
+recon_model = ['recon_fbp_convs_normal', 'recon_fbp_convs_win'][j]
+proj_folder = ['projections_normal', 'projections_normal_win'][j]
+im_folder = ['images_HU_rescale', 'images_HU_win_rescale'][j]
 simulation = ['HU', 'win'][j]
 loss_weights = []
 
@@ -68,14 +68,14 @@ for loss_weight in loss_weights:
     # %% load models
     model1 = Reconstruction2dSimModel(val_fold, data_name, recon_model)
     model_path = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models',
-                              data_name, 'pretrained_segmentation')
+                              data_name, 'segmentation_pretrain')
     model_params = pickle.load(open(os.path.join(model_path, 'model_parameters.pkl'), 'rb'))
     if not args.use_gv_aug:
         del model_params['augmentation']['GPU_params']['grayvalue']
     prep_params = pickle.load(open(os.path.join(preprocessed_path, 'preprocessing_parameters.pkl'),
                                    'rb'))
     model_params['preprocessing'] = prep_params
-    model2 = SegmentationModel(val_fold, data_name, 'pretrained_segmentation',
+    model2 = SegmentationModel(val_fold, data_name, 'segmentation_pretrain',
                                model_parameters=model_params,
                                dont_store_data_in_ram=True)
 
