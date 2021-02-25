@@ -70,8 +70,8 @@ class SegmentationModel(ModelBase):
             except AttributeError:
                 print('Could not find number of fg classes appearing in the data.\n'
                       'This will cause a problem when computing evaluation metrics.\n'
-                      'Setting the n_fg_classes to 1 (computing only DSC etc. of first class).')
-                self.n_fg_classes = 1
+                      'Setting the n_fg_classes to out_channles -1.')
+                self.n_fg_classes = self.model_parameters['network']['out_channels'] - 1
 
     def initialise_augmentation(self):
 
