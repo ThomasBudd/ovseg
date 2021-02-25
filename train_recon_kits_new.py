@@ -19,31 +19,32 @@ elif dose == 'high':
 else:
     raise ValueError('Unkown input {} for dose'.format(dose))
 
-window = [-50, 350] if args.window else None
+window = [-100, 350] if args.window else None
+win_str = '_win' if args.window else ''
 
-model_params = get_model_params_2d_reconstruction(image_folder='images_HU_rescale',
-                                                  projection_folder='projections_'+dose)
+model_params = get_model_params_2d_reconstruction(image_folder='images_HU'+win_str+'_rescale',
+                                                  projection_folder='projections_'+dose+win_str)
 model_params['preprocessing']['window'] = window
 model_params['preprocessing']['num_photons'] = n_photons
 data_name = 'kits19'
 preprocessed_name = 'default'
 val_fold = 0
 if not os.path.exists(os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', data_name,
-                                   preprocessed_name, 'projections_'+dose)):
+                                   preprocessed_name, 'projections_'+dose+win_str)):
     op = get_operator()
     preprocessing = Reconstruction2dSimPreprocessing(op, **model_params['preprocessing'])
     preprocessing.preprocess_raw_folders(['kits19'],
                                          preprocessed_name=preprocessed_name,
                                          data_name=data_name,
-                                         proj_folder_name='projections_'+dose,
-                                         im_folder_name='images_HU_rescale')
+                                         proj_folder_name='projections_'+dose+win_str,
+                                         im_folder_name='images_HU'+win_str+'_rescale')
 
 model = Reconstruction2dSimModel(val_fold=val_fold,
                                  data_name=data_name,
                                  preprocessed_name=preprocessed_name,
                                  model_parameters=model_params,
-                                 model_name='recon_fbp_convs_'+dose,
-                                 plot_window=[-50, 350])
+                                 model_name='recon_fbp_convs_'+dose+win_str,
+                                 plot_window=[-100, 350])
 model.training.train()
 
 model.eval_validation_set(save_preds=True)
