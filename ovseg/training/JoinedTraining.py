@@ -289,7 +289,8 @@ class JoinedTraining(TrainingBase):
         out1, out2, yb1, yb2 = self._eval_data_tpl(data_tpl)
         loss = self.loss_fctn(out1, out2, yb1, yb2)
         loss[0].backward()
-        self.opt.step()
+        self.opt1.step()
+        self.opt2.step()
         return loss
 
     def _trn_step_fp16(self, data_tpl):

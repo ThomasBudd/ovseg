@@ -23,7 +23,6 @@ parser.add_argument("-lw", "--loss_weights", nargs='+', required=False, default=
 parser.add_argument("-le", "--loss_exps", nargs='+', required=False, default=None)
 parser.add_argument("--use_windowed_simulations", required=False, default=False,
                     action="store_true")
-parser.add_argument("--use_gv_aug", required=False, default=False, action="store_true")
 parser.add_argument("--fp32", required=False, default=False, action="store_true")
 
 
@@ -34,7 +33,7 @@ if args.use_windowed_simulations:
 else:
     j = 0
 val_fold = 0
-data_name = 'kits'
+data_name = 'kits19'
 
 recon_model = ['recon_fbp_convs_normal', 'recon_fbp_convs_win'][j]
 proj_folder = ['projections_normal', 'projections_normal_win'][j]
@@ -54,15 +53,15 @@ for loss_weight in loss_weights:
     # %% build data
     trn_dl_params = {'batch_size': 12, 'patch_size': [512, 512],
                      'num_workers': None, 'pin_memory': True,
-                     'epoch_len': 250, 'store_coords_in_ram': True,
+                     'epoch_len': 250, 'store_coords_in_ram': False,
                      'return_fp16': not args.fp32}
     val_dl_params = {'batch_size': 12, 'patch_size': [512, 512],
                      'num_workers': None, 'pin_memory': True,
-                     'epoch_len': 25, 'store_coords_in_ram': True, 'store_data_in_ram': True,
-                     'n_max_volumes': 50,
+                     'epoch_len': 25, 'store_coords_in_ram': False, 'store_data_in_ram': True,
+                     'n_max_volumes': 20,
                      'return_fp16': not args.fp32}
     preprocessed_path = os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed',
-                                     data_name, 'pod_default')
+                                     data_name, 'default')
     keys = ['projection', 'image', 'label', 'spacing']
     folders = [proj_folder, im_folder, 'labels', 'spacings']
     data = JoinedData(val_fold, preprocessed_path, keys, folders,
@@ -73,8 +72,6 @@ for loss_weight in loss_weights:
     model_path = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models',
                               data_name, 'segmentation_pretrain')
     model_params = pickle.load(open(os.path.join(model_path, 'model_parameters.pkl'), 'rb'))
-    if not args.use_gv_aug:
-        del model_params['augmentation']['GPU_params']['grayvalue']
     prep_params = pickle.load(open(os.path.join(preprocessed_path, 'preprocessing_parameters.pkl'),
                                    'rb'))
     model_params['preprocessing'] = prep_params
@@ -93,8 +90,6 @@ for loss_weight in loss_weights:
     # %%
     model_path = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models',
                               data_name, 'joined_{}_{}'.format(loss_weight, simulation))
-    if args.use_gv_aug:
-        model_path = model_path + '_gv_aug'
     training = JoinedTraining(model1, model2, data.trn_dl,  model_path,
                               loss_weight, num_epochs=500,
                               lr1_params=lr1_params, lr2_params=lr2_params,
