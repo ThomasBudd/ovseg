@@ -62,7 +62,7 @@ class SegmentationBatchDataset(object):
                     _, seg = self.data[ind]
                 else:
                     seg = np.load(self.vol_ds.path_dicts[ind][self.label_key])
-                coords = np.stack(np.where(seg > 0))
+                coords = np.stack(np.where(seg > 0)).astype(np.int16)
                 self.coords_list.append(coords)
             print('Done')
         else:

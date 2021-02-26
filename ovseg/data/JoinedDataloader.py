@@ -56,7 +56,7 @@ class JoinedBatchDataset(object):
                     data_dict = self.vol_ds[ind]
                     seg = data_dict['label']
                 if seg.max() > 0:
-                    coords = np.stack(np.where(np.sum(seg, (0, 1)) > 0)[0])
+                    coords = np.stack(np.where(np.sum(seg, (0, 1)) > 0)[0]).astype(np.int16)
                 else:
                     coords = np.array([])
                 self.coords_list.append(coords)

@@ -35,7 +35,7 @@ else:
 val_fold = 0
 data_name = 'kits19'
 
-recon_model = ['recon_fbp_convs_normal', 'recon_fbp_convs_win'][j]
+recon_model = ['recon_fbp_convs_normal', 'recon_fbp_convs_normal_win'][j]
 proj_folder = ['projections_normal', 'projections_normal_win'][j]
 im_folder = ['images_HU_rescale', 'images_HU_win_rescale'][j]
 simulation = ['HU', 'win'][j]
@@ -53,21 +53,23 @@ for loss_weight in loss_weights:
     # %% build data
     trn_dl_params = {'batch_size': 12, 'patch_size': [512, 512],
                      'num_workers': None, 'pin_memory': True,
-                     'epoch_len': 250, 'store_coords_in_ram': False,
+                     'epoch_len': 250, 'store_coords_in_ram': True,
                      'return_fp16': not args.fp32}
     val_dl_params = {'batch_size': 12, 'patch_size': [512, 512],
                      'num_workers': None, 'pin_memory': True,
-                     'epoch_len': 25, 'store_coords_in_ram': False, 'store_data_in_ram': True,
+                     'epoch_len': 25, 'store_coords_in_ram': True, 'store_data_in_ram': True,
                      'n_max_volumes': 20,
                      'return_fp16': not args.fp32}
     preprocessed_path = os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed',
                                      data_name, 'default')
     keys = ['projection', 'image', 'label', 'spacing']
     folders = [proj_folder, im_folder, 'labels', 'spacings']
+    print('create joint data')
     data = JoinedData(val_fold, preprocessed_path, keys, folders,
                       trn_dl_params=trn_dl_params,
                       val_dl_params=val_dl_params)
     # %% load models
+    print('create recon model')
     model1 = Reconstruction2dSimModel(val_fold, data_name, recon_model)
     model_path = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models',
                               data_name, 'segmentation_pretrain')
@@ -75,6 +77,7 @@ for loss_weight in loss_weights:
     prep_params = pickle.load(open(os.path.join(preprocessed_path, 'preprocessing_parameters.pkl'),
                                    'rb'))
     model_params['preprocessing'] = prep_params
+    print('create segmentation model')
     model2 = SegmentationModel(val_fold, data_name, 'segmentation_pretrain',
                                model_parameters=model_params,
                                dont_store_data_in_ram=True)
