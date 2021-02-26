@@ -61,6 +61,20 @@ class JoinedBatchDataset(object):
                     coords = np.array([])
                 self.coords_list.append(coords)
             print('Done')
+        else:
+            self.bias_coords_fol = os.path.join(self.vol_ds.preprocessed_path, 'bias_coordinates_z')
+            if not os.path.exists(self.bias_coords_fol):
+                os.mkdir(self.bias_coords_fol)
+
+            # now we check if come cases are missing in the folder
+            print('Checking if all bias coordinates are stored in '+self.bias_coords_fol)
+            for d in self.vol_ds.path_dicts:
+                case = os.path.basename(d[self.label_key])
+                if case not in os.listdir(self.bias_coords_fol):
+                    lb = np.load(d[self.label_key])
+                    coords = np.stack(np.where(np.sum(lb, (0, 1)) > 0)[0])
+                    coords = coords.astype(np.int16)
+                    np.save(os.path.join(self.bias_coords_fol, case), coords)
 
     def _get_volume_tuple(self, ind=None):
 
@@ -110,10 +124,8 @@ class JoinedBatchDataset(object):
                     coords = self.coords_list[ind]
                 else:
                     # or not!
-                    if seg.max() > 0:
-                        coords = np.stack(np.where(np.sum(seg, (0, 1)) > 0)[0])
-                    else:
-                        coords = np.array([])
+                    case = os.path.basename(self.vol_ds.path_dicts[ind][self.label_key])
+                    coords = np.load(os.path.join(self.bias_coords_fol, case))
                 n_coords = len(coords)
                 if n_coords > 0:
                     zcoord = coords[np.random.randint(n_coords)]
