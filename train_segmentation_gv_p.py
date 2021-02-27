@@ -20,4 +20,4 @@ model_pretrain = SegmentationModel(val_fold=0, data_name=data_name,
                                    model_name='segmentation_gv_p_{:.4f}'.format(p),
                                    model_parameters=model_params)
 model_pretrain.training.train()
-model_pretrain.validate()
+model_pretrain.eval_validation_set()
