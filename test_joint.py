@@ -32,7 +32,7 @@ if args.use_windowed_simulations:
 else:
     j = 0
 val_fold = 0
-if parser.data.lower() == 'ov':
+if args.data.lower() == 'ov':
     data_name = 'OV04'
     preprocessed_name = 'pod_default'
     seg_prep_mn = 'pretrained_segmentation'

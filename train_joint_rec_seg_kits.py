@@ -23,8 +23,6 @@ parser.add_argument("-lw", "--loss_weights", nargs='+', required=False, default=
 parser.add_argument("-le", "--loss_exps", nargs='+', required=False, default=None)
 parser.add_argument("--use_windowed_simulations", required=False, default=False,
                     action="store_true")
-parser.add_argument("--fp32", required=False, default=False, action="store_true")
-
 
 # %% collect basic infos for models
 args = parser.parse_args()
@@ -52,14 +50,14 @@ sleep(3)
 for loss_weight in loss_weights:
     # %% build data
     trn_dl_params = {'batch_size': 12, 'patch_size': [512, 512],
-                     'num_workers': None, 'pin_memory': True,
+                     'num_workers': 12, 'pin_memory': True,
                      'epoch_len': 250, 'store_coords_in_ram': True,
-                     'return_fp16': not args.fp32}
+                     'return_fp16': True}
     val_dl_params = {'batch_size': 12, 'patch_size': [512, 512],
-                     'num_workers': None, 'pin_memory': True,
+                     'num_workers': 12, 'pin_memory': True,
                      'epoch_len': 25, 'store_coords_in_ram': True, 'store_data_in_ram': True,
                      'n_max_volumes': 20,
-                     'return_fp16': not args.fp32}
+                     'return_fp16': True}
     preprocessed_path = os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed',
                                      data_name, 'default')
     keys = ['projection', 'image', 'label', 'spacing']
@@ -70,7 +68,8 @@ for loss_weight in loss_weights:
                       val_dl_params=val_dl_params)
     # %% load models
     print('create recon model')
-    model1 = Reconstruction2dSimModel(val_fold, data_name, recon_model)
+    model1 = Reconstruction2dSimModel(val_fold, data_name, recon_model,
+                                      dont_store_data_in_ram=True)
     model_path = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models',
                               data_name, 'segmentation_pretrain')
     model_params = pickle.load(open(os.path.join(model_path, 'model_parameters.pkl'), 'rb'))
@@ -97,7 +96,7 @@ for loss_weight in loss_weights:
                               loss_weight, num_epochs=500,
                               lr1_params=lr1_params, lr2_params=lr2_params,
                               opt1_params=opt1_params, opt2_params=opt2_params,
-                              val_dl=data.val_dl, fp32=args.fp32)
+                              val_dl=data.val_dl, fp32=False)
     # %% now the magic!!
     training.train()
 

@@ -21,8 +21,10 @@ class Reconstruction2dSimModel(ModelBase):
                  model_parameters=None, preprocessed_name=None,
                  network_name='network', is_inference_only: bool = False,
                  fmt_write='{:.4f}', batch_size_val=4,
-                 fp32_val=False, plot_window=[-150, 250]):
+                 fp32_val=False, plot_window=[-150, 250],
+                 dont_store_data_in_ram=False):
         self.dev = 'cuda' if torch.cuda.device_count() > 0 else 'cpu'
+        self.dont_store_data_in_ram = dont_store_data_in_ram
         super().__init__(val_fold=val_fold, data_name=data_name,
                          model_name=model_name,
                          model_parameters=model_parameters,
@@ -68,6 +70,12 @@ class Reconstruction2dSimModel(ModelBase):
         except KeyError:
             params = {}
             print('Warning! No data parameters found')
+
+        # if we don't want to store our data in ram...
+        if self.dont_store_data_in_ram:
+            for key in ['trn_dl_params', 'val_dl_params']:
+                params[key]['store_data_in_ram'] = False
+                params[key]['store_coords_in_ram'] = False
 
         self.data = ReconstructionData(self.val_fold, self.preprocessed_path,
                                        **params)
