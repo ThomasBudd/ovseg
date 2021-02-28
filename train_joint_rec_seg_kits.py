@@ -61,7 +61,7 @@ for loss_weight in loss_weights:
     preprocessed_path = os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed',
                                      data_name, 'default')
     keys = ['projection', 'image', 'label', 'spacing']
-    folders = [proj_folder, im_folder, 'labels', 'spacings']
+    folders = [proj_folder, im_folder, 'labels', 'orig_spacings']
     print('create joint data')
     data = JoinedData(val_fold, preprocessed_path, keys, folders,
                       trn_dl_params=trn_dl_params,
