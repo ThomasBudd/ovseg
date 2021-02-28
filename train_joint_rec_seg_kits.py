@@ -80,7 +80,7 @@ for loss_weight in loss_weights:
     model2 = SegmentationModel(val_fold, data_name, 'segmentation_pretrain',
                                model_parameters=model_params,
                                dont_store_data_in_ram=True)
-
+    
     # %% opt and lr params
     opt1_params = {'lr': 0.5*10**-4, 'betas': (0.9, 0.999)}
     opt2_params = {'momentum': 0.99, 'weight_decay': 3e-5, 'nesterov': True,
@@ -99,7 +99,7 @@ for loss_weight in loss_weights:
                               val_dl=data.val_dl, fp32=False)
     # %% now the magic!!
     training.train()
-
+    
     # validation. A bit more complicated here. Other models need some improvements...
     results = {}
     model2._init_global_metrics()
@@ -118,13 +118,13 @@ for loss_weight in loss_weights:
     for tpl, scan in tqdm(zip(data.val_ds, data.val_scans)):
         with torch.cuda.amp.autocast():
             recon = model1.predict(tpl, return_torch=True)
-            recon_prep = model2.preprocessing(recon, tpl['orig_spacing'])
+            recon_prep = model2.preprocessing(recon, tpl['spacing'])
             tpl['image'] = recon_prep
             pred = model2.predict(tpl)
         case_id = scan.split('.')[0]
         # compute and store results
         results[case_id] = model2.compute_error_metrics(tpl)
-        model2._update_global_metrics(tpl)
+        # model2._update_global_metrics(tpl)
         # maybe save recon and pred
         if scan in cases_save_img:
             io.save_nii(recon.cpu().numpy(),

@@ -75,7 +75,7 @@ class Reconstruction2dSimModel(ModelBase):
         if self.dont_store_data_in_ram:
             for key in ['trn_dl_params', 'val_dl_params']:
                 params[key]['store_data_in_ram'] = False
-                params[key]['store_coords_in_ram'] = False
+                # params[key]['store_coords_in_ram'] = False
 
         self.data = ReconstructionData(self.val_fold, self.preprocessed_path,
                                        **params)
