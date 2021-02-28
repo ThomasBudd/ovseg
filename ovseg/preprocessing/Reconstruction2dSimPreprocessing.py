@@ -94,13 +94,15 @@ class Reconstruction2dSimPreprocessing(object):
     def preprocess_raw_folders(self, folders, preprocessed_name,
                                data_name=None,
                                proj_folder_name='projections',
-                               im_folder_name='images'):
+                               im_folder_name='images',
+                               save_as_fp16=False):
         if isinstance(folders, str):
             folders = [folders]
         elif not isinstance(folders, (list, tuple)):
             raise TypeError('Input folders must be string, list or tuple of '
                             'strings. ')
 
+        dtype = np.float16 if save_as_fp16 else np.float32
         # get the base folders
         ov_data_base = os.environ['OV_DATA_BASE']
         raw_data_base = os.path.join(ov_data_base, 'raw_data')
@@ -137,10 +139,10 @@ class Reconstruction2dSimPreprocessing(object):
                 np.save(os.path.join(preprocessed_data_base,
                                      proj_folder_name,
                                      name+'.npy'),
-                        proj.astype(np.float32), allow_pickle=True)
+                        proj.astype(dtype), allow_pickle=True)
                 np.save(os.path.join(preprocessed_data_base,
                                      im_folder_name,
                                      name+'.npy'),
-                        im.astype(np.float32), allow_pickle=True)
+                        im.astype(dtype), allow_pickle=True)
             except ValueError:
                 print('Skip {}. Got shape {}.'.format(name, volume.shape))

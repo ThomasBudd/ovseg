@@ -174,8 +174,8 @@ class JoinedBatchDataset(object):
 
 
 def JoinedDataloader(vol_ds, batch_size, patch_size, num_workers=None,
-                     pin_memory=True, epoch_len=250, p_fg=1/3,
-                     mn_fg=1, store_coords_in_ram=True, memmap='r',
+                     pin_memory=True, epoch_len=250, p_fg=0,
+                     mn_fg=3, store_coords_in_ram=True, memmap='r',
                      store_data_in_ram=False, n_max_volumes=None,
                      return_fp16=True):
     dataset = JoinedBatchDataset(vol_ds, batch_size, patch_size,
