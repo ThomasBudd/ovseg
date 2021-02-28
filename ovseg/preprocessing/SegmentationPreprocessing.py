@@ -499,10 +499,10 @@ class SegmentationPreprocessing(object):
             orig_shape = im.shape[-3:]
             orig_spacing = spacing.copy()
             # TODO allow more complex change of spacing here in case of downsampling or such
-            spacing = self.target_spacing if self.apply_resizing else spacing
             im = self.preprocess_volume(im, spacing, is_seg=False).astype(im_dtype)
             lb = self.preprocess_volume(lb, spacing, is_seg=True).astype(np.int8)
             lb = self._maybe_reduce_label(lb)
+            spacing = self.target_spacing if self.apply_resizing else spacing
             fingerprint_keys = [key for key in data_tpl if key not in ['image', 'label']]
             fingerprint = {key: data_tpl[key] for key in fingerprint_keys}
             fingerprint['orig_shape'] = orig_shape
