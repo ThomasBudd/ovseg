@@ -25,13 +25,13 @@ if copy_data:
             spacing_new = [spacing[0], spacing[1], 3]
             im = change_img_pixel_spacing(im, spacing, spacing_new, 0)
             out_file = join(ov_raw, 'labels', 'case_{}.nii.gz'.format(case[-3:]))
-            save_nii(im, out_file, spacing=spacing)
+            save_nii(im, out_file, spacing=spacing_new)
             # now again for the image
             img = nib.load(join(kits_path, case, 'imaging.nii.gz'))
             im = np.swapaxes(img.get_fdata(), 0, -1)
             im = change_img_pixel_spacing(im, spacing, spacing_new, 3)
             out_file = join(ov_raw, 'images', 'case_{}_0000.nii.gz'.format(case[-3:]))
-            save_nii(im, out_file, spacing=spacing)
+            save_nii(im, out_file, spacing=spacing_new)
 
 
 # %% now preprocessing
