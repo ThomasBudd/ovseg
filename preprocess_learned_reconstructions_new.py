@@ -1,4 +1,4 @@
-from ovseg.preprocesing.SegmentationPreprocessing import SegmentationPreprocessing
+from ovseg.preprocessing.SegmentationPreprocessing import SegmentationPreprocessing
 import os
 from ovseg.utils.io import read_nii
 import numpy as np
