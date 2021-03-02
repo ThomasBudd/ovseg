@@ -8,10 +8,11 @@ mbp = join(environ['OV_DATA_BASE'], 'models_MICCAI', 'OV04')
 joined_models = [model for model in listdir(mbp) if model.startswith('joined')]
 joined_win_models = sorted([model for model in joined_models if model.find('win') >= 0])
 joined_HU_models = sorted([model for model in joined_models if model.find('HU') >= 0])
-seq_seg_models = [model for model in listdir(mbp) if model.startswith('segmentation_')]
+seq_seg_models = sorted([model for model in listdir(mbp) if model.startswith('segmentation_')])
 
 i1, i2, i3 = 378, 458, 453
 # %%
+print('sequential training')
 for model in seq_seg_models:
     print(model)
     try:
@@ -24,6 +25,8 @@ for model in seq_seg_models:
     print('mean: {:.3f}, median: {:.3f}'.format(np.nanmean(dices), np.nanmedian(dices)))
 
 # %%
+print()
+print('joint training')
 for model_list in [joined_win_models, joined_HU_models]:
     for model in model_list:
         print(model)
