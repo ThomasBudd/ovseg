@@ -280,7 +280,6 @@ class SegmentationModel(ModelBase):
         seg = self.preprocessing.preprocess_volume_from_data_tpl(data_tpl, return_seg=True)
         results = {}
         for c in range(1, self.n_fg_classes+1):
-            results = {}
             seg_c = (seg == c).astype(float)
             pred_c = (pred == c).astype(float)
 
