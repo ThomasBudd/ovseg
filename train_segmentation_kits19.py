@@ -4,10 +4,12 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-p", "--pretrain_only", required=False, default=False, action='store_true')
+parser.add_argument('-f', "--fold", required=False, default=0)
+parser.add_argument("--use_instance_norm", required=False, default=False, action='store_true')
 model_params = get_model_params_2d_segmentation()
 args = parser.parse_args()
 
-val_fold = 0
+val_fold = args.fold
 
 data_name = 'kits19'
 model_params['data']['n_folds'] = 3
@@ -15,6 +17,8 @@ model_params['data']['trn_dl_params']['store_coords_in_ram'] = False
 model_params['data']['val_dl_params']['store_coords_in_ram'] = False
 
 model_params['network']['out_channels'] = 3
+if args.use_instance_norm:
+    model_params['network']['norm'] = 'inst'
 if args.pretrain_only:
     del model_params['augmentation']['GPU_params']['grayvalue']
     model_params['training']['num_epochs'] = 500
