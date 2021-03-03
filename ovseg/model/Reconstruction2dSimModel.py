@@ -213,7 +213,9 @@ class Reconstruction2dSimModel(ModelBase):
             makedirs(pred_folder)
 
         pred = data_tpl[self.pred_key]
-        spacing = data_tpl['spacing']
+        # in case of preprocessed data_tpls remember that the reconstruction is before
+        # chaning of spacing
+        spacing = data_tpl['orig_spacing'] if 'orig_spacing' in data_tpl else data_tpl['spacing']
         save_nii(pred, join(pred_folder, filename), spacing)
 
     def plot_prediction(self, data_tpl, ds_name, filename=None):
