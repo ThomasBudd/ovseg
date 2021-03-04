@@ -30,9 +30,9 @@ op = get_operator()
 for i in range(276, 281):
 
     proj = np.load(os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', 'OV04', 'pod_default',
-                                'projections_HU', 'case_000.npy'))
+                                'projections_high_0', 'case_'+i+'.npy'))
     im = np.load(os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', 'OV04', 'pod_default',
-                              'images_HU_rescale', 'case_000.npy'))
+                              'images_HU_rescale', 'case_'+i+'.npy'))
     proj, im = np.moveaxes(proj[np.newaxis], -1, 0), np.moveaxes(im[np.newaxis], -1, 0)
     y = torch.from_numpy(proj).cuda()
     x_star = torch.from_numpy(im).cuda()
@@ -48,5 +48,4 @@ for i in range(276, 281):
         lambd = (Adelta_x * (y - Ax)).mean() / (Adelta_x * Adelta_x).mean()
         x = x + lambd * delta_x
         Ax = op.forward(x)
-    print('It {}: PSNR: {:.3f}, fit: {:.8f}'.format(i, PSNR(x_star, x), fit(Ax, y)))
-
+        print('It {}: PSNR: {:.3f}, fit: {:.8f}'.format(i, PSNR(x_star, x), fit(Ax, y)))
