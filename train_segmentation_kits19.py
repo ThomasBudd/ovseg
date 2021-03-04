@@ -17,8 +17,6 @@ model_params['data']['trn_dl_params']['store_coords_in_ram'] = False
 model_params['data']['val_dl_params']['store_coords_in_ram'] = False
 
 model_params['network']['out_channels'] = 3
-if args.use_instance_norm:
-    model_params['network']['norm'] = 'inst'
 if args.pretrain_only:
     del model_params['augmentation']['GPU_params']['grayvalue']
     model_params['training']['num_epochs'] = 500
@@ -26,8 +24,11 @@ if args.pretrain_only:
     model_name = 'segmentation_pretrain'
 else:
     model_name = 'segmentation_fully_trained'
+if args.use_instance_norm:
+    model_params['network']['norm'] = 'inst'
+    model_name += '_in'
 
-model_pretrain = SegmentationModel(val_fold=0, data_name=data_name,
+model_pretrain = SegmentationModel(val_fold=val_fold, data_name=data_name,
                                    model_name=model_name,
                                    model_parameters=model_params)
 model_pretrain.training.train()
