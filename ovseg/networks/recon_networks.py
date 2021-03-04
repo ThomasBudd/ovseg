@@ -196,9 +196,9 @@ class post_processing_U_Net(nn.Module):
         xb4 = self.block4(xb3)
         xb5 = self.block5(xb4)
 
-        xb = self.block6(torch.cat([xb4, self.up1(xb5)]))
-        xb = self.block7(torch.cat([xb3, self.up2(xb)]))
-        xb = self.block8(torch.cat([xb2, self.up3(xb)]))
-        xb = self.block9(torch.cat([xb1, self.up4(xb)]))
+        xb = self.block6(torch.cat([xb4, self.up1(xb5)], 1))
+        xb = self.block7(torch.cat([xb3, self.up2(xb)]), 1)
+        xb = self.block8(torch.cat([xb2, self.up3(xb)]), 1)
+        xb = self.block9(torch.cat([xb1, self.up4(xb)]), 1)
 
         return self.logits(xb)
