@@ -3,6 +3,7 @@ import numpy as np
 from ovseg.networks.recon_networks import get_operator
 import os
 import argparse
+import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--filter", required=False, default="ramp")
@@ -14,13 +15,16 @@ def PSNR(im_gt, im_it):
     mse = torch.square(im_gt - im_it).mean()
     return 10 * np.log10(Im2.item() / mse.item())
 
+
 def fit(Ax, y):
-    return torch.square(Ax-y).mean().item()
+    return torch.square(Ax-y).mean().item() / torch.square(y).mean().item()
+
 
 def fbp(y):
-    return op.backwards(op.filter_sinogram(y, args.filter))
+    return op.backprojection(op.filter_sinogram(y, args.filter))
 
-n_iters = 10
+
+n_iters = 5
 op = get_operator()
 
 proj = np.load(os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', 'OV04', 'pod_default',
@@ -42,3 +46,12 @@ for i in range(1, n_iters + 1):
     x = x + lambd * delta_x
     Ax = op.forward(x)
     print('It {}: PSNR: {:.3f}, fit: {:.4f}'.format(i, PSNR(x_star, x), fit(Ax, y)))
+
+x_HU = 1000 * (x.cpu().numpy() - 0.0192) / 0.0192
+x_star_HU = 1000 * (x_star.cpu().numpy() - 0.0192) / 0.0192
+
+plt.imshow(x_HU.clip(-150, 250), cmap='gray')
+plt.savefig('im_'+args.filter)
+plt.close()
+plt.imshow(x_star_HU.clip(-150, 250), cmap='gray')
+plt.savefig('im_gt')
