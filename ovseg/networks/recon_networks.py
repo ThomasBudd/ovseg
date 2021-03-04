@@ -191,10 +191,10 @@ class post_processing_U_Net(nn.Module):
 
     def forward(self, xb0):
         xb1 = self.block1(xb0)
-        xb2 = self.block1(xb1)
-        xb3 = self.block1(xb2)
-        xb4 = self.block1(xb3)
-        xb5 = self.block1(xb4)
+        xb2 = self.block2(xb1)
+        xb3 = self.block3(xb2)
+        xb4 = self.block4(xb3)
+        xb5 = self.block5(xb4)
 
         xb = self.block6(torch.cat([xb4, self.up1(xb5)]))
         xb = self.block7(torch.cat([xb3, self.up2(xb)]))

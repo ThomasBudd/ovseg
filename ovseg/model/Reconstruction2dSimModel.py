@@ -56,7 +56,7 @@ class Reconstruction2dSimModel(ModelBase):
             self.network = reconstruction_network_fbp_convs(self.operator)
         elif architecture in ['lpd', 'learnedprimaldual', 'learned-primal-dual']:
             self.network = learned_primal_dual(self.operator)
-        elif architecture == 'post_processing_U_Net':
+        else:
             self.network = post_processing_U_Net()
         self.network = self.network.to(self.dev)
 

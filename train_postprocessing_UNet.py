@@ -13,6 +13,8 @@ model_parameters = get_model_params_2d_reconstruction(architecture,
                                                       projection_folder='fbp_projections_HU')
 model_parameters['training']['num_epochs'] = num_epochs
 model_parameters['training']['opt_params'] = {'lr': 10**-3, 'betas': (0.9, 0.999)}
+model_parameters['data']['trn_dl_params']['batch_size'] = 12
+model_parameters['data']['val_dl_params']['batch_size'] = 12
 
 model = Reconstruction2dSimModel(val_fold=val_fold,
                                  data_name=data_name,
