@@ -5,7 +5,7 @@ from os import makedirs, environ
 from ovseg.utils.io import save_nii
 import matplotlib.pyplot as plt
 from ovseg.networks.recon_networks import reconstruction_network_fbp_convs, get_operator, \
-    learned_primal_dual
+    learned_primal_dual, post_processing_U_Net
 from ovseg.training.ReconstructionNetworkTraining import \
     ReconstructionNetworkTraining
 from ovseg.data.ReconstructionData import ReconstructionData
@@ -56,6 +56,8 @@ class Reconstruction2dSimModel(ModelBase):
             self.network = reconstruction_network_fbp_convs(self.operator)
         elif architecture in ['lpd', 'learnedprimaldual', 'learned-primal-dual']:
             self.network = learned_primal_dual(self.operator)
+        elif architecture == 'post_processing_U_Net':
+            self.network = post_processing_U_Net()
         self.network = self.network.to(self.dev)
 
     def initialise_postprocessing(self):
@@ -183,7 +185,6 @@ class Reconstruction2dSimModel(ModelBase):
         elif not len(shape) == 4:
             raise ValueError('proj must be 2d projection, 3d stacked in last '
                              'dim or 4d in batch form.')
-
         # do the fbp
         with torch.no_grad():
             filtered_sinogram = self.operator.filter_sinogram(proj.to('cuda'))

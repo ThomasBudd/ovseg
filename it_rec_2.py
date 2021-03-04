@@ -30,9 +30,9 @@ op = get_operator()
 for i in range(276, 281):
 
     proj = np.load(os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', 'OV04', 'pod_default',
-                                'projections_high_0', 'case_'+i+'.npy'))
+                                'projections_high_0', 'case_'+str(i)+'.npy'))
     im = np.load(os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', 'OV04', 'pod_default',
-                              'images_HU_rescale', 'case_'+i+'.npy'))
+                              'images_HU_rescale', 'case_'+str(i)+'.npy'))
     proj, im = np.moveaxis(proj[np.newaxis], -1, 0), np.moveaxis(im[np.newaxis], -1, 0)
     y = torch.from_numpy(proj).cuda()
     x_star = torch.from_numpy(im).cuda()

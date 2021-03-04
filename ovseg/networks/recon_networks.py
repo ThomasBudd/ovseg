@@ -1,7 +1,11 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from torch_radon import Radon
+from ovseg.networks.UNet import ConvNormNonlinBlock, UpConv
+try:
+    from torch_radon import Radon
+except ModuleNotFoundError:
+    print('torch_radon not found')
 
 
 def get_operator(n_angles=256, det_count=724):
@@ -159,3 +163,42 @@ class learned_primal_dual(nn.Module):
             h, f = prox(h, f, g)
 
         return f[:, :1]
+
+
+class post_processing_U_Net(nn.Module):
+    def __init__(self):
+        super().__init__()
+        # downsampling
+        self.block1 = ConvNormNonlinBlock(1, 32, True)
+        self.block2 = ConvNormNonlinBlock(32, 32, True, downsample=True)
+        self.block3 = ConvNormNonlinBlock(32, 64, True, downsample=True)
+        self.block4 = ConvNormNonlinBlock(64, 64, True, downsample=True)
+        self.block5 = ConvNormNonlinBlock(64, 128, True, downsample=True)
+
+        # upsampling
+        self.block6 = ConvNormNonlinBlock(64 + 64, 64, True)
+        self.block7 = ConvNormNonlinBlock(64 + 64, 64, True)
+        self.block8 = ConvNormNonlinBlock(32 + 32, 32, True)
+        self.block9 = ConvNormNonlinBlock(32 + 32, 32, True)
+
+        # transposed convs
+        self.up1 = UpConv(128, 64, True)
+        self.up2 = UpConv(64, 64, True)
+        self.up3 = UpConv(64, 32, True)
+        self.up4 = UpConv(32, 32, True)
+
+        self.logits = nn.Conv2d(32, 1, 1)
+
+    def forward(self, xb0):
+        xb1 = self.block1(xb0)
+        xb2 = self.block1(xb1)
+        xb3 = self.block1(xb2)
+        xb4 = self.block1(xb3)
+        xb5 = self.block1(xb4)
+
+        xb = self.block6(torch.cat([xb4, self.up1(xb5)]))
+        xb = self.block7(torch.cat([xb3, self.up2(xb)]))
+        xb = self.block8(torch.cat([xb2, self.up3(xb)]))
+        xb = self.block9(torch.cat([xb1, self.up4(xb)]))
+
+        return self.logits(xb)
