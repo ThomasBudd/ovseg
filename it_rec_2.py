@@ -33,7 +33,7 @@ for i in range(276, 281):
                                 'projections_HU', 'case_000.npy'))
     im = np.load(os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', 'OV04', 'pod_default',
                               'images_HU_rescale', 'case_000.npy'))
-    proj, im = np.swapaxes(proj[np.newaxis], -1, 0), np.swapaxes(im, -1, 0)
+    proj, im = np.moveaxes(proj[np.newaxis], -1, 0), np.moveaxes(im[np.newaxis], -1, 0)
     y = torch.from_numpy(proj).cuda()
     x_star = torch.from_numpy(im).cuda()
 
