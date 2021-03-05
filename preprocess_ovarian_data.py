@@ -6,10 +6,10 @@ import numpy as np
 
 # first we obtain parameters from the OV04 dataset and preprocess it.
 raw_data = 'OV04'
-preprocessed_name = 'pod_default'
+preprocessed_name = 'om_default'
 
 # create preprocessing object and determine that we want to segment only class 9
-preprocessing = SegmentationPreprocessing(use_only_classes=[9])
+preprocessing = SegmentationPreprocessing(use_only_classes=[1])
 preprocessing.plan_preprocessing_raw_data(raw_data)
 preprocessing.preprocess_raw_data(raw_data, preprocessed_name=preprocessed_name)
 
