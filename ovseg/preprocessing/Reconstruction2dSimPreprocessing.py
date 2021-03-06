@@ -16,7 +16,7 @@ class Reconstruction2dSimPreprocessing(object):
     Does what the name comes from: Simulation of the 2d sinograms
     '''
 
-    def __init__(self, operator, num_photons=2*10**6, mu_water=0.0192, window=[-50, 350]):
+    def __init__(self, operator, num_photons=2*10**6, mu_water=0.0192, window=None):
         self.operator = operator
         self.num_photons = num_photons
         self.mu_water = mu_water
