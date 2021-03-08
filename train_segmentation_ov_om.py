@@ -9,7 +9,7 @@ args = parser.parse_args()
 
 val_fold = args.fold
 
-data_name = 'Ov04'
+data_name = 'OV04'
 preprocessed_name = 'om_default'
 model_params['data']['trn_dl_params']['store_coords_in_ram'] = False
 model_params['data']['val_dl_params']['store_coords_in_ram'] = False
