@@ -18,12 +18,16 @@ import argparse
 
 # %% get all arguments
 parser = argparse.ArgumentParser()
+parser.add_argument('-lw', 'loss_weights')
 parser.add_argument("-d", "--data")
 parser.add_argument("--use_windowed_simulations", required=False, default=False,
                     action="store_true")
 args = parser.parse_args()
 
-loss_weights = [1.0, 0.99, 0.9, 0.7, 0.5, 0.3, 0.1, 0.01]
+if args.loss_weights == '0':
+    loss_weights = [1.0, 0.9, 0.5, 0.1]
+elif args.loss_weights:
+    loss_weights = [0.99, 0.7, 0.3, 0.01]
 model_name_recon = 'recon_fbp_convs'
 
 if args.use_windowed_simulations:
@@ -98,7 +102,9 @@ lr2_params = {'beta': 0.9, 'lr_min': 0}
 for loss_weight in loss_weights:
     # %%
     model_path = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models',
-                              data_name, 'joined_{}_{}'.format(loss_weight, simulation))
+                              data_name, 'joined_{}_{}_{}'.format(args.data,
+                                                                  loss_weight,
+                                                                  simulation))
     training = JoinedTraining(model1, model2, data.trn_dl,  model_path,
                               loss_weight, num_epochs=500,
                               lr1_params=lr1_params, lr2_params=lr2_params,
