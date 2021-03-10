@@ -18,7 +18,7 @@ import argparse
 
 # %% get all arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('-lw', 'loss_weights')
+parser.add_argument('-lw', '--loss_weights')
 parser.add_argument("-d", "--data")
 parser.add_argument("--use_windowed_simulations", required=False, default=False,
                     action="store_true")
@@ -47,14 +47,17 @@ if args.data == 'ov_pod':
     data_name = 'OV04'
     preprocessed_name = 'pod_default'
     model_name_seg = 'segmentation_pretrained'
+    recon_prepn = 'pod_default'
 elif args.data == 'ov_om':
     data_name = 'OV04'
     model_name_seg = 'segmentation_om_pretrained'
     preprocessed_name = 'om_default'
+    recon_prepn = 'pod_default'
 elif args.data.startswith('kits'):
     data_name = 'kits19'
     preprocessed_name = 'default'
     model_name_seg = 'segmentation_pretrained'
+    recon_prepn = 'default'
 else:
     raise ValueError('Found non matching data input {}. Choose one of [ov_pod, ov_om, kits]')
 
@@ -79,7 +82,8 @@ data = JoinedData(val_fold, preprocessed_path, keys, folders,
 # %% load models
 print('create recon model')
 model1 = Reconstruction2dSimModel(val_fold, data_name, model_name_recon,
-                                  dont_store_data_in_ram=True)
+                                  dont_store_data_in_ram=True,
+                                  preprocessed_name=recon_prepn)
 model_path = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models',
                           data_name, 'segmentation_pretrain')
 model_params = pickle.load(open(os.path.join(model_path, 'model_parameters.pkl'), 'rb'))
