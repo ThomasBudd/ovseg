@@ -85,7 +85,7 @@ model1 = Reconstruction2dSimModel(val_fold, data_name, model_name_recon,
                                   dont_store_data_in_ram=True,
                                   preprocessed_name=recon_prepn)
 model_path = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models',
-                          data_name, 'segmentation_pretrain')
+                          data_name, model_name_seg)
 model_params = pickle.load(open(os.path.join(model_path, 'model_parameters.pkl'), 'rb'))
 prep_params = pickle.load(open(os.path.join(preprocessed_path, 'preprocessing_parameters.pkl'),
                                'rb'))
@@ -93,6 +93,7 @@ model_params['preprocessing'] = prep_params
 print('create segmentation model')
 model2 = SegmentationModel(val_fold, data_name, model_name_seg,
                            model_parameters=model_params,
+                           preprocessed_name=preprocessed_name,
                            dont_store_data_in_ram=True)
 
 # %% opt and lr params
