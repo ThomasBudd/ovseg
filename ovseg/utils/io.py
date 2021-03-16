@@ -7,8 +7,7 @@ try:
     from skimage.draw import polygon
 except ImportError:
     print('Caught Import Error while importing some function from scipy or skimage. '
-          'This might be due to this problem: '
-          'https://github.com/lhelontra/tensorflow-on-arm/issues/13')
+          'Please use a newer version of gcc.')
 import pickle
 
 _names_sorting_warning_printed = False

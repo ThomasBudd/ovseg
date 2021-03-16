@@ -5,8 +5,7 @@ try:
     from scipy.ndimage import map_coordinates
 except ImportError:
     print('Caught Import Error while importing some function from scipy or skimage. '
-          'This might be due to this problem: '
-          'https://github.com/lhelontra/tensorflow-on-arm/issues/13')
+          'Please use a newer version of gcc.')
 from ovseg.utils.grid_utils import get_resize_np_grid, get_resize_torch_grid
 from ovseg.utils.torch_np_utils import stack, check_type
 

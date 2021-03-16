@@ -6,8 +6,7 @@ try:
     from skimage.measure import label
 except ImportError:
     print('Caught Import Error while importing some function from scipy or skimage. '
-          'This might be due to this problem: '
-          'https://github.com/lhelontra/tensorflow-on-arm/issues/13')
+          'Please use a newer version of gcc.')
 
 
 TORCH_WARNING_PRINTED = False
