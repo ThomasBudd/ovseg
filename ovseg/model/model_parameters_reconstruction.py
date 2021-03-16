@@ -2,10 +2,12 @@
 
 def get_model_params_2d_reconstruction(architecture='reconstruction_network_fbp_convs',
                                        image_folder='images_att',
-                                       projection_folder='projections'):
+                                       projection_folder='projections',
+                                       fp32=False):
     model_parameters = {}
     batch_size = 12 if architecture == 'reconstruction_network_fbp_convs' else 4
-    trn_dl_params = {'batch_size': batch_size, 'epoch_len': 250, 'store_data_in_ram': False}
+    trn_dl_params = {'batch_size': batch_size, 'epoch_len': 250, 'store_data_in_ram': False,
+                     'return_fp16': not fp32}
     val_dl_params = trn_dl_params.copy()
     val_dl_params['epoch_len'] = 25
     val_dl_params['store_data_in_ram'] = True
@@ -29,8 +31,8 @@ def get_model_params_2d_reconstruction(architecture='reconstruction_network_fbp_
     training_params = {'loss_params': loss_params,
                        'num_epochs': 300, 'opt_params': opt_params,
                        'lr_params': lr_params, 'nu_ema_trn': 0.99,
-                       'nu_ema_val': 0.7, 'fp32': False,
-                       'p_plot_list': [1, 0.5, 0.2], 'opt_name': 'ADAM'}
+                       'nu_ema_val': 0.7,
+                       'p_plot_list': [1, 0.5, 0.2], 'opt_name': 'ADAM', 'fp32': fp32}
     model_parameters['training'] = training_params
     model_parameters['prediction_key'] = 'learned_reconstruction'
     model_parameters['operator'] = {}

@@ -61,6 +61,8 @@ class Reconstruction2dDataset(object):
         im = im[np.newaxis, ..., z]
         if self.return_fp16:
             proj, im = proj.astype(np.float16), im.astype(np.float16)
+        else:
+            proj, im = proj.astype(np.float32), im.astype(np.float32)
         return {self.image_key: im, self.projection_key: proj}
 
 

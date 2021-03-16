@@ -3,7 +3,8 @@ import os
 
 def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
                                      n_fg_classes=1, n_stages=7,
-                                     batch_size=12, pred_mode='flip'):
+                                     batch_size=12, pred_mode='flip',
+                                     fp32=False):
     model_parameters = {}
     # we're doing no preprocessing parameters here as they can be loaded
     # from the preprocessed folder
@@ -51,7 +52,8 @@ def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
     trn_dl_params = {'patch_size': patch_size, 'batch_size': batch_size,
                      'epoch_len': 250, 'p_bias_sampling': 0, 'min_biased_samples': 3,
                      'padded_patch_size': None, 'memmap': 'r',
-                     'store_coords_in_ram': True, 'num_workers': num_workers}
+                     'store_coords_in_ram': True, 'num_workers': num_workers,
+                     'return_fp16': not fp32}
     val_dl_params = trn_dl_params.copy()
     val_dl_params['epoch_len'] = 25
     val_dl_params['store_data_in_ram'] = True
@@ -64,7 +66,7 @@ def get_model_params_2d_segmentation(aug_device='gpu', patch_size=[512, 512],
     model_parameters['data'] = data_params
 
     # prediction object
-    prediction_params = {'batch_size': 1, 'overlap': 0.5, 'fp32': False,
+    prediction_params = {'batch_size': 1, 'overlap': 0.5, 'fp32': fp32,
                          'patch_weight_type': 'constant', 'sigma_gaussian_weight': 1,
                          'mode': pred_mode, 'TTA_n_full_predictions': 1, 'TTA_n_max_augs': 99,
                          'TTA_eps_stop': 0.02}

@@ -145,6 +145,8 @@ class SegmentationBatchDataset(object):
 
         if self.return_fp16:
             im, seg = im.astype(np.float16), seg.astype(np.float16)
+        else:
+            im, seg = im.astype(np.float32), seg.astype(np.float32)
 
         return {self.image_key: im[np.newaxis],
                 self.label_key: seg[np.newaxis]}
