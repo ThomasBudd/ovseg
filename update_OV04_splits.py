@@ -9,4 +9,4 @@ for pn in os.listdir(prep):
     sp = os.path.join(prep, pn, 'splits.pkl')
     splits = pickle.load(open(sp, 'rb'))
     splits[0]['val'] = cases_val
-    pickle.dump(splits, open(sp, 'rb'))
+    pickle.dump(splits, open(sp, 'wb'))
