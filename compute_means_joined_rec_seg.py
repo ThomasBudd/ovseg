@@ -16,8 +16,6 @@ for model in models:
 
 models = [model for model in listdir(tmp) if model.startswith('joined_')]
 
-i1, i2 = 378, 448
-
 for model in models:
     print(model)
     try:
