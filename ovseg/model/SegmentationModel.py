@@ -237,6 +237,11 @@ class SegmentationModel(ModelBase):
         # predictions
         labels = []
         im = data_tpl[image_key]
+        if torch.is_tensor(im):
+            im = im.cpu().numpy()
+        if len(im.shape) == 3:
+            im = im[np.newaxis]
+        n_ch = im.shape[0]
         if 'label' in data_tpl:
             # in case of raw data this only removes the lables that this model doesn't segment
             labels.append(self.preprocessing.preprocess_volume_from_data_tpl(data_tpl,
@@ -260,14 +265,16 @@ class SegmentationModel(ModelBase):
         # now plot largest and random slice
         for z, s in zip(z_list, s_list):
             fig = plt.figure()
-            plt.imshow(im[..., z], cmap='gray')
-            for i in range(labels.shape[0]):
-                if labels[i, ..., z].max() > 0:
-                    # this if is purely to avoid annoying UserWarning messages that interrupt
-                    # the beautiful beautiful tqdm bar
-                    plt.contour(labels[i, ..., z] > 0, linewidths=0.5, colors=colors[i],
-                                linestyles='solid')
-            plt.axis('off')
+            for c in range(n_ch):
+                plt.subplot(1, n_ch, c+1)
+                plt.imshow(im[c, ..., z], cmap='gray')
+                for i in range(labels.shape[0]):
+                    if labels[i, ..., z].max() > 0:
+                        # this if is purely to avoid annoying UserWarning messages that interrupt
+                        # the beautiful beautiful tqdm bar
+                        plt.contour(labels[i, ..., z] > 0, linewidths=0.5, colors=colors[i],
+                                    linestyles='solid')
+                plt.axis('off')
             plt.savefig(join(plot_folder, filename + s + '.png'))
             plt.close(fig)
 

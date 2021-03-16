@@ -8,6 +8,7 @@ from ovseg.utils.path_utils import my_listdir, maybe_create_path
 from ovseg.utils.dict_equal import dict_equal
 from os.path import join, isdir, exists, basename
 from os import environ, listdir
+import matplotlib.pyplot as plt
 try:
     from tqdm import tqdm
 except ModuleNotFoundError:
@@ -481,9 +482,11 @@ class SegmentationPreprocessing(object):
 
         # root folder of all saved preprocessed data
         outfolder = join(environ['OV_DATA_BASE'], 'preprocessed', data_name, preprocessed_name)
+        plot_folder = join(environ['OV_DATA_BASE'], 'plots', data_name, preprocessed_name)
         # now let's create the output folders
         for f in ['images', 'labels', 'fingerprints']:
             maybe_create_path(join(outfolder, f))
+        maybe_create_path(plot_folder)
 
         # Let's quickly store the parameters so we can check later
         # what we've done here.
@@ -502,6 +505,8 @@ class SegmentationPreprocessing(object):
             im = self.preprocess_volume(im, spacing, is_seg=False).astype(im_dtype)
             lb = self.preprocess_volume(lb, spacing, is_seg=True).astype(np.int8)
             lb = self._maybe_reduce_label(lb)
+            if lb.max() == 0 and self.use_only_fg_scans:
+                continue
             spacing = self.target_spacing if self.apply_resizing else spacing
             fingerprint_keys = [key for key in data_tpl if key not in ['image', 'label']]
             fingerprint = {key: data_tpl[key] for key in fingerprint_keys}
@@ -518,6 +523,31 @@ class SegmentationPreprocessing(object):
                                 [lb, 'labels'],
                                 [fingerprint, 'fingerprints']]:
                 np.save(join(outfolder, folder, name), arr)
+
+            # additionally do some plots
+            if len(lb.shape) != 3:
+                continue
+            if len(im.shape) == 3:
+                im = im[np.newaxis]
+
+            contains = np.where(np.sum(lb, (0, 1)))[0]
+            z_list = [np.argmax(np.sum(lb, (0, 1)))]
+            s_list = ['_largest', '_random_0', '_random_1', '_random_2']
+            z_list.extend(np.random.choice(contains, size=3))
+            n_ch = im.shape[0]
+            for z, s in zip(z_list, s_list):
+                fig = plt.figure()
+                for c in range(n_ch):
+                    plt.subplot(1, n_ch, c+1)
+                    plt.imshow(im[c, ..., z], cmap='gray')
+                    if lb[..., z].max() > 0:
+                        # this if is purely to avoid annoying UserWarning messages that interrupt
+                        # the beautiful beautiful tqdm bar
+                        plt.contour(lb[..., z] > 0, linewidths=0.5, colors='red',
+                                    linestyles='dashed')
+                    plt.axis('off')
+                plt.savefig(join(plot_folder, name + s + '.png'))
+                plt.close(fig)
 
         torch.cuda.empty_cache()
         print('Preprocessing done!')
