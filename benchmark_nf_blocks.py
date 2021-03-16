@@ -31,6 +31,26 @@ def benchmark(net, xb):
     torch.cuda.empty_cache()
 
 
+class Block0(torch.nn.Module):
+    # typical conv nonlin block
+    def __init__(self, kernel_size):
+        super().__init__()
+        padding = [(k-1)//2 for k in kernel_size]
+        if len(kernel_size) == 2:
+            self.conv1 = torch.nn.Conv2d(32, 32, kernel_size, padding=padding)
+            self.conv2 = torch.nn.Conv2d(32, 32, kernel_size, padding=padding)
+        else:
+            self.conv1 = torch.nn.Conv3d(32, 32, kernel_size, padding=padding)
+            self.conv2 = torch.nn.Conv3d(32, 32, kernel_size, padding=padding)
+        self.nonlin1 = torch.nn.functional.relu
+        self.nonlin2 = torch.nn.functional.relu
+
+    def forward(self, xb):
+
+        xb = self.nonlin1(self.conv1(xb))
+        xb = self.nonlin2(self.conv2(xb))
+        return xb
+
 class Block1(torch.nn.Module):
     # typical conv norm nonlin block
     def __init__(self, kernel_size):
@@ -136,12 +156,12 @@ if __name__ == '__main__':
                    (1, 32, 128, 128, 64), (1, 32, 64, 128, 128)]
     for kernel_size, patch_size in zip(kernel_sizes, patch_sizes):
         print(kernel_size)
-        print('Single precision:')
+        # print('Single precision:')
         xb = torch.randn(patch_size, device='cuda')
-        blocks = [b(kernel_size).cuda() for b in [Block1, Block2, Block3, Block4]]
-        for i, block in enumerate(blocks):
-            print(i)
-            benchmark(block, xb)
+        blocks = [b(kernel_size).cuda() for b in [Block0, Block1, Block2, Block3, Block4]]
+        # for i, block in enumerate(blocks):
+            # print(i)
+            # benchmark(block, xb)
         print('Half precision:')
         with torch.cuda.amp.autocast():
             for i, block in enumerate(blocks):
