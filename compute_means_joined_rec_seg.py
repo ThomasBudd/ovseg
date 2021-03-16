@@ -7,13 +7,10 @@ tmp = join(environ['OV_DATA_BASE'], 'trained_models', 'OV04')
 
 models = [model for model in listdir(tmp) if model.startswith('segmentation_on')]
 
-i1, i2 = 378, 448
-
 for model in models:
     print(model)
     res = pickle.load(open(join(tmp, model, 'validation_CV_results.pkl'), 'rb'))
-    keys = [key for key in res if i1 <= int(key[5:8]) <= i2]
-    dices = [res[key]['dice_1'] for key in keys if res[key]['has_fg_1']]
+    dices = [res[key]['dice_1'] for key in res if res[key]['has_fg_1']]
     print('mean: {:.3f}, median: {:.3f}'.format(np.nanmean(dices), np.nanmedian(dices)))
 
 
@@ -28,6 +25,5 @@ for model in models:
     except FileNotFoundError:
         print('File not found.')
         continue
-    keys = [key for key in res if i1 <= int(key[5:8]) <= i2]
-    dices = [res[key]['dice_1'] for key in keys if res[key]['has_fg_1']]
+    dices = [res[key]['dice_1'] for key in res if res[key]['has_fg_1']]
     print('mean: {:.3f}, median: {:.3f}'.format(np.nanmean(dices), np.nanmedian(dices)))
