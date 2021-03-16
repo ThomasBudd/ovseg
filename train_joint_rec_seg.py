@@ -136,7 +136,7 @@ for loss_weight in loss_weights:
     for tpl, scan in tqdm(zip(data.val_ds, data.val_scans)):
         with torch.cuda.amp.autocast():
             recon = model1.predict(tpl, return_torch=True)
-            recon_prep = model2.preprocessing(recon, tpl['orig_spacing'])
+            recon_prep = model2.preprocessing(recon, tpl['spacing'])
             pred = model2.predict(tpl, model1.pred_key)
         case_id = scan.split('.')[0]
         # compute and store results
