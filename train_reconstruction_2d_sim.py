@@ -17,9 +17,11 @@ if args.use_windowed_simulations:
     model_name += '_win'
     projf = 'projections_normal_win'
     imf = 'images_HU_win_rescale'
+    window = [-50, 350] if args.data == 'OV04' else [-100, 350]
 else:
     projf = 'projections_normal'
     imf = 'images_HU_rescale'
+    window = None
 
 if args.pretrain_only:
     model_name += '_pretrained'
@@ -41,13 +43,15 @@ model_parameters = get_model_params_2d_reconstruction('reconstruction_network_fb
                                                       imf,
                                                       projf)
 model_parameters['training']['num_epochs'] = num_epochs
+model_parameters['preprocessing']['window'] = window
 
 model = Reconstruction2dSimModel(val_fold=val_fold,
                                  data_name=data_name,
                                  model_name=model_name,
                                  model_parameters=model_parameters,
                                  preprocessed_name=preprocessed_name)
+model.save_model_parameters()
 model.training.train()
-model.eval_validation_set(save_preds=True)
-model.eval_training_set(save_preds=True)
+model.eval_validation_set(save_preds=True, force_evaluation=True)
+model.eval_training_set(save_preds=True, force_evaluation=True)
 torch.cuda.empty_cache()

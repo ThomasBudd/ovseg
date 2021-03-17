@@ -14,7 +14,7 @@ preprocessed_name = 'om_default'
 model_params['data']['trn_dl_params']['store_coords_in_ram'] = False
 model_params['data']['val_dl_params']['store_coords_in_ram'] = False
 
-model_params['network']['out_channels'] = 3
+model_params['network']['out_channels'] = 2
 if args.pretrain_only:
     model_params['training']['num_epochs'] = 500
     model_params['training']['lr_params']['lr_min'] = 0.01 * 0.5**0.9

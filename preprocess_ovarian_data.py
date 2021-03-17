@@ -6,7 +6,7 @@ import numpy as np
 
 # first we obtain parameters from the OV04 dataset and preprocess it.
 
-raw_data = 'OV04'
+raw_data = 'OV04_test'
 preprocessed_name = 'om_default'
 
 # create preprocessing object and determine that we want to segment only class 9
@@ -17,7 +17,7 @@ preprocessing.preprocess_raw_data(raw_data, preprocessed_name=preprocessed_name)
 # the path where the preprocessed data lies
 preprocessed_path = os.path.join(os.environ['OV_DATA_BASE'],
                                  'preprocessed',
-                                 'OV04',
+                                 raw_data,
                                  preprocessed_name)
 
 # %% split the OV04 data in a 4 fold CV
