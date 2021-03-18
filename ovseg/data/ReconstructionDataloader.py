@@ -18,7 +18,8 @@ class Reconstruction2dDataset(object):
                  projection_key='projection',
                  store_data_in_ram=False,
                  return_fp16=True,
-                 n_max_volumes=None):
+                 n_max_volumes=None,
+                 n_bias=0):
         self.vol_ds = vol_ds
         self.batch_size = batch_size
         self.epoch_len = epoch_len
@@ -27,6 +28,7 @@ class Reconstruction2dDataset(object):
         self.store_data_in_ram = store_data_in_ram
         self.return_fp16 = return_fp16
         self.n_max_volumes = len(self.vol_ds) if n_max_volumes is None else n_max_volumes
+        self.n_bias = n_bias
 
         if self.store_data_in_ram:
             print('Putting data in RAM.\n')
@@ -38,6 +40,15 @@ class Reconstruction2dDataset(object):
                 if self.return_fp16:
                     proj, im = proj.astype(np.float16), im.astype(np.float16)
                 self.data.append((proj, im))
+
+        if self.n_bias > 0:
+            self.bias_slices = []
+            lbp = os.path.join(self.vol_ds.preprocessed_path, 'labels')
+            for pd in self.vol_ds.path_dicts:
+                case = os.path.basename(pd[self.projection_key])
+                lb = np.load(os.path.join(lbp, case))
+                lb = (np.sum(lb, (0, 1)) > 0).astype(np.int16)
+                self.bias_slices.append(lb)
 
     def _get_volume_tuple(self, ind=None):
 
@@ -55,8 +66,13 @@ class Reconstruction2dDataset(object):
         return self.epoch_len * self.batch_size
 
     def __getitem__(self, index):
-        proj, im = self._get_volume_tuple()
-        z = np.random.randint(im.shape[-1])
+        ind = np.random.randint(self.n_max_volumes)
+        proj, im = self._get_volume_tuple(ind)
+        if index % self.batch_size < self.n_bias:
+            bias = self.bias_slices[ind]
+            z = np.random.choice(bias)
+        else:
+            z = np.random.randint(im.shape[-1])
         proj = proj[np.newaxis, ..., z]
         im = im[np.newaxis, ..., z]
         if self.return_fp16:
@@ -71,7 +87,8 @@ def ReconstructionDataloader(vol_ds, batch_size, num_workers=None,
                              projection_key='projection',
                              store_data_in_ram=False,
                              return_fp16=True,
-                             n_max_volumes=None):
+                             n_max_volumes=None,
+                             n_bias=0):
     if num_workers is None:
         num_workers = 0 if os.name == 'nt' else 8
     dataset = Reconstruction2dDataset(vol_ds, batch_size, epoch_len=epoch_len,
