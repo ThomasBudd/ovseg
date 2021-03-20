@@ -1,0 +1,33 @@
+EXERCISES:
+
+1) Create a folder where the data base will be e.g. /local/scratch/public/CRSID/ov_data_base and set the environment variable OV_DATA_BASE (e.g. in your .bashrc)
+2) cp -r /local/scratch/public/raw_data $OV_DATA_BASE
+3) git clone https://github.com/ThomasBudd/ovseg
+	cd ovseg
+4) python test_preprocessing_and_training
+	The scripts preprocessed some test data (small subset of OV04) and trains 3/4 folds with a small 2d UNet and few epochs.
+	It still might take couple of hours. 
+5) Have a look at $OV_DATA_BASE/preprpocessed what is in the folder?
+
+6) Have a look at $OV_DATA_BASE/trained_models. Find a) the cross validation results b) a training los c) the validataion results of fold 1 d) the model parameters
+
+7) Download the plots and predictions, look at the plots
+8) Pick any case that has a prediction you downloaded. Load a) the raw image b) the raw label c) the prediction d) the preprocessed image e) the preprocessed label.
+	What do you recognise? Hint: Load nifit files via 
+		import nibabel as nib
+		im = nib.load(FILE).get_fdata()
+9) Compute the DSC
+10) Plot a slice in xy and another one in xz plane that contains foreground.
+	hint plot contours via
+		plt.contour(label > 0, linewidths=0.5, colors='red', linestyles='solid')
+
+11) Check the script test_preprocessing_and_training.py and understand what is happening there.
+12) Have again a closer look at the model parameters and send Thomas a list of variables you don't understand :)
+
+13) Write a similar script to test_preprocessing_and_training.py with the following modifications:
+	- full OV04 data
+	- voxel spacing of preprocessed images = 1 x 1 x 5 mm
+	- change to a 5 fold CV
+	- train only one
+	- an ADAM optimizer
+	- patch size of [256, 256] in training and prediction
