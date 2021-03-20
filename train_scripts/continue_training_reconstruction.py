@@ -13,8 +13,12 @@ if data_name == 'OV04':
 else:
     preprocessed_name = 'default'
 
-model_params = get_model_params_2d_reconstruction()
-model_params['training']['num_epochs'] = 500
+projf = 'projections_normal'
+imf = 'images_HU_rescale'
+model_params = get_model_params_2d_reconstruction('reconstruction_network_fbp_convs',
+                                                  imf,
+                                                  projf)
+model_params['training']['num_epochs'] = 1000
 model_params['training']['opt_params']['lr'] = 0.5 * 10 ** -4
 model_params['data']['trn_dl_params']['n_bias'] = 3
 
