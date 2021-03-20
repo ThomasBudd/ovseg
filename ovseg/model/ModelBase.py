@@ -301,7 +301,8 @@ class ModelBase(object):
                 file.write(s.format(*metrics[j]) + '\n')
 
     def eval_ds(self, ds, ds_name: str, save_preds: bool = True, save_plots: bool = True,
-                force_evaluation: bool = False, merge_to_CV_results: bool = False):
+                force_evaluation: bool = False, merge_to_CV_results: bool = False,
+                save_folder_name=None):
         '''
 
         Parameters
@@ -365,6 +366,9 @@ class ModelBase(object):
                       'or pass force_evaluation=True.\n\n')
                 return
 
+        if save_folder_name is None:
+            save_folder_name = ds_name + '_{}'.format(int(self.val_fold))
+
         self._init_global_metrics()
         results = {}
         names_for_txt = {}
@@ -403,11 +407,11 @@ class ModelBase(object):
 
             # store the prediction for example as nii files
             if save_preds:
-                self.save_prediction(data_tpl, ds_name, filename=scan)
+                self.save_prediction(data_tpl, folder_name=save_folder_name, filename=scan)
 
             # plot the results, maybe just a single slice?
             if save_plots:
-                self.plot_prediction(data_tpl, ds_name, filename=scan)
+                self.plot_prediction(data_tpl, folder_name=save_folder_name, filename=scan)
 
         # iteration done. Let's store the results and get out of here!
         # first we store the results for this fold in the validation folder
@@ -434,7 +438,7 @@ class ModelBase(object):
         self.eval_ds(self.data.val_ds, ds_name='validation',
                      save_preds=save_preds, save_plots=save_plots,
                      force_evaluation=force_evaluation,
-                     merge_to_CV_results=True)
+                     merge_to_CV_results=True, save_folder_name='cross_validataion')
 
     def eval_training_set(self, save_preds=False, save_plots=True, force_evaluation=False):
         self.eval_ds(self.data.trn_ds, ds_name='training',

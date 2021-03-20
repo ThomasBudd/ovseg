@@ -187,7 +187,7 @@ class SegmentationModel(ModelBase):
     def __call__(self, data_tpl):
         return self.predict(data_tpl)
 
-    def save_prediction(self, data_tpl, ds_name, filename=None):
+    def save_prediction(self, data_tpl, folder_name, filename=None):
 
         # find name of the file
         if filename is None:
@@ -200,7 +200,7 @@ class SegmentationModel(ModelBase):
 
         # all predictions are stored in the designated 'predictions' folder in the OV_DATA_BASE
         pred_folder = join(environ['OV_DATA_BASE'], 'predictions', self.data_name,
-                           self.model_name, ds_name+'_{}'.format(self.val_fold))
+                           self.model_name, folder_name)
         if not exists(pred_folder):
             makedirs(pred_folder)
 
@@ -215,7 +215,7 @@ class SegmentationModel(ModelBase):
 
         save_nii(pred, join(pred_folder, filename), spacing)
 
-    def plot_prediction(self, data_tpl, ds_name, filename=None, image_key='image'):
+    def plot_prediction(self, data_tpl, folder_name, filename=None, image_key='image'):
 
         # find name of the file
         if filename is None:
@@ -228,7 +228,7 @@ class SegmentationModel(ModelBase):
 
         # all predictions are stored in the designated 'plots' folder in the OV_DATA_BASE
         plot_folder = join(environ['OV_DATA_BASE'], 'plots', self.data_name,
-                           self.model_name, ds_name+'_{}'.format(self.val_fold))
+                           self.model_name, folder_name)
         if not exists(plot_folder):
             makedirs(plot_folder)
 

@@ -1,5 +1,4 @@
 from ovseg.data.DataBase import DataBase
-from ovseg.data.SegmentationDataset import SegmentationDataset
 from ovseg.data.SegmentationDataloader import SegmentationDataloader
 from os import listdir
 from os.path import join

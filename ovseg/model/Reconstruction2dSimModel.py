@@ -200,7 +200,7 @@ class Reconstruction2dSimModel(ModelBase):
         # if fbp is in batch from we don't have to do reshaping
         return fbp
 
-    def save_prediction(self, data_tpl, ds_name, filename=None):
+    def save_prediction(self, data_tpl, folder_name, filename=None):
         # if not file name is given
         if filename is None:
             filename = basename(data_tpl['raw_image_file'])
@@ -209,7 +209,7 @@ class Reconstruction2dSimModel(ModelBase):
 
         # all predictions are stored in the designated 'predictions' folder in the OV_DATA_BASE
         pred_folder = join(environ['OV_DATA_BASE'], 'predictions', self.data_name,
-                           self.model_name, ds_name+'_{}'.format(self.val_fold))
+                           self.model_name, folder_name)
         if not exists(pred_folder):
             makedirs(pred_folder)
 
@@ -219,7 +219,7 @@ class Reconstruction2dSimModel(ModelBase):
         spacing = data_tpl['orig_spacing'] if 'orig_spacing' in data_tpl else data_tpl['spacing']
         save_nii(pred, join(pred_folder, filename), spacing)
 
-    def plot_prediction(self, data_tpl, ds_name, filename=None):
+    def plot_prediction(self, data_tpl, folder_name, filename=None):
         # find name of the file
         if filename is None:
             filename = basename(data_tpl['raw_image_file'])
@@ -231,7 +231,7 @@ class Reconstruction2dSimModel(ModelBase):
 
         # all predictions are stored in the designated 'plots' folder in the OV_DATA_BASE
         plot_folder = join(environ['OV_DATA_BASE'], 'plots', self.data_name,
-                           self.model_name, ds_name+'_{}'.format(self.val_fold))
+                           self.model_name, folder_name)
         if not exists(plot_folder):
             makedirs(plot_folder)
 
