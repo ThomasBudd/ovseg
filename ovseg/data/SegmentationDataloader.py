@@ -28,7 +28,10 @@ class SegmentationBatchDataset(object):
         self.label_key = label_key
         self.store_data_in_ram = store_data_in_ram
         self.return_fp16 = return_fp16
-        self.n_max_volumes = len(self.vol_ds) if n_max_volumes is None else n_max_volumes
+        if n_max_volumes is None:
+            self.n_volumes = len(self.vol_ds)
+        else:
+            self.n_volumes = np.min([n_max_volumes, len(self.vol_ds)])
 
         if len(self.patch_size) == 2:
             self.twoD_patches = True
@@ -45,7 +48,7 @@ class SegmentationBatchDataset(object):
         if self.store_data_in_ram:
             print('Store data in RAM.\n')
             self.data = []
-            for ind in tqdm(range(self.n_max_volumes)):
+            for ind in tqdm(range(self.n_volumes)):
                 path_dict = self.vol_ds.path_dicts[ind]
                 seg = np.load(path_dict[self.label_key])
                 im = np.load(path_dict[self.image_key])
@@ -57,7 +60,7 @@ class SegmentationBatchDataset(object):
         if self.store_coords_in_ram:
             print('Precomputing foreground coordinates to store them in RAM.\n')
             self.coords_list = []
-            for ind in tqdm(range(self.n_max_volumes)):
+            for ind in tqdm(range(self.n_volumes)):
                 if self.store_data_in_ram:
                     _, seg = self.data[ind]
                 else:
@@ -82,7 +85,7 @@ class SegmentationBatchDataset(object):
     def _get_volume_tuple(self, ind=None):
 
         if ind is None:
-            ind = np.random.randint(self.n_max_volumes)
+            ind = np.random.randint(self.n_volumes)
         if self.store_data_in_ram:
             im, seg = self.data[ind]
         else:
@@ -103,7 +106,7 @@ class SegmentationBatchDataset(object):
         else:
             biased_sampling = np.random.rand() < self.p_bias_sampling
 
-        ind = np.random.randint(self.n_max_volumes)
+        ind = np.random.randint(self.n_volumes)
         im, seg = self._get_volume_tuple(ind)
         shape = np.array(seg.shape)
 
