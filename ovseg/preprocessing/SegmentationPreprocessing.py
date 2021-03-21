@@ -387,7 +387,7 @@ class SegmentationPreprocessing(object):
 
         return volume
 
-    def preprocess_volume_from_data_tpl(self, data_tpl, return_seg):
+    def preprocess_volume_from_data_tpl(self, data_tpl, return_seg=False):
         if 'orig_shape' in data_tpl:
             # skip! This data_tpl is already preprocessed
             if return_seg:
