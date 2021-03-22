@@ -66,7 +66,7 @@ if __name__ == '__main__':
 
     # print('Single precision:')
     xb = torch.randn([batch_size, 1, *patch_size], device='cuda')
-    net = nfUNet(1, 2, kernel_sizes, is_2d=False, filters=filters).cuda()
+    net = nfUNet(1, 2, kernel_sizes, is_2d=False, filters=filters, n_blocks=n_blocks).cuda()
     if args.debug:
         benchmark(net, xb)
     else:

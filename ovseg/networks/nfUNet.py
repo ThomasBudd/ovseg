@@ -157,6 +157,7 @@ class nfUNet(nn.Module):
             self.n_blocks = [1 for _ in range(self.n_stages)]
         else:
             assert len(n_blocks) == self.n_stages
+            self.n_blocks = n_blocks
         self.filters = filters
         self.filters_max = filters_max
         self.conv_params = conv_params
