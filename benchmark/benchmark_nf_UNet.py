@@ -7,6 +7,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--debug", required=False, default=False, action='store_true')
 parser.add_argument("--downsampling", required=False, default="0")
 parser.add_argument("-b", "--use_bottleneck", required=False, default=False, action='store_true')
+parser.add_argument("-f", "--fat", required=False, default=False, action='store_true')
+parser.add_argument('-ps', '--patch_size', nargs='+')
 args = parser.parse_args()
 
 if args.debug:
@@ -49,22 +51,21 @@ def benchmark(net, xb):
 if __name__ == '__main__':
     if args.downsampling == "0":
         kernel_sizes = [(1, 3, 3), (1, 3, 3), (1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
-        n_blocks=None
-        patch_size = [28, 224, 224]
     elif args.downsampling == "1":
         kernel_sizes = [(1, 3, 3), (1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
-        n_blocks=None
-        patch_size = [48, 192, 192]
     elif args.downsampling == "2":
         kernel_sizes = [(1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
-        n_blocks=[3, 4, 6, 3]
-        patch_size = [48, 96, 96]
     if args.debug:
         batch_size = 1
-        n_blocks=None
     else:
         batch_size = 2
+    if args.fat:
+        n_blocks = [3, 4, 6, 4]
+        kernel_sizes = kernel_sizes[:4]
+    else:
+        n_blocks = None
 
+    patch_size = [int(p) for p in args.patch_size]
     # print('Single precision:')
     xb = torch.randn([batch_size, 1, *patch_size], device='cuda')
     net = nfUNet(1, 2, kernel_sizes, is_2d=False, filters=filters, n_blocks=n_blocks,
