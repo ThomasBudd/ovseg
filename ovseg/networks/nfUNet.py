@@ -28,7 +28,7 @@ class nfConvBlock(nn.Module):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.alpha = alpha
-        self.beta = beta
+        self.beta_fac = 1/beta
         self.kernel_size = kernel_size
         self.padding = get_padding(self.kernel_size)
         self.downsample = downsample
@@ -77,10 +77,93 @@ class nfConvBlock(nn.Module):
 
     def forward(self, xb):
         skip = self.skip(xb)
-        xb = self.nonlin1(xb / self.beta) * GAMMA
+        xb = self.nonlin1(xb * self.beta_fac) * GAMMA
         xb = self.conv1(xb)
         xb = self.nonlin2(xb) * GAMMA
         xb = self.conv2(xb) * self.alpha * self.tau
+        return xb + skip
+
+
+class nfConvBottleneckBlock(nn.Module):
+
+    def __init__(self, in_channels, out_channels, is_2d, alpha=0.2, beta=1, kernel_size=3,
+                 downsample=False, conv_params=None, nonlin_params=None, bottleneck_ratio=2):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.alpha = alpha
+        self.beta_fac = 1/beta
+        self.kernel_size = kernel_size
+        self.padding = get_padding(self.kernel_size)
+        self.downsample = downsample
+        self.is_2d = is_2d
+        self.conv_params = conv_params
+        self.nonlin_params = nonlin_params
+        self.bottleneck_ratio = bottleneck_ratio
+        if self.downsample:
+            self.stride = get_stride(self.kernel_size)
+        else:
+            self.stride = 1
+
+        if self.conv_params is None:
+            self.conv_params = {'bias': True}
+        if self.nonlin_params is None:
+            self.nonlin_params = {'inplace': True}
+        # init convolutions, normalisation and nonlinearities
+        if self.is_2d:
+            conv_fctn = nn.Conv2d
+            pool_fctn = nn.AvgPool2d
+        else:
+            conv_fctn = nn.Conv3d
+            pool_fctn = nn.AvgPool3d
+
+        self.tau = nn.Parameter(torch.zeros(()))
+        self.conv1 = conv_fctn(self.in_channels,
+                               self.out_channels // self.bottleneck_ratio,
+                               kernel_size=1, padding=1,
+                               stride=1, **self.conv_params)
+        self.conv2 = conv_fctn(self.out_channels // self.bottleneck_ratio,
+                               self.out_channels // self.bottleneck_ratio,
+                               self.kernel_size, padding=self.padding,
+                               stride=self.stride, **self.conv_params)
+        self.conv3 = conv_fctn(self.out_channels // self.bottleneck_ratio,
+                               self.out_channels // self.bottleneck_ratio,
+                               self.kernel_size, padding=self.padding,
+                               **self.conv_params)
+        self.conv4 = conv_fctn(self.out_channels // self.bottleneck_ratio,
+                               self.out_channels,
+                               kernel_size=1, padding=1,
+                               stride=1, **self.conv_params)
+
+        nn.init.kaiming_normal_(self.conv1.weight)
+        nn.init.kaiming_normal_(self.conv2.weight)
+        self.nonlin1 = nn.ReLU(**self.nonlin_params)
+        self.nonlin2 = nn.ReLU(**self.nonlin_params)
+        self.nonlin3 = nn.ReLU(**self.nonlin_params)
+        self.nonlin4 = nn.ReLU(**self.nonlin_params)
+
+        if self.downsample and self.in_channels == self.out_channels:
+            self.skip = pool_fctn(self.stride, self.stride)
+        elif self.downsample and self.in_channels != self.out_channels:
+            self.skip = nn.Sequential(pool_fctn(self.stride, self.stride),
+                                      conv_fctn(self.in_channels, self.out_channels, 1))
+        elif not self.downsample and self.in_channels == self.out_channels:
+            self.skip = nn.Identity()
+        else:
+            self.skip = conv_fctn(self.in_channels, self.out_channels, 1)
+
+    def forward(self, xb):
+        skip = self.skip(xb)
+        xb = xb * self.beta_fac
+        xb = self.nonlin1(xb) * GAMMA
+        xb = self.conv1(xb)
+        xb = self.nonlin2(xb) * GAMMA
+        xb = self.conv2(xb)
+        xb = self.nonlin3(xb) * GAMMA
+        xb = self.conv3(xb)
+        xb = self.nonlin4(xb) * GAMMA
+        xb = self.conv4(xb)
+        xb = xb * self.alpha * self.tau
         return xb + skip
 
 
@@ -88,16 +171,25 @@ class nfConvStage(nn.Module):
 
     def __init__(self, in_channels, out_channels, is_2d, n_blocks=1,
                  alpha=0.2, beta=1, kernel_size=3,
-                 downsample=False, conv_params=None, nonlin_params=None):
+                 downsample=False, conv_params=None, nonlin_params=None, use_bottleneck=False):
         super().__init__()
         downsample_list = [downsample] + [False for _ in range(n_blocks-1)]
         in_channels_list = [in_channels] + [out_channels for _ in range(n_blocks-1)]
         blocks_list = []
-        for downsample, in_channels in zip(downsample_list, in_channels_list):
-            blocks_list.append(nfConvBlock(in_channels, out_channels, is_2d,
-                                           alpha=alpha, beta=beta, kernel_size=kernel_size,
-                                           downsample=downsample, conv_params=conv_params,
-                                           nonlin_params=nonlin_params))
+        if use_bottleneck:
+            for downsample, in_channels in zip(downsample_list, in_channels_list):
+                blocks_list.append(nfConvBottleneckBlock(in_channels, out_channels, is_2d,
+                                                         alpha=alpha, beta=beta,
+                                                         kernel_size=kernel_size,
+                                                         downsample=downsample,
+                                                         conv_params=conv_params,
+                                                         nonlin_params=nonlin_params))
+        else:
+            for downsample, in_channels in zip(downsample_list, in_channels_list):
+                blocks_list.append(nfConvBlock(in_channels, out_channels, is_2d,
+                                               alpha=alpha, beta=beta, kernel_size=kernel_size,
+                                               downsample=downsample, conv_params=conv_params,
+                                               nonlin_params=nonlin_params))
         self.blocks = nn.ModuleList(blocks_list)
 
     def forward(self, xb):
@@ -146,7 +238,7 @@ class nfUNet(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_sizes,
                  is_2d, n_blocks=None, filters=32, filters_max=384, n_pyramid_scales=None,
-                 conv_params=None, nonlin_params=None):
+                 conv_params=None, nonlin_params=None, use_bottleneck=False):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -183,7 +275,8 @@ class nfUNet(nn.Module):
                             kernel_size=self.kernel_sizes[0],
                             downsample=False,
                             conv_params=self.conv_params,
-                            nonlin_params=self.nonlin_params)
+                            nonlin_params=self.nonlin_params,
+                            use_bottleneck=use_bottleneck)
         self.blocks_down.append(block)
         self.blocks_up = []
         block = nfConvStage(2*self.filters, self.filters, self.is_2d,
@@ -191,7 +284,8 @@ class nfUNet(nn.Module):
                             kernel_size=self.kernel_sizes[0],
                             downsample=False,
                             conv_params=self.conv_params,
-                            nonlin_params=self.nonlin_params)
+                            nonlin_params=self.nonlin_params,
+                            use_bottleneck=use_bottleneck)
         self.blocks_up.append(block)
 
         self.upconvs = []
@@ -208,7 +302,8 @@ class nfUNet(nn.Module):
                                 kernel_size=ks,
                                 downsample=True,
                                 conv_params=self.conv_params,
-                                nonlin_params=self.nonlin_params)
+                                nonlin_params=self.nonlin_params,
+                                use_bottleneck=use_bottleneck)
             self.blocks_down.append(block)
 
             # block on the upwards pass except for the bottom stage
@@ -220,7 +315,8 @@ class nfUNet(nn.Module):
                                     kernel_size=ks,
                                     downsample=False,
                                     conv_params=self.conv_params,
-                                    nonlin_params=self.nonlin_params)
+                                    nonlin_params=self.nonlin_params,
+                                    use_bottleneck=use_bottleneck)
                 self.blocks_up.append(block)
             # convolutions to this stage
             upconv = UpConv(self.filters_list[i+1], self.filters_list[i],

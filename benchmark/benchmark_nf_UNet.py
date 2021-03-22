@@ -6,6 +6,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--debug", required=False, default=False, action='store_true')
 parser.add_argument("--downsampling", required=False, default="0")
+parser.add_argument("-b", "--use_bottleneck", required=False, default=False, action='store_true')
 args = parser.parse_args()
 
 if args.debug:
@@ -55,8 +56,8 @@ if __name__ == '__main__':
         n_blocks=None
         patch_size = [48, 192, 192]
     elif args.downsampling == "2":
-        kernel_sizes = [(1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
-        n_blocks=[1, 2, 6, 4, 2]
+        kernel_sizes = [(1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
+        n_blocks=[3, 4, 6, 3]
         patch_size = [48, 96, 96]
     if args.debug:
         batch_size = 1
@@ -66,7 +67,8 @@ if __name__ == '__main__':
 
     # print('Single precision:')
     xb = torch.randn([batch_size, 1, *patch_size], device='cuda')
-    net = nfUNet(1, 2, kernel_sizes, is_2d=False, filters=filters, n_blocks=n_blocks).cuda()
+    net = nfUNet(1, 2, kernel_sizes, is_2d=False, filters=filters, n_blocks=n_blocks,
+                 use_bottleneck=args.use_bottleneck).cuda()
     if args.debug:
         benchmark(net, xb)
     else:
