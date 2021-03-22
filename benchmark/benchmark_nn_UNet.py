@@ -43,14 +43,14 @@ def benchmark(net, xb):
 
 if __name__ == '__main__':
     if args.downsampling == "0":
-        kernel_sizes = [(3, 3, 1), (3, 3, 1), (3, 3, 1), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
-        patch_size = [224, 224, 28]
+        kernel_sizes = [(1, 3, 3), (1, 3, 3), (1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
+        patch_size = [28, 224, 224]
     elif args.downsampling == "1":
-        kernel_sizes = [(3, 3, 1), (3, 3, 1), (3, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
-        patch_size = [192, 192, 48]
+        kernel_sizes = [(1, 3, 3), (1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
+        patch_size = [48, 192, 192]
     elif args.downsampling == "2":
-        kernel_sizes = [(3, 3, 1), (3, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
-        patch_size = [96, 96, 48]
+        kernel_sizes = [(1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
+        patch_size = [48, 96, 96]
     if args.debug:
         filters = 8
         batch_size = 1
