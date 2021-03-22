@@ -120,8 +120,7 @@ class nfConvBottleneckBlock(nn.Module):
         self.tau = nn.Parameter(torch.zeros(()))
         self.conv1 = conv_fctn(self.in_channels,
                                self.out_channels // self.bottleneck_ratio,
-                               kernel_size=1, padding=1,
-                               stride=1, **self.conv_params)
+                               kernel_size=1, **self.conv_params)
         self.conv2 = conv_fctn(self.out_channels // self.bottleneck_ratio,
                                self.out_channels // self.bottleneck_ratio,
                                self.kernel_size, padding=self.padding,
@@ -132,11 +131,12 @@ class nfConvBottleneckBlock(nn.Module):
                                **self.conv_params)
         self.conv4 = conv_fctn(self.out_channels // self.bottleneck_ratio,
                                self.out_channels,
-                               kernel_size=1, padding=1,
-                               stride=1, **self.conv_params)
+                               kernel_size=1, **self.conv_params)
 
         nn.init.kaiming_normal_(self.conv1.weight)
         nn.init.kaiming_normal_(self.conv2.weight)
+        nn.init.kaiming_normal_(self.conv3.weight)
+        nn.init.kaiming_normal_(self.conv4.weight)
         self.nonlin1 = nn.ReLU(**self.nonlin_params)
         self.nonlin2 = nn.ReLU(**self.nonlin_params)
         self.nonlin3 = nn.ReLU(**self.nonlin_params)
