@@ -6,7 +6,7 @@ parser = argparse.ArgumentParser()
 model_params = get_model_params_2d_segmentation()
 args = parser.parse_args()
 
-val_fold = args.fold
+val_fold = 0
 
 data_name = 'kits19'
 preprocessed_name = 'default'
