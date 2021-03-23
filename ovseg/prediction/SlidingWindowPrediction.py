@@ -7,8 +7,8 @@ from ovseg.utils.torch_np_utils import check_type
 class SlidingWindowPrediction(object):
 
     def __init__(self, network, patch_size, batch_size=1, overlap=0.5, fp32=False,
-                 patch_weight_type='constant', sigma_gaussian_weight=1, TTA=None,
-                 mode='simple', TTA_n_full_predictions=1, TTA_n_max_augs=99,
+                 patch_weight_type='linear', sigma_gaussian_weight=1, linear_min=0.1,
+                 mode='simple', TTA=None, TTA_n_full_predictions=1, TTA_n_max_augs=99,
                  TTA_eps_stop=0.02):
 
         self.dev = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -19,8 +19,9 @@ class SlidingWindowPrediction(object):
         self.fp32 = fp32
         self.patch_weight_type = patch_weight_type
         self.sigma_gaussian_weight = sigma_gaussian_weight
-        self.TTA = TTA
+        self.linear_min = linear_min
         self.mode = mode
+        self.TTA = TTA
         self.TTA_n_full_predictions = TTA_n_full_predictions
         self.TTA_n_max_augs = TTA_n_max_augs
         self.TTA_eps_stop = TTA_eps_stop
@@ -33,7 +34,7 @@ class SlidingWindowPrediction(object):
         else:
             raise ValueError('patch_size must be of len 2 or 3 (for 2d and 3d networks).')
 
-        assert self.patch_weight_type.lower() in ['constant', 'gaussian']
+        assert self.patch_weight_type.lower() in ['constant', 'gaussian', 'linear']
 
         # check and build up the patch weight
         # we can use a gaussian weighting since the predictions on the edge of the patch are less
@@ -58,8 +59,17 @@ class SlidingWindowPrediction(object):
                 print('Small sigma for gaussian weighting. {:.3f} % of the weights are 0 and will '
                       'be set to 1e-5.'.format(100*n_zeros/self.patch_weight.size))
                 self.patch_weight = np.maximum(self.patch_weight, 1e-5)
+        elif self.patch_weight_type.lower() == 'linear':
+            lin_slopes = [np.linspace(self.linear_min, 1, s//2) for s in self.patch_size]
+            hats = [np.concatenate([lin_slope, lin_slope[::-1]]) for lin_slope in lin_slopes]
+            hats = [np.expand_dims(hat, [j for j in range(len(self.patch_size)) if j != i])
+                    for i, hat in enumerate(hats)]
+
+            self.patch_weight = np.ones(self.patch_size)
+            for hat in hats:
+                self.patch_weight *= hat
         else:
-            raise ValueError('Unkown patch_weight_type {}. Known types: [constant, gaussian]'
+            raise ValueError('Unkown patch_weight_type {}. Known types: [constant, gaussian, linear]'
                              ''.format(self.patch_weight_type))
 
         self.patch_weight = torch.from_numpy(self.patch_weight).to(self.dev)
