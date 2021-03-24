@@ -275,7 +275,7 @@ class SegmentationModel(ModelBase):
                         plt.contour(labels[i, ..., z] > 0, linewidths=0.5, colors=colors[i],
                                     linestyles='solid')
                 plt.axis('off')
-            plt.savefig(join(plot_folder, filename + s + '.png'))
+            plt.savefig(join(plot_folder, filename + s + '.png'), bbox_inches='tight')
             plt.close(fig)
 
     def compute_error_metrics(self, data_tpl):

@@ -325,7 +325,7 @@ class NetworkTraining(TrainingBase):
                     name = 'training_progress_full.png'
                 else:
                     name = 'training_progress_{:.1f}%.png'.format(100*p)
-                plt.savefig(join(self.model_path, name))
+                plt.savefig(join(self.model_path, name), bbox_inches='tight')
             plt.close(fig)
 
     def plot_learning_curve(self, p_start=0):

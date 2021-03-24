@@ -277,7 +277,7 @@ class Reconstruction2dSimModel(ModelBase):
                    vmax=self.plot_window[1])
         plt.title('CNN: {:.2f}dB'.format(PSNR_pred))
         plt.axis('off')
-        plt.savefig(join(plot_folder, filename+'.png'))
+        plt.savefig(join(plot_folder, filename+'.png'), bbox_inches='tight')
         plt.close(fig)
 
     def compute_error_metrics(self, data_tpl):

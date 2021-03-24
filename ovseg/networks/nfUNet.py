@@ -124,7 +124,6 @@ class nfConvBottleneckBlock(nn.Module):
                  downsample=False, conv_params=None, nonlin_params=None, bottleneck_ratio=2,
                  se_reduction=4):
         super().__init__()
-        print('Block: ' + str(kernel_size))
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.alpha = alpha
@@ -217,7 +216,6 @@ class nfConvStage(nn.Module):
                  downsample=False, conv_params=None, nonlin_params=None, use_bottleneck=False,
                  se_reduction=4):
         super().__init__()
-        print('Stage: ' + str(kernel_size))
         downsample_list = [downsample] + [False for _ in range(n_blocks-1)]
         in_channels_list = [in_channels] + [out_channels for _ in range(n_blocks-1)]
         blocks_list = []
@@ -363,7 +361,6 @@ class nfUNet(nn.Module):
 
         # first only the two blocks at the top
         self.blocks_down = []
-        print('Down block 0')
         block = nfConvStage(self.in_channels, self.filters, self.is_2d,
                             n_blocks=self.n_blocks[0],
                             kernel_size=self.kernel_sizes[0],
@@ -375,7 +372,6 @@ class nfUNet(nn.Module):
                             alpha=self.alpha)
         self.blocks_down.append(block)
         self.blocks_up = []
-        print('Up block 0')
         block = nfConvStage(self.filters, self.filters, self.is_2d,
                             n_blocks=1,
                             kernel_size=self.kernel_sizes[0],
@@ -393,7 +389,6 @@ class nfUNet(nn.Module):
         # now all the others incl upsampling and logits
         for i, ks in enumerate(self.kernel_sizes[1:]):
 
-            print('Down block %d' %(i+1))
             # down block
             block = nfConvStage(self.filters_list[i],
                                 self.filters_list[i+1],
@@ -410,7 +405,6 @@ class nfUNet(nn.Module):
 
             # block on the upwards pass except for the bottom stage
             if i < self.n_stages - 1:
-                print('Up block %d' %(i+1))
                 block = nfConvStage(self.filters_list[i+1],
                                     self.filters_list[i+1],
                                     self.is_2d,

@@ -172,7 +172,7 @@ class ImageProcessingModel(ModelBase):
                    vmax=self.plot_window[1])
         plt.title('CNN: {:.2f}dB'.format(PSNR_pred))
         plt.axis('off')
-        plt.savefig(join(plot_folder, name+'.png'))
+        plt.savefig(join(plot_folder, name+'.png'), bbox_inches='tight')
         plt.close(fig)
 
     def compute_error_metrics(self, pred, data):
