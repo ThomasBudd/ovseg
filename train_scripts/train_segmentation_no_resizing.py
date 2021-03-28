@@ -10,7 +10,7 @@ if not os.path.exists(os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', d
                                    preprocessed_name)):
     preprocessing = SegmentationPreprocessing(use_only_classes=[9], apply_resizing=False)
     preprocessing.plan_preprocessing_raw_data('OV04')
-    preprocessing.preprocess_raw_data('OV04')
+    preprocessing.preprocess_raw_data('OV04', preprocessed_name=preprocessed_name)
 
 
 model_params = get_model_params_2d_segmentation()

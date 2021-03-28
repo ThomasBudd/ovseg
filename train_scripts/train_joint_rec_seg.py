@@ -93,6 +93,7 @@ model_params = pickle.load(open(os.path.join(model_path, 'model_parameters.pkl')
 prep_params = pickle.load(open(os.path.join(preprocessed_path, 'preprocessing_parameters.pkl'),
                                'rb'))
 model_params['preprocessing'] = prep_params
+model_params['network']['nonlin_params'] = {'negative_slope': 0.01, 'inplace': False}
 print('create segmentation model')
 model2 = SegmentationModel(val_fold, data_name, model_name_seg,
                            model_parameters=model_params,

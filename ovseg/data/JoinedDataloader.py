@@ -153,7 +153,7 @@ class JoinedBatchDataset(object):
                  'image': np.stack(ims).astype(self.dtype),
                  'label': np.stack(segs).astype(self.dtype),
                  'xycoords': np.stack(xycoords),
-                 'spacing': np.stack(spacings).astype(self.dtype)}
+                 'spacing': np.stack(spacings)}
 
         return batch
 
