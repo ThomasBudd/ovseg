@@ -153,10 +153,7 @@ class UNet(nn.Module):
         # determine how many scales on the upwars path with be connected to
         # a loss function
         if n_pyramid_scales is None:
-            if self.n_stages > 2:
-                self.n_pyramid_scales = self.n_stages - 2
-            else:
-                self.n_pyramid_scales = 1
+            self.n_pyramid_scales = max([1, self.n_stages - 2])
         else:
             self.n_pyramid_scales = int(n_pyramid_scales)
 
