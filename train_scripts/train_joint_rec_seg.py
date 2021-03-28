@@ -22,12 +22,15 @@ parser.add_argument('-lw', '--loss_weights')
 parser.add_argument("-d", "--data")
 parser.add_argument("--use_windowed_simulations", required=False, default=False,
                     action="store_true")
+parser.add_argument("--fp32", required=False, default=False, action='store_true')
 args = parser.parse_args()
 
-if args.loss_weights == '0':
-    loss_weights = [1.0, 0.9, 0.5, 0.1]
-elif args.loss_weights:
-    loss_weights = [0.99, 0.7, 0.3, 0.01]
+lw_ind = int(args.loss_weights)
+loss_weights = [1.0, 0.99, 0.9, 0.7, 0.5, 0.3, 0.1, 0.01][lw_ind:lw_ind+1]
+# if args.loss_weights == '0':
+#     loss_weights = [1.0, 0.9, 0.5, 0.1]
+# elif args.loss_weights:
+#     loss_weights = [0.99, 0.7, 0.3, 0.01]
 model_name_recon = 'recon_fbp_convs'
 
 if args.use_windowed_simulations:
@@ -65,12 +68,12 @@ else:
 trn_dl_params = {'batch_size': 12, 'patch_size': [512, 512],
                  'num_workers': 12, 'pin_memory': True,
                  'epoch_len': 250, 'store_coords_in_ram': True,
-                 'return_fp16': True}
+                 'return_fp16': not args.fp32}
 val_dl_params = {'batch_size': 12, 'patch_size': [512, 512],
                  'num_workers': 12, 'pin_memory': True,
                  'epoch_len': 25, 'store_coords_in_ram': True, 'store_data_in_ram': True,
                  'n_max_volumes': 20,
-                 'return_fp16': True}
+                 'return_fp16': not args.fp32}
 preprocessed_path = os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed',
                                  data_name, preprocessed_name)
 keys = ['projection', 'image', 'label', 'spacing']
@@ -110,11 +113,13 @@ for loss_weight in loss_weights:
                               data_name, 'joined_{}_{}_{}'.format(args.data,
                                                                   loss_weight,
                                                                   simulation))
+    if args.fp32:
+        model_path += '_fp32'
     training = JoinedTraining(model1, model2, data.trn_dl,  model_path,
                               loss_weight, num_epochs=500,
                               lr1_params=lr1_params, lr2_params=lr2_params,
                               opt1_params=opt1_params, opt2_params=opt2_params,
-                              val_dl=data.val_dl, fp32=False)
+                              val_dl=data.val_dl, fp32=args.fp32)
     # %% now the magic!!
     training.train()
     
