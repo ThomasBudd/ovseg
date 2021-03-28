@@ -2,16 +2,23 @@ from ovseg.model.model_parameters_segmentation import get_model_params_2d_segmen
 from ovseg.model.SegmentationModel import SegmentationModel
 import os
 from ovseg.preprocessing.SegmentationPreprocessing import SegmentationPreprocessing
+from shutil import copy
 
 data_name = 'OV04'
 preprocessed_name = 'pod_no_resizing'
 
 if not os.path.exists(os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', data_name,
                                    preprocessed_name)):
-    preprocessing = SegmentationPreprocessing(use_only_classes=[9], apply_resizing=False)
+    preprocessing = SegmentationPreprocessing(use_only_classes=[9], apply_resizing=False,
+                                              use_only_fg_scans=False)
     preprocessing.plan_preprocessing_raw_data('OV04')
-    preprocessing.preprocess_raw_data('OV04', preprocessed_name=preprocessed_name)
-
+    preprocessing.preprocess_raw_data(['OV04', 'ApolloTCGA', 'BARTS'],
+                                      preprocessed_name=preprocessed_name,
+                                      data_name=data_name)
+    copy(os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', data_name, 'pod_default',
+                      'splits.pkl'),
+         os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', data_name, preprocessed_name,
+                      'splits.pkl'))
 
 model_params = get_model_params_2d_segmentation()
 model_params_pretrained = get_model_params_2d_segmentation()
