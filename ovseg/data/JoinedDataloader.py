@@ -152,7 +152,7 @@ class JoinedBatchDataset(object):
         batch = {'projection': np.stack(projs).astype(self.dtype),
                  'image': np.stack(ims).astype(self.dtype),
                  'label': np.stack(segs).astype(self.dtype),
-                 'xycoords': np.stack(xycoords).astype(self.dtype),
+                 'xycoords': np.stack(xycoords),
                  'spacing': np.stack(spacings).astype(self.dtype)}
 
         return batch
