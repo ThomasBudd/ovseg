@@ -196,7 +196,7 @@ class SegmentationPreprocessing(object):
                              '(nx, ny, nz). Got {}'.fomat(shape_in))
         # next resizing
         # first let's check for spacing
-        if self.apply_resizing or self.apply_downsampling():
+        if self.apply_resizing or self.apply_downsampling:
             if spacing is None:
                 raise TypeError('Input spacing must be given, when '
                                 'apply_resizing=True or '
