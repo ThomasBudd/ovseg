@@ -44,6 +44,7 @@ class JoinedBatchDataset(object):
                     im = im.astype(np.float16)
                     proj = proj.astype(np.float16)
                 self.data.append((proj, im, seg, sp))
+        self.dtype = np.float16 if self.return_fp16 else np.float32
 
         # store coords in ram
         if self.store_coords_in_ram:
@@ -148,9 +149,11 @@ class JoinedBatchDataset(object):
 
         # stack up in first dim except for the segmentations as they have
         # different resolutions
-        batch = {'projection': np.stack(projs), 'image': np.stack(ims),
-                 'label': np.stack(segs), 'xycoords': np.stack(xycoords),
-                 'spacing': np.stack(spacings)}
+        batch = {'projection': np.stack(projs).astype(self.dtype),
+                 'image': np.stack(ims).astype(self.dtype),
+                 'label': np.stack(segs).astype(self.dtype),
+                 'xycoords': np.stack(xycoords).astype(self.dtype),
+                 'spacing': np.stack(spacings).astype(self.dtype)}
 
         return batch
 
