@@ -22,22 +22,18 @@ def get_stride(kernel_size):
 class ConvNormNonlinBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, is_2d, kernel_size=3,
-                 downsample=False, conv_params=None, norm=None, norm_params=None,
+                 first_stride=1, conv_params=None, norm=None, norm_params=None,
                  nonlin_params=None):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.kernel_size = kernel_size
         self.padding = get_padding(self.kernel_size)
-        self.downsample = downsample
+        self.first_stride = first_stride
         self.is_2d = is_2d
         self.conv_params = conv_params
         self.norm_params = norm_params
         self.nonlin_params = nonlin_params
-        if self.downsample:
-            self.stride = get_stride(self.kernel_size)
-        else:
-            self.stride = 1
 
         if norm is None:
             norm = 'batch' if is_2d else 'inst'
@@ -63,7 +59,7 @@ class ConvNormNonlinBlock(nn.Module):
                 norm_fctn = nn.InstanceNorm3d
         self.conv1 = conv_fctn(self.in_channels, self.out_channels,
                                self.kernel_size, padding=self.padding,
-                               stride=self.stride, **self.conv_params)
+                               stride=self.first_stride, **self.conv_params)
         self.conv2 = conv_fctn(self.out_channels, self.out_channels,
                                self.kernel_size, padding=self.padding,
                                **self.conv_params)
@@ -142,6 +138,18 @@ class UNet(nn.Module):
         # up to a max of filters_max
         self.filters_list = [min([self.filters*2**i, self.filters_max])
                              for i in range(self.n_stages)]
+
+        # first let's make the lists for the blocks on both pathes
+        self.in_channels_down_list = [self.in_channels] + self.filters_list[:-1]
+        self.out_channels_down_list = self.filters_list
+        self.first_stride_list = [1] + [get_stride(ks) for ks in self.kernel_sizes[:-1]]
+        self.in_channels_up_list = [2 * n_ch for n_ch in self.out_channels_down_list[:-1]]
+        self.out_channels_up_list = self.out_channels_down_list[:-1]
+
+        # now the upconvolutions
+        self.up_conv_in_list = self.out_channels_down_list[1:]
+        self.up_conv_out_list = self.out_channels_down_list[:-1]
+
         # determine how many scales on the upwars path with be connected to
         # a loss function
         if n_pyramid_scales is None:
@@ -152,50 +160,57 @@ class UNet(nn.Module):
         else:
             self.n_pyramid_scales = int(n_pyramid_scales)
 
-        # first only the two blocks at the top
+        # now all the logits
+        self.logits_in_list = self.out_channels_up_list[:self.n_pyramid_scales]
+
+        # blocks on the contracting path
         self.blocks_down = []
-        block = ConvNormNonlinBlock(self.in_channels, self.filters, self.is_2d,
-                                    self.kernel_sizes[0], False,
-                                    self.conv_params, self.norm, self.norm_params,
-                                    self.nonlin_params)
-        self.blocks_down.append(block)
-        self.blocks_up = []
-        block = ConvNormNonlinBlock(2*self.filters, self.filters, self.is_2d,
-                                    self.kernel_sizes[0], False,
-                                    self.conv_params, self.norm, self.norm_params,
-                                    self.nonlin_params)
-        self.blocks_up.append(block)
-
-        self.upconvs = []
-        self.all_logits = []
-
-        # now all the others incl upsampling and logits
-        for i, ks in enumerate(self.kernel_sizes[1:]):
-
-            # down block
-            block = ConvNormNonlinBlock(self.filters_list[i],
-                                        self.filters_list[i+1],
-                                        self.is_2d, ks, True,
-                                        self.conv_params, self.norm, self.norm_params,
-                                        self.nonlin_params)
+        for in_channels, out_channels, kernel_size, first_stride in zip(self.in_channels_down_list,
+                                                                        self.out_channels_down_list,
+                                                                        self.kernel_sizes,
+                                                                        self.first_stride_list):
+            block = ConvNormNonlinBlock(in_channels=in_channels,
+                                        out_channels=out_channels,
+                                        is_2d=self.is_2d,
+                                        kernel_size=kernel_size,
+                                        first_stride=first_stride,
+                                        conv_params=self.conv_params,
+                                        norm=self.norm,
+                                        norm_params=self.norm_params,
+                                        nonlin_params=self.nonlin_params)
             self.blocks_down.append(block)
 
-            # block on the upwards pass except for the bottom stage
-            if i < self.n_stages - 1:
-                block = ConvNormNonlinBlock(2 * self.filters_list[i+1],
-                                            self.filters_list[i+1],
-                                            self.is_2d, ks, False,
-                                            self.conv_params, self.norm, self.norm_params,
-                                            self.nonlin_params)
-                self.blocks_up.append(block)
-            # convolutions to this stage
-            upconv = UpConv(self.filters_list[i+1], self.filters_list[i],
-                            is_2d, get_stride(ks))
-            self.upconvs.append(upconv)
-            # logits for this stage
-            if i < self.n_pyramid_scales:
-                logits = Logits(self.filters_list[i], self.out_channels, is_2d)
-                self.all_logits.append(logits)
+        # blocks on the upsampling path
+        self.blocks_up = []
+        for in_channels, out_channels, kernel_size in zip(self.in_channels_up_list,
+                                                          self.out_channels_up_list,
+                                                          self.kernel_sizes):
+            block = ConvNormNonlinBlock(in_channels=in_channels,
+                                        out_channels=out_channels,
+                                        is_2d=self.is_2d,
+                                        kernel_size=kernel_size,
+                                        conv_params=self.conv_params,
+                                        norm=self.norm,
+                                        norm_params=self.norm_params,
+                                        nonlin_params=self.nonlin_params)
+            self.blocks_up.append(block)
+
+        # upsaplings
+        self.upconvs = []
+        for in_channels, out_channels, kernel_size in zip(self.up_conv_in_list,
+                                                          self.up_conv_out_list,
+                                                          self.kernel_sizes):
+            self.upconvs.append(UpConv(in_channels=in_channels,
+                                       out_channels=out_channels,
+                                       is_2d=self.is_2d,
+                                       kernel_size=get_stride(kernel_size)))
+
+        # logits
+        self.all_logits = []
+        for in_channels in self.logits_in_list:
+            self.all_logits.append(Logits(in_channels=in_channels,
+                                          out_channels=self.out_channels,
+                                          is_2d=self.is_2d))
 
         # now important let's turn everything into a module list
         self.blocks_down = nn.ModuleList(self.blocks_down)
@@ -208,8 +223,8 @@ class UNet(nn.Module):
         xb_list = []
         logs_list = []
         # contracting path
-        for i in range(self.n_stages):
-            xb = self.blocks_down[i](xb)
+        for block in self.blocks_down:
+            xb = block(xb)
             xb_list.append(xb)
 
         # expanding path without logits
@@ -249,13 +264,15 @@ if __name__ == '__main__':
     print('2d')
     with torch.no_grad():
         yb_2d = net_2d(xb_2d)
-    for l in yb_2d:
-        print(l.shape)
+    print('Output shapes:')
+    for log in yb_2d:
+        print(log.shape)
 
     net_3d = get_3d_UNet(1, 2, 5, 2, 8).to(gpu)
     xb_3d = torch.randn((1, 1, 128, 128, 32), device=gpu)
     print('3d')
     with torch.no_grad():
         yb_3d = net_3d(xb_3d)
-    for l in yb_3d:
-        print(l.shape)
+    print('Output shapes:')
+    for log in yb_3d:
+        print(log.shape)
