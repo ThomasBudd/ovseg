@@ -68,7 +68,7 @@ class SegmentationPreprocessing(object):
         self.force_volume_preprocessing_to_cpu = False
         self.dataset_properties = {}
 
-        if self.apply_scaling and target_spacing is None:
+        if self.apply_resizing and target_spacing is None:
             print('Expected \'target_spacing\' to be list or tuple.'
                   'Got None instead. Use plan_preprocessing to infere '
                   'this parameter or load them.')

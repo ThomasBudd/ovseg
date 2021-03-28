@@ -8,9 +8,9 @@ preprocessed_name = 'pod_no_resizing'
 
 if not os.path.exists(os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', data_name,
                                    preprocessed_name)):
-    preprocessing = SegmentationPreprocessing(use_only_classes=[9])
-    preprocessing.plan_preprocessing_raw_data('OV04_test')
-    preprocessing.preprocess_raw_data('OV04_test')
+    preprocessing = SegmentationPreprocessing(use_only_classes=[9], apply_resizing=False)
+    preprocessing.plan_preprocessing_raw_data('OV04')
+    preprocessing.preprocess_raw_data('OV04')
 
 
 model_params = get_model_params_2d_segmentation()
