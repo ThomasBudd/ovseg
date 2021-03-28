@@ -533,7 +533,10 @@ class SegmentationPreprocessing(object):
             contains = np.where(np.sum(lb, (0, 1)))[0]
             z_list = [np.argmax(np.sum(lb, (0, 1)))]
             s_list = ['_largest', '_random_0', '_random_1', '_random_2']
-            z_list.extend(np.random.choice(contains, size=3))
+            if len(contains) > 0:
+                z_list.extend(np.random.choice(contains, size=3))
+            else:
+                z_list.extend(np.random.randint(lb.shape[-1], size=3))
             n_ch = im.shape[0]
             for z, s in zip(z_list, s_list):
                 fig = plt.figure()
