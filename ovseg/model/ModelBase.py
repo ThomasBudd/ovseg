@@ -438,7 +438,7 @@ class ModelBase(object):
         self.eval_ds(self.data.val_ds, ds_name='validation',
                      save_preds=save_preds, save_plots=save_plots,
                      force_evaluation=force_evaluation,
-                     merge_to_CV_results=True, save_folder_name='cross_validataion')
+                     merge_to_CV_results=True, save_folder_name='cross_validation')
 
     def eval_training_set(self, save_preds=False, save_plots=True, force_evaluation=False):
         self.eval_ds(self.data.trn_ds, ds_name='training',

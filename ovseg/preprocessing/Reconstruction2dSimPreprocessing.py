@@ -16,11 +16,18 @@ class Reconstruction2dSimPreprocessing(object):
     Does what the name comes from: Simulation of the 2d sinograms
     '''
 
-    def __init__(self, operator, num_photons=2*10**6, mu_water=0.0192, window=None):
+    def __init__(self, operator, num_photons=None, mu_water=0.0192, window=None,
+                 scaling=None):
         self.operator = operator
         self.num_photons = num_photons
         self.mu_water = mu_water
         self.window = window
+        self.scaling = scaling
+        if self.scaling is None:
+            if self.window is None:
+                self.scaling = [1000 / self.mu_water, - 1000]
+            else:
+                self.scaling = [self.window[1] - self.window[0], self.window[0]]
 
     def preprocess_image(self, img):
         '''
@@ -45,28 +52,25 @@ class Reconstruction2dSimPreprocessing(object):
                              'only implemented for 2d images. '
                              'Got shape {}'.format(len(img.shape)))
 
-        # bring the image to the desired coordinates
-        # the mu_scale makes sure that the number of photons adds the same noise regardless
-        # of the image scaling
-        if self.window is None:
-            im_att = img/1000 * self.mu_water + self.mu_water
-            mu_scale = 1
-        else:
-            im_att = (img.clip(*self.window) - self.window[0])/(self.window[1] - self.window[0])
-            mu_scale = (self.window[1] - self.window[0]) * self.mu_water / 1000
+        # window the image if we're doing this cheat
+        if self.window is not None:
+            img = img.clip(*self.window)
 
-        im_att = im_att.type(torch.float).clamp(0).to('cuda')
+        # now scale everything
+        img = (img - self.scaling[0]) / self.scaling[1]
 
-        clean_proj = self.operator.forward(im_att)
-        clean_proj_exp = torch.exp(-1 * mu_scale * clean_proj)
-        noisy_proj = torch.poisson(clean_proj_exp * self.num_photons) / \
-            self.num_photons
-        noisy_proj = -1 * torch.log(noisy_proj + 1e-6) / mu_scale
+        img = img.type(torch.float).to('cuda')
+
+        proj = self.operator.forward(img)
+        if self.num_photons is not None:
+            proj_exp = torch.exp(-1 * proj)
+            proj_exp = torch.poisson(proj_exp * self.num_photons) / self.num_photons
+            proj = -1 * torch.log(proj_exp + 1e-6)
 
         if is_np:
-            return noisy_proj.cpu().numpy(), im_att.cpu().numpy()
+            return proj.cpu().numpy(), img.cpu().numpy()
         else:
-            return noisy_proj, im_att
+            return proj, img
 
     def preprocess_volume(self, volume):
         # input volume must be in HU

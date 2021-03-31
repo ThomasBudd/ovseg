@@ -22,7 +22,7 @@ class NetworkTraining(TrainingBase):
                  num_epochs=1000, opt_params=None, lr_params=None,
                  augmentation=None, val_dl=None, dev='cuda', nu_ema_trn=0.99,
                  nu_ema_val=0.7, network_name='network', fp32=False,
-                 p_plot_list=[1, 0.5, 0.2], opt_name='SGD'):
+                 p_plot_list=[1, 0.5, 0.2], opt_name='SGD', lr_schedule='almost_linear'):
         super().__init__(trn_dl, num_epochs, model_path)
 
         self.network = network
@@ -37,6 +37,7 @@ class NetworkTraining(TrainingBase):
         self.fp32 = fp32
         self.p_plot_list = p_plot_list
         self.opt_name = opt_name
+        self.lr_schedule = lr_schedule
 
         self.checkpoint_attributes.extend(['nu_ema_trn', 'network_name',
                                            'opt_params', 'fp32', 'lr_params',
@@ -108,11 +109,12 @@ class NetworkTraining(TrainingBase):
         self.lr_init = self.opt_params['lr']
 
     def update_lr(self):
-        lr = (1-self.epochs_done/self.num_epochs)**self.lr_params['beta'] * \
-            (self.lr_init - self.lr_params['lr_min']) + \
-            self.lr_params['lr_min']
-        self.opt.param_groups[0]['lr'] = lr
-        self.print_and_log('Learning rate now: {:.4e}'.format(lr))
+        if self.lr_schedule == 'almost_linear':
+            lr = (1-self.epochs_done/self.num_epochs)**self.lr_params['beta'] * \
+                (self.lr_init - self.lr_params['lr_min']) + \
+                self.lr_params['lr_min']
+            self.opt.param_groups[0]['lr'] = lr
+            self.print_and_log('Learning rate now: {:.4e}'.format(lr))
 
     def save_checkpoint(self, path=None):
         if path is None:

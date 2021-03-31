@@ -105,17 +105,7 @@ class Reconstruction2dSimModel(ModelBase):
         maps image gary values to HU
 
         '''
-        mm = [0] if self.window is None else [0, 1]
-        if isinstance(im, np.ndarray):
-            im = im.clip(*mm)
-        elif torch.is_tensor(im):
-            im = im.clamp(*mm)
-        else:
-            raise TypeError('Input must be np.ndarray or torch tensor')
-        if self.preprocessing.window is None:
-            im_HU = (im - self.mu_water)/self.mu_water*1000
-        else:
-            im_HU = im * (self.window[1] - self.window[0]) + self.window[0]
+        im_HU = self.preprocessing.scaling[0] * im + self.preprocessing.scaling[1]
 
         return im_HU
 

@@ -35,5 +35,5 @@ def get_model_params_2d_reconstruction(architecture='reconstruction_network_fbp_
                        'p_plot_list': [1, 0.5, 0.2], 'opt_name': 'ADAM', 'fp32': fp32}
     model_parameters['training'] = training_params
     model_parameters['prediction_key'] = 'learned_reconstruction'
-    model_parameters['operator'] = {}
+    model_parameters['operator'] = {'n_angles': 256, 'det_count': 724}
     return model_parameters
