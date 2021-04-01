@@ -15,7 +15,7 @@ def get_padding(kernel_size):
 
 def get_stride(kernel_size):
     if isinstance(kernel_size, (list, tuple, np.ndarray)):
-        return [(k + 1)//2 for k in kernel_size]
+        return tuple([(k + 1)//2 for k in kernel_size])
     else:
         return (kernel_size + 1) // 2
 
@@ -593,11 +593,11 @@ class nfUNet(nn.Module):
 # %%
 if __name__ == '__main__':
     gpu = torch.device('cuda:0')
-    net = nfUNet(in_channels=1, out_channels=2, kernel_sizes=[(1, 3, 3), (1, 3, 3), 3, 3],
+    net = nfUNet(in_channels=1, out_channels=2, kernel_sizes=[(1, 3, 3), (3, 3, 3), 3, 3],
                  is_2d=False,
                  filters=8, factor_skip_conn=0.5, use_bottleneck=False,
-                 upsampling='conv').cuda()
-    xb = torch.randn((1, 1, 32, 128, 128), device=gpu)
+                 upsampling='linear').cuda()
+    xb = torch.randn((1, 1, 32, 64, 64), device=gpu)
     # xb = torch.randn((3, 1, 512, 512), device=gpu)
     with torch.no_grad():
         yb = net(xb)
