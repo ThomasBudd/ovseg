@@ -35,6 +35,6 @@ for num_epochs in [500, 1000, 1500, 2000, 2500]:
                                  'fold_0')
         model.training.load_last_checkpoint(load_path)
     model.training.train()
-    model.eval_validation_set(save_preds=True, force_evaluation=True)
-    model.eval_training_set(save_preds=True, force_evaluation=True)
+    model.eval_validation_set(save_preds=True, force_evaluation=False)
+    model.eval_training_set(save_preds=True, force_evaluation=False)
     torch.cuda.empty_cache()

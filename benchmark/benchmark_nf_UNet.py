@@ -47,6 +47,7 @@ def benchmark(net, xb):
         net.zero_grad()
     t /= n_reps
     print('Backwards: {:.5} seconds ellapsed'.format(t))
+    print('A full training would take {:.3f}h'.format(250000 * t / 3600))
     torch.cuda.empty_cache()
 
 
