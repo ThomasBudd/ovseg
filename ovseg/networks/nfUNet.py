@@ -292,7 +292,7 @@ class nfConvStage(nn.Module):
     def __init__(self, in_channels, out_channels, is_2d=False, n_blocks=1,
                  alpha=0.2, kernel_size=3,
                  first_stride=1, conv_params=None, nonlin_params=None, use_bottleneck=False,
-                 se_reduction=4, stochdepth_rate=0):
+                 bottleneck_ratio=0.5, se_reduction=4, stochdepth_rate=0):
         super().__init__()
         first_stride_list = [first_stride] + [1 for _ in range(n_blocks-1)]
         in_channels_list = [in_channels] + [out_channels for _ in range(n_blocks-1)]
@@ -309,6 +309,7 @@ class nfConvStage(nn.Module):
                                                          first_stride=first_stride,
                                                          conv_params=conv_params,
                                                          nonlin_params=nonlin_params,
+                                                         bottleneck_ratio=bottleneck_ratio,
                                                          se_reduction=se_reduction,
                                                          stochdepth_rate=stochdepth_rate))
                 # now update
@@ -424,9 +425,9 @@ class nfUNet(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_sizes,
                  is_2d=False, n_blocks=None, filters=32, filters_max=512, n_pyramid_scales=None,
-                 conv_params=None, nonlin_params=None, use_bottleneck=False, se_reduction=4,
-                 use_attention_gates=False, alpha=0.2, stochdepth_rate=0, dropout_rate=0,
-                 upsampling='conv', align_corners=True, factor_skip_conn=0.5):
+                 conv_params=None, nonlin_params=None, use_bottleneck=False, bottleneck_ratio=0.5,
+                 se_reduction=4, use_attention_gates=False, alpha=0.2, stochdepth_rate=0,
+                 dropout_rate=0, upsampling='conv', align_corners=True, factor_skip_conn=0.5):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -443,6 +444,7 @@ class nfUNet(nn.Module):
         self.conv_params = conv_params
         self.nonlin_params = nonlin_params
         self.use_bottleneck = use_bottleneck
+        self.bottleneck_ratio = bottleneck_ratio
         self.se_reduction = se_reduction
         self.use_attention_gates = use_attention_gates
         self.alpha = alpha
@@ -501,6 +503,7 @@ class nfUNet(nn.Module):
                                 conv_params=self.conv_params,
                                 nonlin_params=self.nonlin_params,
                                 use_bottleneck=self.use_bottleneck,
+                                bottleneck_ratio=self.bottleneck_ratio,
                                 se_reduction=self.se_reduction,
                                 alpha=self.alpha,
                                 stochdepth_rate=self.stochdepth_rate)
@@ -519,6 +522,7 @@ class nfUNet(nn.Module):
                                 conv_params=self.conv_params,
                                 nonlin_params=self.nonlin_params,
                                 use_bottleneck=self.use_bottleneck,
+                                bottleneck_ratio=self.bottleneck_ratio,
                                 se_reduction=self.se_reduction,
                                 alpha=self.alpha,
                                 stochdepth_rate=self.stochdepth_rate)
