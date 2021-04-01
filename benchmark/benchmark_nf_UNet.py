@@ -7,6 +7,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--debug", required=False, default=False, action='store_true')
 parser.add_argument("--downsampling", required=False, default="0")
 parser.add_argument("-b", "--use_bottleneck", required=False, default=False, action='store_true')
+parser.add_argument("-br", "--bottleneck_ratio", required=False, default=2)
 parser.add_argument("-f", "--fat", required=False, default=False, action='store_true')
 parser.add_argument('-ps', '--patch_size', nargs='+')
 parser.add_argument('--upsampling', required=False, default='conv')
@@ -75,6 +76,7 @@ if __name__ == '__main__':
     xb = torch.randn([batch_size, 1, *patch_size], device='cuda')
     net = nfUNet(1, 2, kernel_sizes, is_2d=False, filters=filters, n_blocks=n_blocks,
                  use_bottleneck=args.use_bottleneck, upsampling=args.upsampling,
+                 bottleneck_ratio=int(args.bottleneck_ratio),
                  factor_skip_conn=float(args.skip_fac),
                  align_corners=args.align_corners).cuda()
     if args.debug:

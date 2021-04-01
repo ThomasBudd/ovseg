@@ -425,7 +425,7 @@ class nfUNet(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_sizes,
                  is_2d=False, n_blocks=None, filters=32, filters_max=512, n_pyramid_scales=None,
-                 conv_params=None, nonlin_params=None, use_bottleneck=False, bottleneck_ratio=0.5,
+                 conv_params=None, nonlin_params=None, use_bottleneck=False, bottleneck_ratio=2,
                  se_reduction=4, use_attention_gates=False, alpha=0.2, stochdepth_rate=0,
                  dropout_rate=0, upsampling='conv', align_corners=True, factor_skip_conn=0.5):
         super().__init__()
@@ -599,7 +599,7 @@ if __name__ == '__main__':
     gpu = torch.device('cuda:0')
     net = nfUNet(in_channels=1, out_channels=2, kernel_sizes=[(1, 3, 3), (3, 3, 3), 3, 3],
                  is_2d=False,
-                 filters=8, factor_skip_conn=0.5, use_bottleneck=False,
+                 filters=8, factor_skip_conn=0.5, use_bottleneck=True,
                  upsampling='linear').cuda()
     xb = torch.randn((1, 1, 32, 64, 64), device=gpu)
     # xb = torch.randn((3, 1, 512, 512), device=gpu)
