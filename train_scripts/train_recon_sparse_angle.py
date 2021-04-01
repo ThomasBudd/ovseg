@@ -20,7 +20,7 @@ model_parameters['preprocessing']['scaling'] = [64.64038, -1.7883005]
 
 for num_epochs in [500, 1000, 1500, 2000, 2500]:
     model_parameters['training']['num_epochs'] = num_epochs
-    model_name = 'recon_fbp_convs_'+str(num_epochs)
+    model_name = 'recon_fbp_convs_'+str(num_epochs) + '_' + args.angles
     model = Reconstruction2dSimModel(val_fold=0,
                                      data_name='OV04',
                                      model_name=model_name,

@@ -9,6 +9,10 @@ parser.add_argument("--downsampling", required=False, default="0")
 parser.add_argument("-b", "--use_bottleneck", required=False, default=False, action='store_true')
 parser.add_argument("-f", "--fat", required=False, default=False, action='store_true')
 parser.add_argument('-ps', '--patch_size', nargs='+')
+parser.add_argument('--upsamping', required=False, default='conv')
+parser.add_argument("--skip_fac", required=False, default=2)
+parser.add_argument("--align_corners", required=False, default=False, action='store_true')
+
 args = parser.parse_args()
 
 if args.debug:
@@ -60,7 +64,7 @@ if __name__ == '__main__':
     else:
         batch_size = 2
     if args.fat:
-        n_blocks = [3, 4, 6, 4]
+        n_blocks = [3, 4, 6, 3]
         kernel_sizes = kernel_sizes[:4]
     else:
         n_blocks = None
@@ -69,7 +73,9 @@ if __name__ == '__main__':
     # print('Single precision:')
     xb = torch.randn([batch_size, 1, *patch_size], device='cuda')
     net = nfUNet(1, 2, kernel_sizes, is_2d=False, filters=filters, n_blocks=n_blocks,
-                 use_bottleneck=args.use_bottleneck).cuda()
+                 use_bottleneck=args.use_bottleneck, upsamping=args.upsamping,
+                 factor_skip_conn=float(args.skip_fac),
+                 align_corners=args.align_corners).cuda()
     if args.debug:
         benchmark(net, xb)
     else:
