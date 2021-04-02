@@ -89,5 +89,3 @@ if __name__ == '__main__':
     else:
         with torch.cuda.amp.autocast():
             benchmark(net, xb)
-
-    net._print_perf_times()

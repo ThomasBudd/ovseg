@@ -636,32 +636,39 @@ class nfUNet_benchmark(nfUNet):
             xb = self.blocks_down[i](xb)
             # new feature: we only forward half of the channels
             xb_list.append(xb[:, :self.n_skip_channels[i]])
+            torch.cuda.synchronize()
             self.perf_time_down[i] += perf_counter() - t
 
         # expanding path without logits
         for i in range(self.n_stages - 2, self.n_pyramid_scales-1, -1):
             t = perf_counter()
             xb = self.upconvs[i](xb)
+            torch.cuda.synchronize()
             self.perf_time_upsampling[i] += perf_counter() - t
             t = perf_counter()
             xb = self.concats[i](xb, xb_list[i])
+            torch.cuda.synchronize()
             self.perf_time_concat[i] += perf_counter() - t
             t = perf_counter()
             xb = self.blocks_up[i](xb)
+            torch.cuda.synchronize()
             self.perf_time_up[i] += perf_counter() - t
 
         # expanding path with logits
         for i in range(self.n_pyramid_scales - 1, -1, -1):
             t = perf_counter()
             xb = self.upconvs[i](xb)
+            torch.cuda.synchronize()
             self.perf_time_upsampling[i] += perf_counter() - t
             t = perf_counter()
             xb = self.concats[i](xb, xb_list[i])
+            torch.cuda.synchronize()
             self.perf_time_concat[i] += perf_counter() - t
             t = perf_counter()
             xb = self.blocks_up[i](xb)
             logs = self.all_logits[i](xb)
             logs_list.append(logs)
+            torch.cuda.synchronize()
             self.perf_time_up[i] += perf_counter() - t
 
         # as we iterate from bottom to top we have to flip the logits list
