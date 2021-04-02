@@ -40,7 +40,7 @@ def benchmark(net, xb):
         t += perf_counter()
     t /= n_reps
     print('Forwards:  {:.5} seconds ellapsed'.format(t))
-    net._print_perf_times()
+
     net.train()
     t = 0
     for _ in range(n_reps):

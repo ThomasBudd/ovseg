@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from time import perf_counter
 
 GAMMA = np.sqrt(2 / (1 - 1/np.pi))
 
@@ -590,6 +591,63 @@ class nfUNet(nn.Module):
             xb = self.blocks_up[i](xb)
             logs = self.all_logits[i](xb)
             logs_list.append(logs)
+
+        # as we iterate from bottom to top we have to flip the logits list
+        return logs_list[::-1]
+
+
+class nfUNet_benchmark(nfUNet):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._zero_perf_times()
+
+    def _zero_perf_times(self):
+        self.perf_time_down = [0 for _ in range(self.n_stages)]
+        self.perf_time_up = [0 for _ in range(self.n_stages-1)]
+
+    def _print_perf_times(self):
+        total_time = np.sum(self.perf_time_down) + np.sum(self.perf_time_up)
+        perc_down = 100 * np.array(self.perf_time_down) / total_time
+        perc_up = 100 * np.array(self.perf_time_up)
+        print(' '.join(['{:.3f}' for _ in range(4)]).format(*perc_down))
+        print(' '.join(['{:.3f}' for _ in range(4)]).format(*perc_up))
+
+    def forward(self, xb):
+        # keep all out tensors from the contracting path
+        xb_list = []
+        logs_list = []
+        # contracting path
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        xb = self.preprocess(xb)
+        for i in range(self.n_stages):
+            start.record()
+            xb = self.blocks_down[i](xb)
+            # new feature: we only forward half of the channels
+            xb_list.append(xb[:, :self.n_skip_channels[i]])
+            end.record()
+            self.perf_time_down[i] += start.elapsed_time(end)
+
+        # expanding path without logits
+        for i in range(self.n_stages - 2, self.n_pyramid_scales-1, -1):
+            start.record()
+            xb = self.upconvs[i](xb)
+            xb = self.concats[i](xb, xb_list[i])
+            xb = self.blocks_up[i](xb)
+            end.record()
+            self.perf_time_up[i] += start.elapsed_time(end)
+
+        # expanding path with logits
+        for i in range(self.n_pyramid_scales - 1, -1, -1):
+            start.record()
+            xb = self.upconvs[i](xb)
+            xb = self.concats[i](xb, xb_list[i])
+            xb = self.blocks_up[i](xb)
+            logs = self.all_logits[i](xb)
+            logs_list.append(logs)
+            end.record()
+            self.perf_time_up[i] += start.elapsed_time(end)
 
         # as we iterate from bottom to top we have to flip the logits list
         return logs_list[::-1]
