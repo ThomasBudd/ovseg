@@ -68,7 +68,7 @@ if __name__ == '__main__':
     else:
         batch_size = int(args.batch_size)
     if args.fat:
-        n_blocks = [3, 4, 6, 3]
+        n_blocks = [1, 2, 6, 3]
         kernel_sizes = kernel_sizes[:4]
     else:
         n_blocks = None

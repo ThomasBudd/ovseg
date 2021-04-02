@@ -525,7 +525,8 @@ class nfUNet(nn.Module):
                                 bottleneck_ratio=self.bottleneck_ratio,
                                 se_reduction=self.se_reduction,
                                 alpha=self.alpha,
-                                stochdepth_rate=self.stochdepth_rate)
+                                stochdepth_rate=0.)
+            # we don't use stoch depth on the upsampling pathes
             self.blocks_up.append(block)
 
         # now let's do the upsamplings
