@@ -1,6 +1,15 @@
 import torch
 from time import perf_counter
 
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-ps', '--patch_size', nargs='+')
+parser.add_argument("--filters", required=False, default=32)
+parser.add_argument("--batch_size", required=False, default=2)
+
+args = parser.parse_args()
+f = int(args.filters)
 n_reps = 50
 
 
@@ -37,11 +46,11 @@ class Block0(torch.nn.Module):
         super().__init__()
         padding = [(k-1)//2 for k in kernel_size]
         if len(kernel_size) == 2:
-            self.conv1 = torch.nn.Conv2d(32, 32, kernel_size, padding=padding)
-            self.conv2 = torch.nn.Conv2d(32, 32, kernel_size, padding=padding)
+            self.conv1 = torch.nn.Conv2d(f, f, kernel_size, padding=padding)
+            self.conv2 = torch.nn.Conv2d(f, f, kernel_size, padding=padding)
         else:
-            self.conv1 = torch.nn.Conv3d(32, 32, kernel_size, padding=padding)
-            self.conv2 = torch.nn.Conv3d(32, 32, kernel_size, padding=padding)
+            self.conv1 = torch.nn.Conv3d(f, f, kernel_size, padding=padding)
+            self.conv2 = torch.nn.Conv3d(f, f, kernel_size, padding=padding)
         self.nonlin1 = torch.nn.functional.relu
         self.nonlin2 = torch.nn.functional.relu
 
@@ -58,15 +67,15 @@ class Block1(torch.nn.Module):
         super().__init__()
         padding = [(k-1)//2 for k in kernel_size]
         if len(kernel_size) == 2:
-            self.conv1 = torch.nn.Conv2d(32, 32, kernel_size, padding=padding)
-            self.conv2 = torch.nn.Conv2d(32, 32, kernel_size, padding=padding)
-            self.norm1 = torch.nn.InstanceNorm2d(32)
-            self.norm2 = torch.nn.InstanceNorm2d(32)
+            self.conv1 = torch.nn.Conv2d(f, f, kernel_size, padding=padding)
+            self.conv2 = torch.nn.Conv2d(f, f, kernel_size, padding=padding)
+            self.norm1 = torch.nn.InstanceNorm2d(f)
+            self.norm2 = torch.nn.InstanceNorm2d(f)
         else:
-            self.conv1 = torch.nn.Conv3d(32, 32, kernel_size, padding=padding)
-            self.conv2 = torch.nn.Conv3d(32, 32, kernel_size, padding=padding)
-            self.norm1 = torch.nn.InstanceNorm3d(32)
-            self.norm2 = torch.nn.InstanceNorm3d(32)
+            self.conv1 = torch.nn.Conv3d(f, f, kernel_size, padding=padding)
+            self.conv2 = torch.nn.Conv3d(f, f, kernel_size, padding=padding)
+            self.norm1 = torch.nn.InstanceNorm3d(f)
+            self.norm2 = torch.nn.InstanceNorm3d(f)
         self.nonlin1 = torch.nn.functional.relu
         self.nonlin2 = torch.nn.functional.relu
 
@@ -83,15 +92,15 @@ class Block2(torch.nn.Module):
         super().__init__()
         padding = [(k-1)//2 for k in kernel_size]
         if len(kernel_size) == 2:
-            self.conv1 = torch.nn.Conv2d(32, 16, 1)
-            self.conv2 = torch.nn.Conv2d(16, 16, kernel_size, padding=padding)
-            self.conv3 = torch.nn.Conv2d(16, 16, kernel_size, padding=padding)
-            self.conv4 = torch.nn.Conv2d(16, 32, 1)
+            self.conv1 = torch.nn.Conv2d(f, f // 2, 1)
+            self.conv2 = torch.nn.Conv2d(f // 2, f // 2, kernel_size, padding=padding)
+            self.conv3 = torch.nn.Conv2d(f // 2, f // 2, kernel_size, padding=padding)
+            self.conv4 = torch.nn.Conv2d(f // 2, f, 1)
         else:
-            self.conv1 = torch.nn.Conv3d(32, 16, 1)
-            self.conv2 = torch.nn.Conv3d(16, 16, kernel_size, padding=padding)
-            self.conv3 = torch.nn.Conv3d(16, 16, kernel_size, padding=padding)
-            self.conv4 = torch.nn.Conv3d(16, 32, 1)
+            self.conv1 = torch.nn.Conv3d(f, f // 2, 1)
+            self.conv2 = torch.nn.Conv3d(f // 2, f // 2, kernel_size, padding=padding)
+            self.conv3 = torch.nn.Conv3d(f // 2, f // 2, kernel_size, padding=padding)
+            self.conv4 = torch.nn.Conv3d(f // 2, f, 1)
         self.nonlin1 = torch.nn.functional.relu
         self.nonlin2 = torch.nn.functional.relu
         self.nonlin3 = torch.nn.functional.relu
@@ -113,15 +122,15 @@ class Block3(torch.nn.Module):
         super().__init__()
         padding = [(k-1)//2 for k in kernel_size]
         if len(kernel_size) == 2:
-            self.conv1 = torch.nn.Conv2d(32, 8, 1)
-            self.conv2 = torch.nn.Conv2d(8, 8, kernel_size, padding=padding)
-            self.conv3 = torch.nn.Conv2d(8, 8, kernel_size, padding=padding)
-            self.conv4 = torch.nn.Conv2d(8, 32, 1)
+            self.conv1 = torch.nn.Conv2d(f, f // 4, 1)
+            self.conv2 = torch.nn.Conv2d(f // 4, f // 4, kernel_size, padding=padding)
+            self.conv3 = torch.nn.Conv2d(f // 4, f // 4, kernel_size, padding=padding)
+            self.conv4 = torch.nn.Conv2d(f // 4, f, 1)
         else:
-            self.conv1 = torch.nn.Conv3d(32, 8, 1)
-            self.conv2 = torch.nn.Conv3d(8, 8, kernel_size, padding=padding)
-            self.conv3 = torch.nn.Conv3d(8, 8, kernel_size, padding=padding)
-            self.conv4 = torch.nn.Conv3d(8, 32, 1)
+            self.conv1 = torch.nn.Conv3d(f, f // 4, 1)
+            self.conv2 = torch.nn.Conv3d(f // 4, f // 4, kernel_size, padding=padding)
+            self.conv3 = torch.nn.Conv3d(f // 4, f // 4, kernel_size, padding=padding)
+            self.conv4 = torch.nn.Conv3d(f // 4, f, 1)
         self.nonlin1 = torch.nn.functional.relu
         self.nonlin2 = torch.nn.functional.relu
         self.nonlin3 = torch.nn.functional.relu
@@ -143,15 +152,15 @@ class Block4(torch.nn.Module):
         super().__init__()
         padding = [(k-1)//2 for k in kernel_size]
         if len(kernel_size) == 2:
-            self.conv1 = torch.nn.Conv2d(6, 32, kernel_size, padding=padding)
-            self.conv2 = torch.nn.Conv2d(32, 6, 1)
-            self.conv3 = torch.nn.Conv2d(6, 32, kernel_size, padding=padding)
-            self.conv4 = torch.nn.Conv2d(32, 6, 1)
+            self.conv1 = torch.nn.Conv2d(f // 4, f, kernel_size, padding=padding)
+            self.conv2 = torch.nn.Conv2d(f, f // 4, 1)
+            self.conv3 = torch.nn.Conv2d(f // 4, f, kernel_size, padding=padding)
+            self.conv4 = torch.nn.Conv2d(f, f // 4, 1)
         else:
-            self.conv1 = torch.nn.Conv3d(6, 32, kernel_size, padding=padding)
-            self.conv2 = torch.nn.Conv3d(32, 6, 1)
-            self.conv3 = torch.nn.Conv3d(6, 32, kernel_size, padding=padding)
-            self.conv4 = torch.nn.Conv3d(32, 6, 1)
+            self.conv1 = torch.nn.Conv3d(f // 4, f, kernel_size, padding=padding)
+            self.conv2 = torch.nn.Conv3d(f, f // 4, 1)
+            self.conv3 = torch.nn.Conv3d(f // 4, f, kernel_size, padding=padding)
+            self.conv4 = torch.nn.Conv3d(f, f // 4, 1)
         self.nonlin1 = torch.nn.functional.relu
         self.nonlin2 = torch.nn.functional.relu
         self.nonlin3 = torch.nn.functional.relu
@@ -173,19 +182,19 @@ class Block5(torch.nn.Module):
         super().__init__()
         padding = [(k-1)//2 for k in kernel_size]
         if len(kernel_size) == 2:
-            self.conv1 = torch.nn.Conv2d(6, 32, 1)
-            self.conv2 = torch.nn.Conv2d(32, 32, kernel_size, padding=padding, groups=32)
-            self.conv3 = torch.nn.Conv2d(32, 6, 1)
-            self.conv3 = torch.nn.Conv2d(6, 32, 1)
-            self.conv4 = torch.nn.Conv2d(32, 32, kernel_size, padding=padding, groups=32)
-            self.conv5 = torch.nn.Conv2d(32, 6, 1)
+            self.conv1 = torch.nn.Conv2d(f // 4, f, 1)
+            self.conv2 = torch.nn.Conv2d(f, f, kernel_size, padding=padding, groups=f)
+            self.conv3 = torch.nn.Conv2d(f, f // 4, 1)
+            self.conv3 = torch.nn.Conv2d(f // 4, f, 1)
+            self.conv4 = torch.nn.Conv2d(f, f, kernel_size, padding=padding, groups=f)
+            self.conv5 = torch.nn.Conv2d(f, f // 4, 1)
         else:
-            self.conv1 = torch.nn.Conv3d(6, 32, 1)
-            self.conv2 = torch.nn.Conv3d(32, 32, kernel_size, padding=padding, groups=32)
-            self.conv3 = torch.nn.Conv3d(32, 6, 1)
-            self.conv3 = torch.nn.Conv3d(6, 32, 1)
-            self.conv4 = torch.nn.Conv3d(32, 32, kernel_size, padding=padding, groups=32)
-            self.conv5 = torch.nn.Conv3d(32, 6, 1)
+            self.conv1 = torch.nn.Conv3d(f // 4, f, 1)
+            self.conv2 = torch.nn.Conv3d(f, f, kernel_size, padding=padding, groups=f)
+            self.conv3 = torch.nn.Conv3d(f, f // 4, 1)
+            self.conv3 = torch.nn.Conv3d(f // 4, f, 1)
+            self.conv4 = torch.nn.Conv3d(f, f, kernel_size, padding=padding, groups=f)
+            self.conv5 = torch.nn.Conv3d(f, f // 4, 1)
         self.nonlin1 = torch.nn.functional.relu
         self.nonlin2 = torch.nn.functional.relu
         self.nonlin3 = torch.nn.functional.relu
@@ -197,29 +206,32 @@ class Block5(torch.nn.Module):
 
         skip = xb
         xb = self.conv1(self.nonlin1(xb))
-        skip = self.conv2(self.nonlin2(xb)) + skip
-        xb = self.conv3(self.nonlin3(skip))
-        xb = self.conv4(self.nonlin4(xb)) + skip
+        xb = self.conv2(self.nonlin2(xb))
+        skip = self.conv3(self.nonlin3(xb)) + skip
+        xb = self.conv4(self.nonlin4(skip))
+        xb = self.conv5(self.nonlin5(xb))
+        xb = self.conv6(self.nonlin6(xb)) + skip
         return xb
 
 
 if __name__ == '__main__':
-    kernel_sizes = [(3, 3), (3, 3, 3), (1, 3, 3)]
-    patch_sizes = [(512, 512), (96, 96, 96),
-                   (64, 128, 128)]
-    n_channels = [32, 32, 32, 32, 6, 6]
+
+    if len(args.patch_size) == 2:
+        kernel_size = (3, 3)
+    elif args.patch_size[0] < args.patch_size[1]:
+        kernel_size = (1, 3, 3)
+    else:
+        kernel_size = (3, 3, 3)
+
+    n_channels = [f, f, f, f, f // 4, f // 4]
     names = ['conv', 'conv_nonlin', 'bottleneck 2', 'bottleneck 4', 'fused MB_conv', 'MB_conv']
-    for kernel_size, patch_size in zip(kernel_sizes, patch_sizes):
-        print(kernel_size)
-        # print('Single precision:')
-        xb = torch.randn(patch_size, device='cuda')
-        blocks = [b(kernel_size).cuda() for b in [Block0, Block1, Block2, Block3, Block4, Block5]]
-        # for i, block in enumerate(blocks):
-            # print(i)
-            # benchmark(block, xb)
-        print('Half precision:')
-        with torch.cuda.amp.autocast():
-            for i, block in enumerate(blocks):
-                xb = torch.randn((2, n_channels[i], patch_size), device='cuda')
-                print(names[i])
-                benchmark(block, xb)
+    # print('Single precision:')
+    patch_size = [int(p) for p in args.patch_size]
+    blocks = [b(kernel_size).cuda() for b in [Block0, Block1, Block2, Block3, Block4, Block5]]
+
+    print('Half precision:')
+    with torch.cuda.amp.autocast():
+        for i, block in enumerate(blocks):
+            xb = torch.randn((2, n_channels[i], patch_size), device='cuda')
+            print(names[i])
+            benchmark(block, xb)
