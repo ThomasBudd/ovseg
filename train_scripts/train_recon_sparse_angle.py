@@ -20,7 +20,7 @@ model_parameters = get_model_params_2d_reconstruction('reconstruction_network_fb
 model_parameters['preprocessing']['window'] = [-31.87421739, 318]
 model_parameters['preprocessing']['scaling'] = [64.64038, -1.7883005]
 model_parameters['network'] = {'filters_data_space': int(args.data_filters),
-                               'filters_images_space': int(args.im_filters)}
+                               'filters_image_space': int(args.im_filters)}
 
 for num_epochs in [500, 1000, 1500, 2000, 2500]:
     model_parameters['training']['num_epochs'] = num_epochs
