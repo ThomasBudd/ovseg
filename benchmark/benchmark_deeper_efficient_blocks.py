@@ -37,11 +37,11 @@ class Block0(torch.nn.Module):
         super().__init__()
         padding = [(k-1)//2 for k in kernel_size]
         if len(kernel_size) == 2:
-            self.conv1 = torch.nn.Conv2d(32, 32, kernel_size, padding=padding)
-            self.conv2 = torch.nn.Conv2d(32, 32, kernel_size, padding=padding)
+            self.conv1 = torch.nn.Conv2d(128, 128, kernel_size, padding=padding)
+            self.conv2 = torch.nn.Conv2d(128, 128, kernel_size, padding=padding)
         else:
-            self.conv1 = torch.nn.Conv3d(32, 32, kernel_size, padding=padding)
-            self.conv2 = torch.nn.Conv3d(32, 32, kernel_size, padding=padding)
+            self.conv1 = torch.nn.Conv3d(128, 128, kernel_size, padding=padding)
+            self.conv2 = torch.nn.Conv3d(128, 128, kernel_size, padding=padding)
         self.nonlin1 = torch.nn.functional.relu
         self.nonlin2 = torch.nn.functional.relu
 
@@ -58,15 +58,15 @@ class Block1(torch.nn.Module):
         super().__init__()
         padding = [(k-1)//2 for k in kernel_size]
         if len(kernel_size) == 2:
-            self.conv1 = torch.nn.Conv2d(32, 32, kernel_size, padding=padding)
-            self.conv2 = torch.nn.Conv2d(32, 32, kernel_size, padding=padding)
-            self.norm1 = torch.nn.InstanceNorm2d(32)
-            self.norm2 = torch.nn.InstanceNorm2d(32)
+            self.conv1 = torch.nn.Conv2d(128, 128, kernel_size, padding=padding)
+            self.conv2 = torch.nn.Conv2d(128, 128, kernel_size, padding=padding)
+            self.norm1 = torch.nn.InstanceNorm2d(128)
+            self.norm2 = torch.nn.InstanceNorm2d(128)
         else:
-            self.conv1 = torch.nn.Conv3d(32, 32, kernel_size, padding=padding)
-            self.conv2 = torch.nn.Conv3d(32, 32, kernel_size, padding=padding)
-            self.norm1 = torch.nn.InstanceNorm3d(32)
-            self.norm2 = torch.nn.InstanceNorm3d(32)
+            self.conv1 = torch.nn.Conv3d(128, 128, kernel_size, padding=padding)
+            self.conv2 = torch.nn.Conv3d(128, 128, kernel_size, padding=padding)
+            self.norm1 = torch.nn.InstanceNorm3d(128)
+            self.norm2 = torch.nn.InstanceNorm3d(128)
         self.nonlin1 = torch.nn.functional.relu
         self.nonlin2 = torch.nn.functional.relu
 
@@ -83,15 +83,15 @@ class Block2(torch.nn.Module):
         super().__init__()
         padding = [(k-1)//2 for k in kernel_size]
         if len(kernel_size) == 2:
-            self.conv1 = torch.nn.Conv2d(32, 16, 1)
-            self.conv2 = torch.nn.Conv2d(16, 16, kernel_size, padding=padding)
-            self.conv3 = torch.nn.Conv2d(16, 16, kernel_size, padding=padding)
-            self.conv4 = torch.nn.Conv2d(16, 32, 1)
+            self.conv1 = torch.nn.Conv2d(128, 64, 1)
+            self.conv2 = torch.nn.Conv2d(64, 64, kernel_size, padding=padding)
+            self.conv3 = torch.nn.Conv2d(64, 64, kernel_size, padding=padding)
+            self.conv4 = torch.nn.Conv2d(64, 128, 1)
         else:
-            self.conv1 = torch.nn.Conv3d(32, 16, 1)
-            self.conv2 = torch.nn.Conv3d(16, 16, kernel_size, padding=padding)
-            self.conv3 = torch.nn.Conv3d(16, 16, kernel_size, padding=padding)
-            self.conv4 = torch.nn.Conv3d(16, 32, 1)
+            self.conv1 = torch.nn.Conv3d(128, 64, 1)
+            self.conv2 = torch.nn.Conv3d(64, 64, kernel_size, padding=padding)
+            self.conv3 = torch.nn.Conv3d(64, 64, kernel_size, padding=padding)
+            self.conv4 = torch.nn.Conv3d(64, 128, 1)
         self.nonlin1 = torch.nn.functional.relu
         self.nonlin2 = torch.nn.functional.relu
         self.nonlin3 = torch.nn.functional.relu
@@ -113,15 +113,15 @@ class Block3(torch.nn.Module):
         super().__init__()
         padding = [(k-1)//2 for k in kernel_size]
         if len(kernel_size) == 2:
-            self.conv1 = torch.nn.Conv2d(32, 8, 1)
-            self.conv2 = torch.nn.Conv2d(8, 8, kernel_size, padding=padding)
-            self.conv3 = torch.nn.Conv2d(8, 8, kernel_size, padding=padding)
-            self.conv4 = torch.nn.Conv2d(8, 32, 1)
+            self.conv1 = torch.nn.Conv2d(128, 32, 1)
+            self.conv2 = torch.nn.Conv2d(32, 32, kernel_size, padding=padding)
+            self.conv3 = torch.nn.Conv2d(32, 32, kernel_size, padding=padding)
+            self.conv4 = torch.nn.Conv2d(32, 128, 1)
         else:
-            self.conv1 = torch.nn.Conv3d(32, 8, 1)
-            self.conv2 = torch.nn.Conv3d(8, 8, kernel_size, padding=padding)
-            self.conv3 = torch.nn.Conv3d(8, 8, kernel_size, padding=padding)
-            self.conv4 = torch.nn.Conv3d(8, 32, 1)
+            self.conv1 = torch.nn.Conv3d(128, 32, 1)
+            self.conv2 = torch.nn.Conv3d(32, 32, kernel_size, padding=padding)
+            self.conv3 = torch.nn.Conv3d(32, 32, kernel_size, padding=padding)
+            self.conv4 = torch.nn.Conv3d(32, 128, 1)
         self.nonlin1 = torch.nn.functional.relu
         self.nonlin2 = torch.nn.functional.relu
         self.nonlin3 = torch.nn.functional.relu
@@ -143,15 +143,15 @@ class Block4(torch.nn.Module):
         super().__init__()
         padding = [(k-1)//2 for k in kernel_size]
         if len(kernel_size) == 2:
-            self.conv1 = torch.nn.Conv2d(6, 32, kernel_size, padding=padding)
-            self.conv2 = torch.nn.Conv2d(32, 6, 1)
-            self.conv3 = torch.nn.Conv2d(6, 32, kernel_size, padding=padding)
-            self.conv4 = torch.nn.Conv2d(32, 6, 1)
+            self.conv1 = torch.nn.Conv2d(21, 128, kernel_size, padding=padding)
+            self.conv2 = torch.nn.Conv2d(128, 21, 1)
+            self.conv3 = torch.nn.Conv2d(21, 128, kernel_size, padding=padding)
+            self.conv4 = torch.nn.Conv2d(128, 21, 1)
         else:
-            self.conv1 = torch.nn.Conv3d(6, 32, kernel_size, padding=padding)
-            self.conv2 = torch.nn.Conv3d(32, 6, 1)
-            self.conv3 = torch.nn.Conv3d(6, 32, kernel_size, padding=padding)
-            self.conv4 = torch.nn.Conv3d(32, 6, 1)
+            self.conv1 = torch.nn.Conv3d(21, 128, kernel_size, padding=padding)
+            self.conv2 = torch.nn.Conv3d(128, 21, 1)
+            self.conv3 = torch.nn.Conv3d(21, 128, kernel_size, padding=padding)
+            self.conv4 = torch.nn.Conv3d(128, 21, 1)
         self.nonlin1 = torch.nn.functional.relu
         self.nonlin2 = torch.nn.functional.relu
         self.nonlin3 = torch.nn.functional.relu
@@ -173,19 +173,19 @@ class Block5(torch.nn.Module):
         super().__init__()
         padding = [(k-1)//2 for k in kernel_size]
         if len(kernel_size) == 2:
-            self.conv1 = torch.nn.Conv2d(6, 32, 1)
-            self.conv2 = torch.nn.Conv2d(32, 32, kernel_size, padding=padding, groups=32)
-            self.conv3 = torch.nn.Conv2d(32, 6, 1)
-            self.conv3 = torch.nn.Conv2d(6, 32, 1)
-            self.conv4 = torch.nn.Conv2d(32, 32, kernel_size, padding=padding, groups=32)
-            self.conv5 = torch.nn.Conv2d(32, 6, 1)
+            self.conv1 = torch.nn.Conv2d(21, 128, 1)
+            self.conv2 = torch.nn.Conv2d(128, 128, kernel_size, padding=padding, groups=128)
+            self.conv3 = torch.nn.Conv2d(128, 21, 1)
+            self.conv3 = torch.nn.Conv2d(21, 128, 1)
+            self.conv4 = torch.nn.Conv2d(128, 128, kernel_size, padding=padding, groups=128)
+            self.conv5 = torch.nn.Conv2d(128, 21, 1)
         else:
-            self.conv1 = torch.nn.Conv3d(6, 32, 1)
-            self.conv2 = torch.nn.Conv3d(32, 32, kernel_size, padding=padding, groups=32)
-            self.conv3 = torch.nn.Conv3d(32, 6, 1)
-            self.conv3 = torch.nn.Conv3d(6, 32, 1)
-            self.conv4 = torch.nn.Conv3d(32, 32, kernel_size, padding=padding, groups=32)
-            self.conv5 = torch.nn.Conv3d(32, 6, 1)
+            self.conv1 = torch.nn.Conv3d(21, 128, 1)
+            self.conv2 = torch.nn.Conv3d(128, 128, kernel_size, padding=padding, groups=128)
+            self.conv3 = torch.nn.Conv3d(128, 21, 1)
+            self.conv3 = torch.nn.Conv3d(21, 128, 1)
+            self.conv4 = torch.nn.Conv3d(128, 128, kernel_size, padding=padding, groups=128)
+            self.conv5 = torch.nn.Conv3d(128, 21, 1)
         self.nonlin1 = torch.nn.functional.relu
         self.nonlin2 = torch.nn.functional.relu
         self.nonlin3 = torch.nn.functional.relu
@@ -203,10 +203,11 @@ class Block5(torch.nn.Module):
         return xb
 
 
+
+
 if __name__ == '__main__':
-    kernel_sizes = [(3, 3), (3, 3, 3), (1, 3, 3)]
-    patch_sizes = [(512, 512), (96, 96, 96),
-                   (64, 128, 128)]
+    kernel_sizes = [(3, 3), (3, 3, 3)]
+    patch_sizes = [(128, 128), (48, 48, 48)]
     n_channels = [32, 32, 32, 32, 6, 6]
     names = ['conv', 'conv_nonlin', 'bottleneck 2', 'bottleneck 4', 'fused MB_conv', 'MB_conv']
     for kernel_size, patch_size in zip(kernel_sizes, patch_sizes):
