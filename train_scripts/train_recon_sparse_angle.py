@@ -13,7 +13,6 @@ args = parser.parse_args()
 imf = 'images'
 projf = 'projections_' + args.angles
 
-
 model_parameters = get_model_params_2d_reconstruction('reconstruction_network_fbp_convs',
                                                       imf,
                                                       projf)
@@ -21,6 +20,11 @@ model_parameters['preprocessing']['window'] = [-31.87421739, 318]
 model_parameters['preprocessing']['scaling'] = [64.64038, -1.7883005]
 model_parameters['network'] = {'filters_data_space': int(args.data_filters),
                                'filters_image_space': int(args.im_filters)}
+
+if args.angles == 'quater':
+    model_parameters['operator']['n_angles'] = 256 // 4
+elif args.angles == 'eights':
+    model_parameters['operator']['n_angles'] = 256 // 8
 
 for num_epochs in [500, 1000, 1500, 2000, 2500]:
     model_parameters['training']['num_epochs'] = num_epochs
