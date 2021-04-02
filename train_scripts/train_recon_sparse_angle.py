@@ -25,7 +25,7 @@ model_parameters['network'] = {'filters_data_space': int(args.data_filters),
 for num_epochs in [500, 1000, 1500, 2000, 2500]:
     model_parameters['training']['num_epochs'] = num_epochs
     model_name = 'recon_fbp_convs_'+str(num_epochs) + '_' + args.angles + \
-        '_' + args.data_filters + '_' + args.im_filters
+        '_' + str(args.data_filters) + '_' + str(args.im_filters)
     model = Reconstruction2dSimModel(val_fold=0,
                                      data_name='OV04',
                                      model_name=model_name,
@@ -37,7 +37,7 @@ for num_epochs in [500, 1000, 1500, 2000, 2500]:
                                  'trained_models',
                                  'OV04',
                                  'recon_fbp_convs_'+str(num_epochs-500) + '_' + args.angles +
-                                 '_' + args.data_filters + '_' + args.im_filters,
+                                 '_' + str(args.data_filters) + '_' + str(args.im_filters),
                                  'fold_0')
         path_to_log = os.path.join(os.environ['OV_DATA_BASE'],
                                    'trained_models',
