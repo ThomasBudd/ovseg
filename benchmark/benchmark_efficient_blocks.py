@@ -185,16 +185,16 @@ class Block5(torch.nn.Module):
             self.conv1 = torch.nn.Conv2d(f // 4, f, 1)
             self.conv2 = torch.nn.Conv2d(f, f, kernel_size, padding=padding, groups=f)
             self.conv3 = torch.nn.Conv2d(f, f // 4, 1)
-            self.conv3 = torch.nn.Conv2d(f // 4, f, 1)
-            self.conv4 = torch.nn.Conv2d(f, f, kernel_size, padding=padding, groups=f)
-            self.conv5 = torch.nn.Conv2d(f, f // 4, 1)
+            self.conv4 = torch.nn.Conv2d(f // 4, f, 1)
+            self.conv5 = torch.nn.Conv2d(f, f, kernel_size, padding=padding, groups=f)
+            self.conv6 = torch.nn.Conv2d(f, f // 4, 1)
         else:
             self.conv1 = torch.nn.Conv3d(f // 4, f, 1)
             self.conv2 = torch.nn.Conv3d(f, f, kernel_size, padding=padding, groups=f)
             self.conv3 = torch.nn.Conv3d(f, f // 4, 1)
-            self.conv3 = torch.nn.Conv3d(f // 4, f, 1)
-            self.conv4 = torch.nn.Conv3d(f, f, kernel_size, padding=padding, groups=f)
-            self.conv5 = torch.nn.Conv3d(f, f // 4, 1)
+            self.conv4 = torch.nn.Conv3d(f // 4, f, 1)
+            self.conv5 = torch.nn.Conv3d(f, f, kernel_size, padding=padding, groups=f)
+            self.conv6 = torch.nn.Conv3d(f, f // 4, 1)
         self.nonlin1 = torch.nn.functional.relu
         self.nonlin2 = torch.nn.functional.relu
         self.nonlin3 = torch.nn.functional.relu
@@ -224,7 +224,7 @@ if __name__ == '__main__':
         kernel_size = (3, 3, 3)
 
     n_channels = [f, f, f, f, f // 4, f // 4]
-    names = ['conv', 'conv_nonlin', 'bottleneck 2', 'bottleneck 4', 'fused MB_conv', 'MB_conv']
+    names = ['conv', 'conv_norm', 'bottleneck 2', 'bottleneck 4', 'fused MB_conv', 'MB_conv']
     # print('Single precision:')
     patch_size = [int(p) for p in args.patch_size]
     blocks = [b(kernel_size).cuda() for b in [Block0, Block1, Block2, Block3, Block4, Block5]]
@@ -232,6 +232,6 @@ if __name__ == '__main__':
     print('Half precision:')
     with torch.cuda.amp.autocast():
         for i, block in enumerate(blocks):
-            xb = torch.randn((2, n_channels[i], patch_size), device='cuda')
+            xb = torch.randn((2, n_channels[i], *patch_size), device='cuda')
             print(names[i])
             benchmark(block, xb)
