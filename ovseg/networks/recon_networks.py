@@ -67,7 +67,7 @@ class filter_image_space(nn.Module):
 
 
 class reconstruction_network_fbp_convs(nn.Module):
-    def __init__(self, radon, niter=4, filters_data_space=1, filters_images_space=5):
+    def __init__(self, radon, niter=4, filters_data_space=1, filters_image_space=5):
 
         # first setup everythin for the inversion
         self.radon = radon
@@ -79,7 +79,7 @@ class reconstruction_network_fbp_convs(nn.Module):
         self.niter = niter
         self.filt = nn.ModuleList([filter_data_space(n_hidden=filters_data_space).to(device)
                                    for i in range(self.niter)])
-        self.filt_image = nn.ModuleList([filter_image_space(n_filters=filter_image_space).to(device)
+        self.filt_image = nn.ModuleList([filter_image_space(n_filters=filters_image_space).to(device)
                                          for i in range(self.niter)])
         self.tau = nn.Parameter(tau * torch.ones(self.niter).to(device))
         self.sigma = nn.Parameter(sigma * torch.ones(self.niter).to(device))
