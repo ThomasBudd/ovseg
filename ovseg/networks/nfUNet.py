@@ -31,6 +31,7 @@ class WSConv2d(nn.Conv2d):
 
         nn.init.kaiming_normal_(self.weight, nonlinearity='relu')
         nn.init.zeros_(self.bias)
+        self.unbiased = kernel_size != 1
         self.register_buffer('eps', torch.tensor(1e-4, requires_grad=False), persistent=False)
         self.register_buffer('fan_in', torch.tensor(self.weight.shape[1:].numel(),
                                                     requires_grad=False).type_as(self.weight),
@@ -39,7 +40,7 @@ class WSConv2d(nn.Conv2d):
     def standardized_weights(self):
         # Original code: HWCN
         mean = torch.mean(self.weight, axis=[1, 2, 3], keepdims=True)
-        var = torch.var(self.weight, axis=[1, 2, 3], keepdims=True)
+        var = torch.var(self.weight, axis=[1, 2, 3], keepdims=True, unbiased=self.unbiased)
         scale = torch.rsqrt(torch.maximum(var * self.fan_in, self.eps))
         return (self.weight - mean) * scale
 
@@ -64,6 +65,7 @@ class WSConv3d(nn.Conv3d):
 
         nn.init.kaiming_normal_(self.weight, nonlinearity='relu')
         nn.init.zeros_(self.bias)
+        self.unbiased = kernel_size != 1
         self.register_buffer('eps', torch.tensor(1e-4, requires_grad=False), persistent=False)
         self.register_buffer('fan_in', torch.tensor(self.weight.shape[1:].numel(),
                                                     requires_grad=False).type_as(self.weight),
@@ -72,7 +74,7 @@ class WSConv3d(nn.Conv3d):
     def standardized_weights(self):
         # Original code: HWCN
         mean = torch.mean(self.weight, axis=[1, 2, 3, 4], keepdims=True)
-        var = torch.var(self.weight, axis=[1, 2, 3, 4], keepdims=True)
+        var = torch.var(self.weight, axis=[1, 2, 3, 4], keepdims=True, unbiased=self.unbiased)
         scale = torch.rsqrt(torch.maximum(var * self.fan_in, self.eps))
         return (self.weight - mean) * scale
 
@@ -484,9 +486,12 @@ class nfUNet(nn.Module):
         # we first apply one 1x1(x1) convolution to precent information loss as the ReLU is the
         # first module in the conv block
         if self.is_2d:
-            self.preprocess = WSConv2d(self.in_channels, self.filters, 1)
+            self.preprocess = nn.Conv2d(self.in_channels, self.filters, 1)
         else:
-            self.preprocess = WSConv3d(self.in_channels, self.filters, 1)
+            self.preprocess = nn.Conv3d(self.in_channels, self.filters, 1)
+
+        nn.init.kaiming_normal_(self.preprocess.weight, nonlinearity='relu')
+        nn.init.zeros_(self.preprocess.bias)
 
         # first the downsampling blocks
         self.blocks_down = []
@@ -609,45 +614,40 @@ class nfUNet_benchmark(nfUNet):
     def _print_perf_times(self):
         total_time = np.sum(self.perf_time_down) + np.sum(self.perf_time_up)
         perc_down = 100 * np.array(self.perf_time_down) / total_time
-        perc_up = 100 * np.array(self.perf_time_up)
-        print(' '.join(['{:.3f}' for _ in range(4)]).format(*perc_down))
-        print(' '.join(['{:.3f}' for _ in range(4)]).format(*perc_up))
+        perc_up = 100 * np.array(self.perf_time_up) / total_time
+        print(*perc_down)
+        print(*perc_up)
 
     def forward(self, xb):
         # keep all out tensors from the contracting path
         xb_list = []
         logs_list = []
         # contracting path
-        start = torch.cuda.Event(enable_timing=True)
-        end = torch.cuda.Event(enable_timing=True)
         xb = self.preprocess(xb)
         for i in range(self.n_stages):
-            start.record()
+            t = perf_counter()
             xb = self.blocks_down[i](xb)
             # new feature: we only forward half of the channels
             xb_list.append(xb[:, :self.n_skip_channels[i]])
-            end.record()
-            self.perf_time_down[i] += start.elapsed_time(end)
+            self.perf_time_down[i] += perf_counter() - t
 
         # expanding path without logits
         for i in range(self.n_stages - 2, self.n_pyramid_scales-1, -1):
-            start.record()
+            t = perf_counter()
             xb = self.upconvs[i](xb)
             xb = self.concats[i](xb, xb_list[i])
             xb = self.blocks_up[i](xb)
-            end.record()
-            self.perf_time_up[i] += start.elapsed_time(end)
+            self.perf_time_up[i] += perf_counter() - t
 
         # expanding path with logits
         for i in range(self.n_pyramid_scales - 1, -1, -1):
-            start.record()
+            t = perf_counter()
             xb = self.upconvs[i](xb)
             xb = self.concats[i](xb, xb_list[i])
             xb = self.blocks_up[i](xb)
             logs = self.all_logits[i](xb)
             logs_list.append(logs)
-            end.record()
-            self.perf_time_up[i] += start.elapsed_time(end)
+            self.perf_time_up[i] += perf_counter() - t
 
         # as we iterate from bottom to top we have to flip the logits list
         return logs_list[::-1]

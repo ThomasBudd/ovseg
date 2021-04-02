@@ -53,6 +53,7 @@ def benchmark(net, xb):
     t /= n_reps
     print('Backwards: {:.5} seconds ellapsed'.format(t))
     print('A full training would take {:.3f}h'.format(250000 * t / 3600))
+    net._print_perf_times()
     torch.cuda.empty_cache()
 
 
@@ -88,3 +89,5 @@ if __name__ == '__main__':
     else:
         with torch.cuda.amp.autocast():
             benchmark(net, xb)
+
+    net._print_perf_times()
