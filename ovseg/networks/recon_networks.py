@@ -17,16 +17,16 @@ def get_operator(n_angles=256, det_count=724):
 
 
 class filter_data_space(nn.Module):
-    def __init__(self, n_in_channels=1, n_out_channels=1, filt_size=75,):
+    def __init__(self, n_in_channels=1, n_out_channels=1, n_hidden=1, filt_size=75,):
         super().__init__()
         pad = (filt_size-1)//2
-        self.conv1 = nn.Conv2d(n_in_channels, n_out_channels, kernel_size=(1, filt_size),
+        self.conv1 = nn.Conv2d(n_in_channels, n_hidden, kernel_size=(1, filt_size),
                                stride=(1, 1), padding=(0, pad), groups=1, bias=False)
-        self.conv2 = nn.Conv2d(n_out_channels, n_out_channels, kernel_size=(1, filt_size),
+        self.conv2 = nn.Conv2d(n_hidden, n_hidden, kernel_size=(1, filt_size),
                                stride=(1, 1), padding=(0, pad), groups=1, bias=False)
-        self.conv3 = nn.Conv2d(n_out_channels, n_out_channels, kernel_size=(1, filt_size),
+        self.conv3 = nn.Conv2d(n_hidden, n_hidden, kernel_size=(1, filt_size),
                                stride=(1, 1), padding=(0, pad), groups=1, bias=False)
-        self.conv4 = nn.Conv2d(n_out_channels, n_out_channels, kernel_size=(1, filt_size),
+        self.conv4 = nn.Conv2d(n_hidden, n_out_channels, kernel_size=(1, filt_size),
                                stride=(1, 1), padding=(0, pad), groups=1, bias=False)
 
         self.act1 = nn.PReLU(num_parameters=1, init=0.25)
@@ -67,7 +67,7 @@ class filter_image_space(nn.Module):
 
 
 class reconstruction_network_fbp_convs(nn.Module):
-    def __init__(self, radon, niter=4, denoise_filters=5, denoise_depth=3):
+    def __init__(self, radon, niter=4, filters_data_space=1, filters_images_space=5):
 
         # first setup everythin for the inversion
         self.radon = radon
@@ -77,8 +77,9 @@ class reconstruction_network_fbp_convs(nn.Module):
         super().__init__()
         self.radon = radon
         self.niter = niter
-        self.filt = nn.ModuleList([filter_data_space().to(device) for i in range(self.niter)])
-        self.filt_image = nn.ModuleList([filter_image_space().to(device)
+        self.filt = nn.ModuleList([filter_data_space(n_hidden=filters_data_space).to(device)
+                                   for i in range(self.niter)])
+        self.filt_image = nn.ModuleList([filter_image_space(n_filters=filter_image_space).to(device)
                                          for i in range(self.niter)])
         self.tau = nn.Parameter(tau * torch.ones(self.niter).to(device))
         self.sigma = nn.Parameter(sigma * torch.ones(self.niter).to(device))

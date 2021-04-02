@@ -52,10 +52,12 @@ class Reconstruction2dSimModel(ModelBase):
 
     def initialise_network(self):
         architecture = self.model_parameters['architecture'].lower()
+        params = {} if 'network' not in self.model_parameters.keys() else \
+            self.model_parameters['network']
         if architecture == 'reconstruction_network_fbp_convs':
-            self.network = reconstruction_network_fbp_convs(self.operator)
+            self.network = reconstruction_network_fbp_convs(self.operator, **params)
         elif architecture in ['lpd', 'learnedprimaldual', 'learned-primal-dual']:
-            self.network = learned_primal_dual(self.operator)
+            self.network = learned_primal_dual(self.operator, **params)
         else:
             self.network = post_processing_U_Net()
         self.network = self.network.to(self.dev)

@@ -332,6 +332,9 @@ class ModelBase(object):
         '''
         global NO_NAME_FOUND_WARNING_PRINTED
 
+        if save_folder_name is None:
+            save_folder_name = ds_name + '_{}'.format(int(self.val_fold))
+
         # first check if the evaluation is already done and quit in case we don't want to force
         # the evaluation
         if not force_evaluation:
@@ -346,7 +349,7 @@ class ModelBase(object):
                 pred_folder = os.path.join(os.environ['OV_DATA_BASE'], 'predictions',
                                            self.data_name,
                                            self.model_name,
-                                           ds_name+'_{}'.format(self.val_fold))
+                                           save_folder_name)
                 if not exists(pred_folder):
                     do_evaluation = True
 
@@ -355,7 +358,7 @@ class ModelBase(object):
                 plot_folder = os.path.join(os.environ['OV_DATA_BASE'], 'plots',
                                            self.data_name,
                                            self.model_name,
-                                           ds_name+'_{}'.format(self.val_fold))
+                                           save_folder_name)
                 if not exists(plot_folder):
                     do_evaluation = True
 
@@ -365,9 +368,6 @@ class ModelBase(object):
                       'If you want to force the evaluation please delete the old files and folders '
                       'or pass force_evaluation=True.\n\n')
                 return
-
-        if save_folder_name is None:
-            save_folder_name = ds_name + '_{}'.format(int(self.val_fold))
 
         self._init_global_metrics()
         results = {}
