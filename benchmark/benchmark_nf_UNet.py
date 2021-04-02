@@ -13,6 +13,8 @@ parser.add_argument('-ps', '--patch_size', nargs='+')
 parser.add_argument('--upsampling', required=False, default='conv')
 parser.add_argument("--skip_fac", required=False, default=0.5)
 parser.add_argument("--align_corners", required=False, default=False, action='store_true')
+parser.add_argument("--filters", required=False, default=32)
+parser.add_argument("--batch_size", required=False, default=2)
 
 args = parser.parse_args()
 
@@ -20,7 +22,7 @@ if args.debug:
     n_reps = 10
     filters = 8
 else:
-    filters = 32
+    filters = int(args.filters)
     n_reps = 50
 
 
@@ -64,7 +66,7 @@ if __name__ == '__main__':
     if args.debug:
         batch_size = 1
     else:
-        batch_size = 2
+        batch_size = int(args.batch_size)
     if args.fat:
         n_blocks = [3, 4, 6, 3]
         kernel_sizes = kernel_sizes[:4]
