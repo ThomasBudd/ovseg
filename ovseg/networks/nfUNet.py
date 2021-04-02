@@ -609,13 +609,20 @@ class nfUNet_benchmark(nfUNet):
 
     def _zero_perf_times(self):
         self.perf_time_down = [0 for _ in range(self.n_stages)]
+        self.perf_time_upsampling = [0 for _ in range(self.n_stages-1)]
+        self.perf_time_concat = [0 for _ in range(self.n_stages-1)]
         self.perf_time_up = [0 for _ in range(self.n_stages-1)]
 
     def _print_perf_times(self):
-        total_time = np.sum(self.perf_time_down) + np.sum(self.perf_time_up)
+        total_time = np.sum(self.perf_time_down) + np.sum(self.perf_time_up) + \
+            np.sum(self.perf_time_upsampling) + np.sum(self.perf_time_concat)
         perc_down = 100 * np.array(self.perf_time_down) / total_time
+        perc_upsampling = 100 * np.array(self.perf_time_upsampling) / total_time
+        perc_concat = 100 * np.array(self.perf_time_concat) / total_time
         perc_up = 100 * np.array(self.perf_time_up) / total_time
         print(*perc_down)
+        print(*perc_upsampling)
+        print(*perc_concat)
         print(*perc_up)
 
     def forward(self, xb):
@@ -635,7 +642,11 @@ class nfUNet_benchmark(nfUNet):
         for i in range(self.n_stages - 2, self.n_pyramid_scales-1, -1):
             t = perf_counter()
             xb = self.upconvs[i](xb)
+            self.perf_time_upsampling[i] += perf_counter() - t
+            t = perf_counter()
             xb = self.concats[i](xb, xb_list[i])
+            self.perf_time_concat[i] += perf_counter() - t
+            t = perf_counter()
             xb = self.blocks_up[i](xb)
             self.perf_time_up[i] += perf_counter() - t
 
@@ -643,7 +654,11 @@ class nfUNet_benchmark(nfUNet):
         for i in range(self.n_pyramid_scales - 1, -1, -1):
             t = perf_counter()
             xb = self.upconvs[i](xb)
+            self.perf_time_upsampling[i] += perf_counter() - t
+            t = perf_counter()
             xb = self.concats[i](xb, xb_list[i])
+            self.perf_time_concat[i] += perf_counter() - t
+            t = perf_counter()
             xb = self.blocks_up[i](xb)
             logs = self.all_logits[i](xb)
             logs_list.append(logs)
