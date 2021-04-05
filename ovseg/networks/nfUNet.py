@@ -96,7 +96,7 @@ class Logits(nn.Module):
 class nfUNet(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_sizes,
-                 is_2d=False, filters=32, filters_max=320, n_pyramid_scales=None,
+                 is_2d=False, filters=32, filters_max=384, n_pyramid_scales=None,
                  conv_params=None, nonlin_params=None, use_attention_gates=False, upsampling='conv',
                  align_corners=True, factor_skip_conn=0.5, is_inference_network=False):
         super().__init__()
@@ -123,7 +123,7 @@ class nfUNet(nn.Module):
 
         # first let's make the lists for the blocks on both pathes
         # input and output channels
-        self.in_channels_list = [self.filters] + self.filters_list[:-1]
+        self.in_channels_list = [self.in_channels] + self.filters_list[:-1]
         self.out_channels_list = self.filters_list
         # initial strides for downsampling
         self.first_stride_list = [1] + [get_stride(ks) for ks in self.kernel_sizes[:-1]]
@@ -140,16 +140,6 @@ class nfUNet(nn.Module):
             self.n_pyramid_scales = max([1, self.n_stages - 2])
         else:
             self.n_pyramid_scales = int(n_pyramid_scales)
-
-        # we first apply one 1x1(x1) convolution to precent information loss as the ReLU is the
-        # first module in the conv block
-        if self.is_2d:
-            self.preprocess = nn.Conv2d(self.in_channels, self.filters, 1)
-        else:
-            self.preprocess = nn.Conv3d(self.in_channels, self.filters, 1)
-
-        nn.init.kaiming_normal_(self.preprocess.weight, nonlinearity='relu')
-        nn.init.zeros_(self.preprocess.bias)
 
         # first the downsampling blocks
         self.blocks_down = []
@@ -209,8 +199,7 @@ class nfUNet(nn.Module):
         for in_ch in self.out_channels_list[:self.n_pyramid_scales]:
             self.all_logits.append(Logits(in_channels=in_ch,
                                           out_channels=self.out_channels,
-                                          is_2d=self.is_2d,
-                                          dropout_rate=self.dropout_rate))
+                                          is_2d=self.is_2d))
 
         # now important let's turn everything into a module list
         self.blocks_down = nn.ModuleList(self.blocks_down)
@@ -223,8 +212,6 @@ class nfUNet(nn.Module):
         # keep all out tensors from the contracting path
         xb_list = []
         logs_list = []
-        # contracting path
-        xb = self.preprocess(xb)
         for i in range(self.n_stages):
             xb = self.blocks_down[i](xb)
             # new feature: we only forward half of the channels

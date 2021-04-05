@@ -186,7 +186,6 @@ class nfConvBlock(nn.Module):
         self.conv2 = conv_fctn(self.out_channels, self.out_channels,
                                self.kernel_size, padding=self.padding,
                                **self.conv_params)
-        self.stochdepth = StochDepth(self.stochdepth_rate)
         if self.is_inference_block:
             self.nonlin1 = nn.ReLU(**self.nonlin_params)
             self.nonlin2 = nn.ReLU(**self.nonlin_params)
