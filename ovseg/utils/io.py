@@ -11,7 +11,7 @@ except ImportError:
 import pickle
 
 _names_sorting_warning_printed = False
-_multiple_roi_dcms_warning_printed = False
+_names_dict_warning_printed = False
 _isotropic_volume_loaded_warning_printed = False
 _ananisotropic_volume_loaded_warning_printed = False
 
@@ -230,9 +230,9 @@ def _is_roi_dcm_ds(ds):
     return True
 
 
-def read_dcms(dcm_folder, reverse=True, names=None):
+def read_dcms(dcm_folder, reverse=True, names_dict=None):
     '''
-    read_dcms(dcms, dcmrt=None, reverse=True, names=None)
+    read_dcms(dcms, dcmrt=None, reverse=True, names_dict=None)
 
     Reads dicom files for axial images and dcmrt files that contain ROIS.
     If is assumed that both the image dcms and the dcmrt dicoms are files in
@@ -261,10 +261,10 @@ def read_dcms(dcm_folder, reverse=True, names=None):
 
     Returns
     -------
-    image, spacing
+    data_tpl
 
     '''
-    global _names_sorting_warning_printed, _multiple_roi_dcms_warning_printed
+    global _names_sorting_warning_printed, _names_dict_warning_printed
     # read the image and sort it with respect to the z coordinates
     dcms = [join(dcm_folder, dcm) for dcm in listdir(dcm_folder)
             if dcm.endswith('.dcm')]
@@ -281,10 +281,9 @@ def read_dcms(dcm_folder, reverse=True, names=None):
             roidcms.append(dcm)
         else:
             raise TypeError(dcm + ' is neither image nor roi dcm.')
-    if len(roidss) > 1 and not _multiple_roi_dcms_warning_printed:
-        print('Found multiple ROI dcms in folder '+dcm_folder+'. '
-              'One segmentation is returned for each file ordered '
-              'alphabetically by filename.')
+    if len(roidss) > 1:
+        raise FileExistsError('Found multiple ROI dcms in folder '+dcm_folder+'. '
+                              'Make sure that at most one ROI dcm file is in each folder.')
     z_im = [imds.ImagePositionPatient[2] for imds in imdss]
     imdss = [ds for _, ds in sorted(zip(z_im, imdss), reverse=reverse)]
     z_im = [imds.ImagePositionPatient[2] for imds in imdss]
@@ -292,37 +291,58 @@ def read_dcms(dcm_folder, reverse=True, names=None):
     # now get the spacing
     ps = np.array(imdss[0].PixelSpacing).astype(float)
     z_sp = np.abs(np.median(np.diff(z_im)))
-    spacing = [*ps, z_sp]
+    spacing = [z_sp, *ps]
 
     # convert the image in HU
     a = imdss[0].RescaleSlope
     b = imdss[0].RescaleIntercept
-    im = np.stack([imds.pixel_array*a+b for imds in imdss],
-                  -1).astype(np.int16)
+    # stack up the image at the first axes
+    im = np.stack([imds.pixel_array*a+b for imds in imdss], 0).astype(np.int16)
     im[im < -1024] = -1024
 
-    for roids, roidcm in zip(roidss, roidcms):
+    if len(roidss) == 1:
+        roids = roidss[0]
+        roidcm = roidcms[0]
         seg = np.zeros_like(im)
 
         pos_r = float(imdss[0].ImagePositionPatient[1])
         pos_c = float(imdss[0].ImagePositionPatient[0])
-        names_found = [s.ROIName.lower() for s in
-                       roids.StructureSetROISequence]
+        names_found = [s.ROIName.lower() for s in roids.StructureSetROISequence]
         names_found = np.unique(names_found).tolist()
         names_found.sort()
-        if names is None:
-            names = names_found
+        if names_dict is None:
+            if np.all([name[0].isdigit() for name in names_found]):
+                # lucky case! All our ROIs start with numbers
+                names_dict = {}
+                for name in names_found:
+                    i = 0
+                    while name[:i+1].isgidit():
+                        i += 1
+                        if i == len(name):
+                            break
+                    num = int(name[:i])
+                    names_dict[name] = num
+            else:
+                # this is not so good.... if the ROIs don't start with numbers we have to make an
+                # elaborate guess on which index which name belongs to
+                if not _names_dict_warning_printed:
+                    print('Warning: No names_dict was found and the ROIs do not start with integer '
+                          'numbers. The mapping of which integer in the labels belong to which '
+                          'ROI is now based on sorting the ROI names. If not all scans have the '
+                          'same ROIs with the same names this might lead to errors in the '
+                          'labeling.')
+                    _names_dict_warning_printed = True
+                names_dict = {name: i for i, name in enumerate(names_found)}
         else:
-            names = [name.lower() for name in names]
             for name in names_found:
-                if name not in names:
+                if name not in names_dict:
                     raise ValueError('Name error in '+roidcm+'. Found ROI with'
                                      ' name '+name+' which was not given in'
-                                     ' the name list.')
+                                     ' the names_dict.')
         # now let's look at all ROIS
         for i in range(len(roids.ROIContourSequence)):
             name = roids.StructureSetROISequence[i].ROIName.lower()
-            num = names.index(name)
+            num = names_dict[name]
             for s in roids.ROIContourSequence[i].ContourSequence:
                 c = s.ContourData
                 # list of polygone corners
@@ -333,34 +353,11 @@ def read_dcms(dcm_folder, reverse=True, names=None):
                 if np.max(ad) > 0.1:
                     ValueError('z axis of difference larger than .1mm found'
                                ' between dcmrt and dcms.')
-                r = (nodes[:, 1] - pos_r) / spacing[1]
+                r = (nodes[:, 1] - pos_r) / spacing[2]
                 # from patient coordinate system to index of the image
-                c = (nodes[:, 0] - pos_c) / spacing[0]
+                c = (nodes[:, 0] - pos_c) / spacing[1]
                 rr, cc = polygon(r, c)
                 seg[rr, cc, z_index] = num
-
-        # we check if all names start with a number
-        # in that case we're converting the segmentations to carries these
-        # numbers
-        if np.all([name[0].isdigit() for name in names]):
-            nums = []
-            for name in names:
-                i = 1
-                while name[:i].isdigit() and i <= len(name):
-                    i += 1
-                nums.append(name[:i-1])
-            seg_new = np.zeros_like(seg)
-            for i, num in enumerate(nums):
-                seg_new[seg == i] = num
-            seg = seg_new
-        # if not the integers will refer to the alphabetical sorting
-        elif not _names_sorting_warning_printed:
-            print('Warning: Alphabetical sorting of ROI names is applied.'
-                  ' This is only relevant for multiclass problems. If no '
-                  'consistent names are chosen in the ROI files or if some '
-                  'scans do not show all ROIs errors might appear in the '
-                  'segmentations. Recommendation: hand ROI names as a list '
-                  'to read_dcms or rename ROIS to start with an integer.')
 
     data_tpl = {}
     data_tpl['image'] = im
