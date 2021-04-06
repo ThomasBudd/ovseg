@@ -12,6 +12,8 @@ import pickle
 
 _names_sorting_warning_printed = False
 _multiple_roi_dcms_warning_printed = False
+_isotropic_volume_loaded_warning_printed = False
+_ananisotropic_volume_loaded_warning_printed = False
 
 
 def load_pkl(path_to_file):
@@ -28,9 +30,47 @@ def save_pkl(data, path_to_file):
 
 
 def read_nii(nii_file):
+    global _isotropic_volume_loaded_warning_printed, _ananisotropic_volume_loaded_warning_printed
     img = nib.load(nii_file)
     spacing = img.header['pixdim'][1:4]
-    return img.get_fdata(), spacing
+    im = img.get_fdata()
+    dims = img.shape
+    # first check if the z axis is last or first
+    if spacing[0] == spacing[1]:
+        if spacing[0] != spacing[2]:
+            has_z_first = False
+        elif dims[0] == dims[1] and dims[0] != dims[2]:
+            # in the case of isotropic voxel we check the dimensions of the image instead
+            has_z_first = False
+        elif dims[1] == dims[2] and dims[0] != dims[2]:
+            has_z_first = True
+        else:
+            if not _isotropic_volume_loaded_warning_printed:
+                print('Found at least one file {} with isotropic voxel and equal volume dimensions.'
+                      'could not infere if the z axis is first or last, guessing last. '
+                      'Please make sure it is!'.format(nii_file))
+                has_z_first = False
+                _isotropic_volume_loaded_warning_printed = True
+    else:
+        # spacing[0] != spacing[1]
+        if spacing[1] == spacing[2]:
+            has_z_first = True
+        else:
+            if not _ananisotropic_volume_loaded_warning_printed:
+                print('Found at least one file {} with voxelspacing {}. '
+                      'Need at least two equal numbers in the spacing to find out if the z '
+                      'axis is first or last, guessing last. Please make sure it is!'
+                      ''.format(nii_file, spacing))
+                has_z_first = False
+                _ananisotropic_volume_loaded_warning_printed = True
+
+    # now we (hopefully) know if the z axis is first or last
+    if not has_z_first:
+        # z axis is in the back, get it to the front!
+        spacing = np.array([spacing[2], spacing[0], spacing[1]])
+        im = np.moveaxis(im, 2, 0)
+
+    return im, spacing, has_z_first
 
 
 def read_nii_files(nii_files):
@@ -58,7 +98,7 @@ def read_nii_files(nii_files):
         voxel spacing in x, y, z direction in mm
 
     '''
-    im, spacing = read_nii(nii_files[0])
+    im, spacing, had_z_first = read_nii(nii_files[0])
     out_volumes = [im]
     for nii_file in nii_files[1:]:
         out = read_nii(nii_file)
@@ -89,9 +129,12 @@ def read_data_tpl_from_nii(folder, case):
     if exists(join(folder, 'data_info.pkl')):
         data_info = load_pkl(join(folder, 'data_info.pkl'))
         if case[:-7] in data_info:
+            # the [:-7] is to remove the .nii.gz
             data_tpl.update(data_info[case[:-7]])
 
-    image_folders_ex = [join(folder, imf) for imf in ['images', 'imagesTr', 'imagesTs']
+    # first check if the image folder exists
+    possible_image_folders = ['images', 'imagesTr', 'imagesTs']
+    image_folders_ex = [join(folder, imf) for imf in possible_image_folders
                         if exists(join(folder, imf))]
     if len(image_folders_ex) == 0:
         raise FileNotFoundError('Didn\'t find any image folder in {}.'.format(folder))
@@ -110,26 +153,36 @@ def read_data_tpl_from_nii(folder, case):
         raise FileNotFoundError('No image files found for case {}.'.format(case))
     elif len(image_files) == 1:
         raw_image_file = image_files[0]
-        im, spacing = read_nii(raw_image_file)
+        im, spacing, had_z_first = read_nii(raw_image_file)
     else:
         raw_image_file = image_files
         im_data = [read_nii(file) for file in raw_image_file]
-        ims = [im for im, spacing in im_data]
-        spacings = [spacing for im, spacing in im_data]
+        ims = [im for im, spacing, had_z_first in im_data]
+        spacings = [spacing for im, spacing, had_z_first in im_data]
+        hzf_list = [had_z_first for im, spacing, had_z_first in im_data]
 
+        # now check if everything matches
         if not np.all([np.all(spacings[0] == sp) for sp in spacings[1:]]):
             raise ValueError('Found unequal spacings when reading the image files {}'
                              ''.format(image_files))
+
+        if not np.all([np.all(hzf_list[0] == hzf) for hzf in hzf_list[1:]]):
+            raise ValueError('Found some files with the z axis first and some with z axis last '
+                             'when reading the image files {}'.format(image_files))
+
         im = np.stack(ims)
         spacing = spacings[0]
-
+        had_z_first = hzf_list[0]
     data_tpl['image'] = im
     data_tpl['spacing'] = spacing
+    data_tpl['had_z_first'] = had_z_first
     data_tpl['raw_image_file'] = raw_image_file
 
     label_folders_ex = [join(folder, lbf) for lbf in ['labels', 'labelsTr', 'labelsTs']
                         if exists(join(folder, lbf))]
+
     if len(label_folders_ex) == 0:
+        # when there are no existing label folders we can just return the data tpl
         return data_tpl
 
     label_files = []
@@ -142,13 +195,20 @@ def read_data_tpl_from_nii(folder, case):
                                   'case {}.'.format(folder, case))
         label_files = matching_files
     if len(label_files) == 0:
+        # in case we don't find a label file let's return without
         return data_tpl
     elif len(label_files) == 1:
-        lb, spacing = read_nii(label_files[0])
+        lb, spacing, had_z_first = read_nii(label_files[0])
         if not np.all(spacing == data_tpl['spacing']):
             raise ValueError('Found not matching spacings for case {}.'.format(case))
+        if had_z_first != data_tpl['had_z_first']:
+            raise ValueError('Axis ordering doesn\'t match for case {}'
+                             'Make sure image and label files have the z axis at the same position'
+                             '(first or last).'.format(case))
         data_tpl['label'] = lb
         data_tpl['raw_label_file'] = label_files[0]
+    else:
+        raise FileExistsError('Found multiple label files for case {}'.format(case))
 
     return data_tpl
 
