@@ -19,19 +19,17 @@ import argparse
 # %% get all arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('-lw', '--loss_weights')
-parser.add_argument("-d", "--data")
-parser.add_argument("--use_windowed_simulations", required=False, default=False,
-                    action="store_true")
 parser.add_argument("--fp32", required=False, default=False, action='store_true')
 args = parser.parse_args()
 
 lw_ind = int(args.loss_weights)
-loss_weights = [1.0, 0.99, 0.9, 0.7, 0.5, 0.3, 0.1, 0.01][lw_ind:lw_ind+1]
+loss_weights = [1.0, 0.9, 0.5, 0.3,][lw_ind:lw_ind+1]
+
 # if args.loss_weights == '0':
 #     loss_weights = [1.0, 0.9, 0.5, 0.1]
 # elif args.loss_weights:
 #     loss_weights = [0.99, 0.7, 0.3, 0.01]
-model_name_recon = 'recon_fbp_convs'
+model_name_recon = 'recon_fbp_convs_2500_eights_8_32'
 
 if args.use_windowed_simulations:
     model_name_recon += '_win'
@@ -76,8 +74,8 @@ val_dl_params = {'batch_size': 12, 'patch_size': [512, 512],
                  'return_fp16': not args.fp32}
 preprocessed_path = os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed',
                                  data_name, preprocessed_name)
-keys = ['projection', 'image', 'label', 'spacing']
-folders = [proj_folder, im_folder, 'labels', 'orig_spacings']
+keys = ['projection', 'image', 'label']
+folders = [proj_folder, im_folder, 'labels']
 print('create joint data')
 data = JoinedData(val_fold, preprocessed_path, keys, folders,
                   trn_dl_params=trn_dl_params,

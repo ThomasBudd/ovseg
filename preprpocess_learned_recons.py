@@ -9,7 +9,7 @@ prepp = join(environ['OV_DATA_BASE'], 'preprocessed', 'OV04', 'pod_no_resizing')
 predp = join(environ['OV_DATA_BASE'], 'predictions', 'OV04')
 
 preprocessing = SegmentationPreprocessing()
-preprocessing.load_preprocessing_parameters
+preprocessing.load_preprocessing_parameters(prepp)
 
 models = ['recon_fbp_convs_{}_eights_8_32'.format(i) for i in [1500, 2000, 2500]]
 

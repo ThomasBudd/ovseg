@@ -439,3 +439,25 @@ class JoinedTraining(TrainingBase):
 
     def enable_autotune(self):
         torch.backends.cudnn.benchmark = True
+
+
+# %% new variant
+
+class JoinedTrainingV2(JoinedTraining):
+
+    def _eval_data_tpl(self, data_tpl):
+        # we change the training
+        # the network here now outputs images that are already preprocessed for segmentation
+        # so we don't have to do reconstruction postprocessing and segmentation preprocessing
+        proj = data_tpl['projection'][0].to(self.dev)
+        im_att = data_tpl['image'][0].to(self.dev)
+        seg = data_tpl['label'][0].to(self.dev)
+        recon = self.model1.network(proj)
+        batch = torch.cat([recon, seg], 1)
+        # print('batch device: '+str(batch.device))
+        batch = self.model2.augmentation.GPU_augmentation.augment_batch(batch)
+        # print('batch_aug device: '+str(batch.device))
+        recon_aug, seg_aug = batch[:, :-1], batch[:, -1:]
+        pred = self.model2.network(recon_aug)
+        # print('pred device: '+str(pred.device))
+        return recon, pred, im_att, seg_aug
