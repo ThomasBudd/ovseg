@@ -150,7 +150,7 @@ class SE_unit(nn.Module):
 # %% normalization free Blocks
 class nfConvBlock(nn.Module):
 
-    def __init__(self, in_channels, out_channels, is_2d=False,
+    def __init__(self, in_channels, out_channels, hid_channels=None, is_2d=False,
                  kernel_size=3, first_stride=1, conv_params=None, nonlin_params=None,
                  is_inference_block=False):
         super().__init__()
@@ -159,6 +159,7 @@ class nfConvBlock(nn.Module):
         self.kernel_size = kernel_size
         self.padding = get_padding(self.kernel_size)
         self.first_stride = first_stride
+        self.hid_channels = out_channels if hid_channels is None else hid_channels
         self.is_2d = is_2d
         self.conv_params = conv_params
         self.nonlin_params = nonlin_params
