@@ -4,11 +4,12 @@ from ovseg.networks.nfUNet import nfUNet
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--downsampling", required=False, default="0")
+parser.add_argument("--downsampling", required=False, default="1")
 parser.add_argument("--debug", required=False, default=False, action='store_true')
 
 parser.add_argument('--upsampling', required=False, default='conv')
-parser.add_argument("--skip_fac", required=False, default=0.5)
+parser.add_argument('--is_efficient', required=False, default=False, action='store_true')
+parser.add_argument("--skip_fac", required=False, default=1.0)
 parser.add_argument("--align_corners", required=False, default=False, action='store_true')
 parser.add_argument("--is_inference_network", required=False, default=False, action='store_true')
 parser.add_argument("--filters", required=False, default=32)
@@ -78,7 +79,8 @@ if __name__ == '__main__':
                  upsampling=args.upsampling,
                  factor_skip_conn=float(args.skip_fac),
                  align_corners=args.align_corners,
-                 is_inference_network=args.is_inference_network).cuda()
+                 is_inference_network=args.is_inference_network,
+                 is_efficient=args.is_efficient).cuda()
     if args.debug:
         benchmark(net, xb)
     else:
