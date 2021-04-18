@@ -96,6 +96,9 @@ class SegmentationPreprocessing(object):
 
     def check_parameters(self):
 
+        if self.scaling is None:
+            return False
+
         if self.apply_resizing and self.target_spacing is None:
             return False
 
@@ -223,55 +226,6 @@ class SegmentationPreprocessing(object):
 
         return xb_prep[0]
 
-    def _find_nii_subfolder(self, nii_folder):
-        subdirs = [d for d in my_listdir(nii_folder) if
-                   isdir(join(nii_folder, d))]
-        if 'labels' in subdirs:
-            lbp = join(nii_folder, 'labels')
-        elif 'labelsTr' in subdirs:
-            lbp = join(nii_folder, 'labelsTr')
-        else:
-            raise FileNotFoundError('Didn\'t find label folder in '+nii_folder
-                                    + '. Label folders are supposed to be '
-                                    'named \'labels\' or \'labelsTr\'.')
-        if 'images' in subdirs:
-            imp = join(nii_folder, 'images')
-        elif 'imagesTr' in subdirs:
-            imp = join(nii_folder, 'imagesTr')
-        else:
-            raise FileNotFoundError('Didn\'t find image folder in '+nii_folder
-                                    + '. Image folders are supposed to be '
-                                    'named \'images\' or \'imagesTr\'.')
-        return imp, lbp
-
-    def _get_all_cases_from_raw_data(self, raw_data):
-        if isinstance(raw_data, str):
-            raw_data = [raw_data]
-        elif not isinstance(raw_data, (tuple, list)):
-            raise ValueError('raw_data must be str if only infered from a sinlge folder or '
-                             'list/tuple.')
-
-        raw_data_name = '_'.join(raw_data)
-        # check for exsistence and collect cases
-        folders_and_cases = []
-
-        raw_data_path = join(environ['OV_DATA_BASE'], 'raw_data')
-        for data_fol in raw_data:
-            data_path = join(raw_data_path, data_fol)
-            if not exists(data_path):
-                raise FileNotFoundError('Did not find path '+data_path)
-
-            imp, lbp = self._find_nii_subfolder(data_path)
-            for case in listdir(lbp):
-                name = case[:-7]
-                im_cases = [case for case in listdir(imp) if case.startswith(name)]
-                if len(im_cases) == 0:
-                    print('Found no image file for label file {}.'.format(case))
-                    continue
-                folders_and_cases.append((data_fol, case))
-
-        return folders_and_cases, raw_data_name
-
     def preprocess_raw_data(self,
                             raw_data,
                             preprocessed_name='default',
@@ -288,7 +242,7 @@ class SegmentationPreprocessing(object):
                              'list/tuple.')
 
         if not self.is_initalised:
-            print('Preprocessing classes were not initialised when classing '
+            print('Preprocessing classes were not initialised when calling '
                   '\'preprocess_raw_data\'. Doing it now.\n')
             self.initialise_preprocessing()
 
@@ -395,16 +349,7 @@ class SegmentationPreprocessing(object):
             raise ValueError('raw_data must be str if only infered from a sinlge folder or '
                              'list/tuple.')
 
-        # let's first check if we actually do have to do the planning
-        skip_planning = True
-        if self.scaling is None:
-            skip_planning = False
-        if self.apply_resizing and self.target_spacing is None:
-            skip_planning = False
-        if self.apply_windowing and self.window is None:
-            skip_planning = False
-
-        if skip_planning:
+        if self.check_parameters():
             print('It seems like all necessary information is given. Skipping the planning!\n\n')
             return
 

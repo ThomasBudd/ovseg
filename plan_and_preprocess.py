@@ -1,6 +1,7 @@
 from ovseg.preprocessing.SegmentationPreprocessing import SegmentationPreprocessing
 import argparse
-import os
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 
 parser = argparse.ArgumentParser()
 

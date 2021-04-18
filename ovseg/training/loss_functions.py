@@ -67,38 +67,32 @@ class CE_dice_loss(nn.Module):
 
 
 def downsample_yb(logs_list, yb):
-    is_3d = len(yb.shape) == 5
     yb_list = [yb]
+    is_3d = len(yb.shape) == 5
     for logs in logs_list[1:]:
-        # maybe downsample in x direction
-        if logs.shape[2] == yb.shape[2]:
-            continue
-        elif logs.shape[2] == yb.shape[2] // 2:
-            yb = (yb[:, :, ::2] + yb[:, :, 1::2]) / 2
-        else:
+        # maybe downsample in first spatial direction
+        if logs.shape[2] == yb.shape[2] // 2:
+            yb = torch.maximum(yb[:, :, ::2], yb[:, :, 1::2])
+        elif not logs.shape[2] == yb.shape[2]:
             raise ValueError('shapes of logs and labels aren\'t machting for '
                              'downsampling. got {} and {}'
                              .format(logs.shape, yb.shape))
-        # maybe downsample in y direction
-        if logs.shape[3] == yb.shape[3]:
-            continue
-        elif logs.shape[3] == yb.shape[3] // 2:
-            yb = (yb[:, :, :, ::2] + yb[:, :, :, 1::2]) / 2
-        else:
+        # maybe downsample in second spatial direction
+        if logs.shape[3] == yb.shape[3] // 2:
+            yb = torch.maximum(yb[:, :, :, ::2], yb[:, :, :, 1::2])
+        elif not logs.shape[3] == yb.shape[3]:
             raise ValueError('shapes of logs and labels aren\'t machting for '
                              'downsampling. got {} and {}'
                              .format(logs.shape, yb.shape))
-        # maybe downsample in z direction
         if is_3d:
-            if logs.shape[4] == yb.shape[4]:
-                continue
-            elif logs.shape[4] == yb.shape[4] // 2:
-                yb = (yb[:, :, :, :, ::2] + yb[:, :, :, :, 1::2]) / 2
-            else:
-                raise ValueError('shapes of logs and labels aren\'t machting '
-                                 'for downsampling. got {} and {}'
+            # maybe downsample in third direction
+            if logs.shape[4] == yb.shape[4] // 2:
+                yb = torch.maximum(yb[:, :, :, :, ::2], yb[:, :, :, :, 1::2])
+            elif not logs.shape[4] == yb.shape[4]:
+                raise ValueError('shapes of logs and labels aren\'t machting for '
+                                 'downsampling. got {} and {}'
                                  .format(logs.shape, yb.shape))
-        # now append
+            # now append
         yb_list.append(yb)
     return yb_list
 

@@ -31,7 +31,7 @@ def save_pkl(data, path_to_file):
 
 def save_txt(data, path_to_file):
     if not path_to_file.endswith('.txt'):
-        path_to_file += 'txt'
+        path_to_file += '.txt'
 
     dict_name = basename(path_to_file)[:-4]
     with open(path_to_file, 'w') as file:
@@ -48,7 +48,7 @@ def _write_dict_to_txt(self, dict_name, data, file, n_tabs):
     for key in data.keys():
         item = data[key]
         if isinstance(item, dict):
-            self._write_parameter_dict_to_txt(key, item, file, n_tabs+1)
+            self._write_dict_to_txt(key, item, file, n_tabs+1)
         else:
             s = tabs + '\t' + key + ' = ' + str(item) + '\n'
             file.write(s)
