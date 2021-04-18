@@ -1,8 +1,10 @@
-from os.path import join, exists, basename
+from os.path import join, exists
 from ovseg.utils import io, path_utils
 from ovseg.utils.dict_equal import dict_equal
+from ovseg.data.Dataset import raw_Dataset
 import os
 import torch
+from time import sleep
 try:
     from tqdm import tqdm
 except ModuleNotFoundError:
@@ -45,6 +47,8 @@ class ModelBase(object):
         self.fmt_write = fmt_write
         self.model_parameters_name = model_parameters_name
 
+        # just to enable CPU execution where the GPU is missing
+        self.dev = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
         # the model path will be pointing to the model of this particular fold
         # weights and (hyper) parameters are stored here
         self.ov_data_base = os.environ['OV_DATA_BASE']
@@ -87,12 +91,6 @@ class ModelBase(object):
                                               'preprocessed',
                                               self.data_name,
                                               self.preprocessed_name)
-            # else:
-            # in inference mode we shouldn't have a preprocessed path
-            #     self.preprocessed_path = join(self.ov_data_base,
-            #                                   'preprocessed',
-            #                                   self.data_name,
-            #                                   'default')
 
         else:
             self.preprocessed_path = join(self.ov_data_base,
@@ -149,12 +147,8 @@ class ModelBase(object):
         self.initialise_network()
         path_to_weights = join(self.model_path, self.network_name + '_weights')
         if exists(path_to_weights):
-            print('Found '+self.network_name+' weights. Loading...\n\n')
-            try:
-                self.network.load_state_dict(torch.load(path_to_weights))
-                print('Done!\n')
-            except RuntimeError:
-                print('WARNING! Weights could not be loaded. Something seems to be missmatching.')
+            print('Found '+self.network_name+' weights. Loading from '+path_to_weights+'\n\n')
+            self.network.load_state_dict(torch.load(path_to_weights))
         else:
             print('Found no preivous existing '+self.network_name+' weights. '
                   'Using random initialisation.\n')
@@ -232,7 +226,7 @@ class ModelBase(object):
                                   ' implement an empty function, or use '
                                   '\'is_inferece_only=True.')
 
-    def predict(self, data_tpl, is_preprocessed):
+    def predict(self, data_tpl):
         raise NotImplementedError('predict function must be implemented in '
                                   'childclass.')
 
@@ -372,7 +366,8 @@ class ModelBase(object):
         self._init_global_metrics()
         results = {}
         names_for_txt = {}
-        print('Evaluation '+ds_name+'...\n\n')
+        print('Evaluating '+ds_name+'...\n\n')
+        sleep(1)
         for i in tqdm(range(len(ds))):
             # get the data
             data_tpl = ds[i]
@@ -434,13 +429,24 @@ class ModelBase(object):
         # the merged results are kept in the model_cv_path
         self._save_results_to_pkl_and_txt(merged_results, self.model_cv_path, ds_name=ds_name+'_CV')
 
-    def eval_validation_set(self, save_preds=True, save_plots=True, force_evaluation=False):
+    def eval_validation_set(self, save_preds=True, save_plots=False, force_evaluation=False):
         self.eval_ds(self.data.val_ds, ds_name='validation',
                      save_preds=save_preds, save_plots=save_plots,
                      force_evaluation=force_evaluation,
                      merge_to_CV_results=True, save_folder_name='cross_validation')
 
-    def eval_training_set(self, save_preds=False, save_plots=True, force_evaluation=False):
+    def eval_training_set(self, save_preds=False, save_plots=False, force_evaluation=False):
         self.eval_ds(self.data.trn_ds, ds_name='training',
                      save_preds=save_preds, save_plots=save_plots,
+                     force_evaluation=force_evaluation)
+
+    def eval_raw_dataset(self, data_name, save_preds=True, save_plots=False,
+                         force_evaluation=False, scans=None, image_folder=None, dcm_revers=True,
+                         dcm_names_dict=None):
+        ds = raw_Dataset(join(os.environ['OV_DATA_BASE'], 'raw_data', data_name),
+                         scans=scans,
+                         image_folder=image_folder,
+                         dcm_revers=dcm_revers,
+                         dcm_names_dict=dcm_names_dict)
+        self.eval_ds(ds, ds_name=data_name, save_preds=save_preds, save_plots=save_plots,
                      force_evaluation=force_evaluation)

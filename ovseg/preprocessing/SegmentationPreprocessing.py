@@ -1,12 +1,13 @@
 import numpy as np
 import torch
-from ovseg.utils.interp_utils import change_img_pixel_spacing,\
-    change_sample_pixel_spacing
-from ovseg.utils.torch_np_utils import check_type, stack
-from ovseg.utils.io import read_data_tpl_from_nii, load_pkl, save_pkl
-from ovseg.utils.path_utils import my_listdir, maybe_create_path
+from torch.nn.functional import interpolate
+from ovseg.utils.label_utils import remove_small_connected_components_from_batch, reduce_classes, \
+    remove_small_connected_components
 from ovseg.utils.dict_equal import dict_equal
-from os.path import join, isdir, exists, basename
+from ovseg.utils.io import read_data_tpl_from_nii, load_pkl, save_pkl, save_txt
+from ovseg.utils.path_utils import my_listdir, maybe_create_path
+from ovseg.data.Dataset import raw_Dataset
+from os.path import join, isdir, exists
 from os import environ, listdir
 import matplotlib.pyplot as plt
 try:
@@ -14,6 +15,10 @@ try:
 except ModuleNotFoundError:
     print('No tqdm found, using no pretty progressing bars')
     tqdm = lambda x: x
+
+from skimage.measure import block_reduce
+from skimage.transform import rescale
+from time import sleep
 
 
 class SegmentationPreprocessing(object):
@@ -33,122 +38,96 @@ class SegmentationPreprocessing(object):
     '''
 
     def __init__(self,
-                 apply_resizing=True,
+                 apply_resizing: bool,
+                 apply_pooling: bool,
+                 apply_windowing: bool,
                  target_spacing=None,
-                 apply_windowing=True,
+                 pooling_stride=None,
                  window=None,
-                 apply_scaling=True,
                  scaling=None,
-                 normalise='window',
-                 apply_downsampling=False,
-                 downsampling_fac=None,
-                 use_only_fg_scans=True,
-                 use_only_classes=None,
-                 reduce_to_single_class=False,
-                 try_preprocess_volumes_on_gpu=True,
-                 label_interpolation='nearest',
-                 **kwargs):
+                 lb_classes=None,
+                 reduce_lb_to_single_class=False,
+                 lb_min_vol=None,
+                 n_im_channels: int = 1,
+                 save_only_fg_scans=True,
+                 dataset_properties={}):
 
+        # first the parameters that determine the preprocessing operations
         self.apply_resizing = apply_resizing
-        self.target_spacing = target_spacing
+        self.apply_pooling = apply_pooling
         self.apply_windowing = apply_windowing
+        self.target_spacing = target_spacing
+        self.pooling_stride = pooling_stride
         self.window = window
-        self.apply_scaling = apply_scaling
         self.scaling = scaling
-        assert normalise in ['foreground', 'window', 'global']
-        self.normalise = normalise
-        self.apply_downsampling = apply_downsampling
-        self.downsampling_fac = downsampling_fac
-        self.use_only_fg_scans = use_only_fg_scans
-        self.use_only_classes = use_only_classes
-        self.reduce_to_single_class = reduce_to_single_class
-        self.try_preprocess_volumes_on_gpu = try_preprocess_volumes_on_gpu
-        assert label_interpolation in ['nearest', 'nnUNet']
-        self.label_interpolation = label_interpolation
-        self.force_volume_preprocessing_to_cpu = False
-        self.dataset_properties = {}
-
-        if self.apply_resizing and target_spacing is None:
-            print('Expected \'target_spacing\' to be list or tuple.'
-                  'Got None instead. Use plan_preprocessing to infere '
-                  'this parameter or load them.')
-        else:
-            self.target_spacing = np.array(self.target_spacing)
-        if self.apply_windowing and window is None:
-            print('Expected \'window\' to be list or tuple of length 2. Got'
-                  ' None instead. Use plan_preprocessing to infere '
-                  'this parameter or load them.')
-        else:
-            self.window = np.array(self.window)
-        if self.apply_scaling and scaling is None:
-            print('Expected \'scaling\' to be list or tuple of '
-                  'length 2. Got None instead. Use plan_preprocessing to '
-                  'infere this parameter or load them.')
-        else:
-            self.scaling = np.array(self.scaling)
-
-        if self.apply_downsampling and \
-                self.downsampling_fac not in [2, 3, 4]:
-            raise ValueError('Downsampling as preprocessing is only '
-                             'implemented for the factors 2, 3 or 4.')
-
+        self.lb_classes = lb_classes
+        self.reduce_lb_to_single_class = reduce_lb_to_single_class
+        self.lb_min_vol = lb_min_vol
+        self.n_im_channels = n_im_channels
+        # this is only important for preprocessing of raw data
+        self.save_only_fg_scans = save_only_fg_scans
+        self.dataset_properties = dataset_properties
         # when inheriting from this please append any other important
         # parameters that define the preprocessing
-        self.preprocessing_parameters = ['apply_resizing', 'target_spacing',
-                                         'apply_windowing', 'window',
-                                         'apply_scaling', 'scaling',
-                                         'apply_downsampling',
-                                         'downsampling_fac',
-                                         'use_only_classes',
-                                         'reduce_to_single_class',
-                                         'label_interpolation',
-                                         'use_only_fg_scans',
-                                         'dataset_properties',
-                                         'normalise']
+        self.preprocessing_parameters = ['apply_resizing',
+                                         'apply_pooling',
+                                         'apply_windowing',
+                                         'target_spacing',
+                                         'pooling_stride',
+                                         'window',
+                                         'scaling',
+                                         'lb_classes',
+                                         'reduce_lb_to_single_class',
+                                         'lb_min_vol',
+                                         'n_im_channels',
+                                         'save_only_fg_scans',
+                                         'dataset_properties']
 
-    def _downsample_img_fac_2(self, img, downsample_z=False):
-        ndims = len(img.shape)
-        if ndims not in [2, 3]:
-            raise ValueError('Expected 2d or 3d image, but got {}d'.
-                             format(ndims))
-        end = np.array(img.shape) // 2 * 2
-        # x axis
-        img = (img[:end[0]:2] + img[1:end[0]:2]) / 2
-        # y axis
-        img = (img[:, :end[1]:2] + img[:, 1:end[1]:2]) / 2
-        if ndims == 3 and downsample_z:
-            img = (img[:, :, :end[2]:2] + img[:, :, 1:end[2]:2]) / 2
-        return img
+        self.is_initalised = False
 
-    def _downsample_img_fac_3(self, img, downsample_z=False):
-        ndims = len(img.shape)
-        if ndims not in [2, 3]:
-            raise ValueError('Expected 2d or 3d image, but got {}d'.
-                             format(ndims))
-        # x axis
-        img = (img[::3] + img[1::3] + img[2::3]) / 2
-        # y axis
-        img = (img[:, ::3] + img[:, 1::3] + img[:, 2::3]) / 2
-        if ndims == 3 and downsample_z:
-            img = (img[:, :, ::3] + img[:, :, 1::3] + img[:, :, 2::3]) / 2
-        return img
+        if self.check_parameters():
+            self.initialise_preprocessing()
+        else:
+            # some parameters are missing
+            print('Preprocessing was not initialized with necessary parameters. '
+                  'Either load these with \'try_load_preprocessing_parameters\', '
+                  'or infere them from raw data with \'plan_preprocessing_from_raw_data\'.'
+                  'If you modify these parameters call \'initialise_preprocessing\'.')
 
-    def _downsample_img(self, img, spacing):
+    def check_parameters(self):
 
-        r = np.max(spacing)/np.min(spacing)
+        if self.apply_resizing and self.target_spacing is None:
+            return False
 
-        if self.downsampling_fac == 2:
-            downsample_z = r < 4/3
-            return self._downsample_img_fac_2(img, downsample_z)
-        if self.downsampling_fac == 3:
-            downsample_z = r < 3/2
-            return self._downsample_img_fac_3(img, downsample_z)
-        if self.downsampling_fac == 4:
-            downsample_z1 = r < 4/3
-            img = self._downsample_img_fac_2(img, downsample_z1)
-            downsample_z2 = r < 8/3
-            img = self._downsample_img_fac_2(img, downsample_z2)
-        return img
+        if self.apply_pooling and self.pooling_stride is None:
+            return False
+
+        if self.apply_windowing and self.window is None:
+            return False
+
+        return True
+
+    def initialise_preprocessing(self):
+
+        if not self.check_parameters():
+            return
+
+        inpt_dict_3d = {key: self.__getattribute__(key) for key in
+                        self.preprocessing_parameters[:-2]}
+        inpt_dict_2d = inpt_dict_3d.copy()
+        if self.apply_resizing:
+            inpt_dict_2d['target_spacing'] = self.target_spacing[1:]
+        if self.apply_pooling:
+            inpt_dict_2d['pooling_stride'] = self.pooling_stride[1:]
+        inpt_dict_2d['is_2d'] = True
+
+        self.torch_preprocessing = torch_preprocessing(**inpt_dict_3d)
+        self.np_preprocessing = np_preprocessing(**inpt_dict_3d)
+
+        self.torch_preprocessing_2d = torch_preprocessing(**inpt_dict_2d)
+        self.np_preprocessing_2d = np_preprocessing(**inpt_dict_2d)
+
+        self.is_initalised = True
 
     def maybe_save_preprocessing_parameters(self, outfolder):
         outfile = join(outfolder, 'preprocessing_parameters.pkl')
@@ -162,263 +141,87 @@ class SegmentationPreprocessing(object):
                 raise RuntimeError('Found not matching prerpocessing parameters in '+outfolder+'.')
         else:
             save_pkl(data, outfile)
+            save_txt(data, outfile[:-4])
 
-    def load_preprocessing_parameters(self, path_to_params):
+    def try_load_preprocessing_parameters(self, path_to_params):
         if not path_to_params.endswith('preprocessing_parameters.pkl'):
             path_to_params = join(path_to_params, 'preprocessing_parameters.pkl')
+
+        if not exists(path_to_params):
+            raise FileNotFoundError('No preprocessing parameters found at '+path_to_params)
+
         print('Loading preprocessing parameters from '+path_to_params)
         data = load_pkl(path_to_params)
         for key in data:
             self.__setattr__(key, data[key])
+            print(str(key) + ': ' + str(data[key]))
+        self.initialise_preprocessing()
 
-    def preprocess_image(self, img, is_seg, spacing=None):
-        '''
-        Preprocessed a single image (channel)
+    def maybe_clean_label_from_data_tpl(self, data_tpl):
 
-        Parameters
-        ----------
-        img : np.ndarray or torch.tensor,
-            shape (nx, ny, nz) or (1, nx, ny, nz)
-        is_seg : bool
-            if the input is a segmentation map
-        spacing : list, tuple, np.ndarray
-            voxel spacing in mm
-        Returns:
-            preprocessed image
-        -------
-        None.
+        spacing = data_tpl['spacing'] if 'spacing' in data_tpl else None
 
-        '''
-        is_np, is_torch = check_type(img)
-        shape_in = np.array(img.shape)
-        if len(shape_in) not in [2, 3]:
-            raise ValueError('Input must be of shape (nx, ny) or '
-                             '(nx, ny, nz). Got {}'.fomat(shape_in))
-        # next resizing
-        # first let's check for spacing
-        if self.apply_resizing or self.apply_downsampling:
-            if spacing is None:
-                raise TypeError('Input spacing must be given, when '
-                                'apply_resizing=True or '
-                                'apply_downsampling=True.')
-            elif not isinstance(spacing, (list, tuple, np.ndarray)):
-                raise TypeError('Spacing must be of type '
-                                'list, tuple or np.ndarray')
-        # the preprocessing of segmentations and images are quite different
-        # we only apply resizing and downsampling in here
-        if is_seg:
-            # if not there's nothing to be done
-            if not self.apply_resizing and not self.apply_downsampling:
-                return img
+        if 'label' not in data_tpl:
+            raise ValueError('Can\'t clean label from data tpl, none was found!')
 
-            # nearest neighbour interpolation is easy! Plus it should be very similar to
-            # what nnUNet does
-            if self.label_interpolation == 'nearest':
+        lb = data_tpl['label']
 
-                idim = len(shape_in)
-                return change_img_pixel_spacing(img, spacing[:idim],
-                                                self.target_spacing[:idim],
-                                                order=0)
+        if self.is_preprocessed_data_tpl(data_tpl):
+            return lb
+
+        if self.lb_classes is not None:
+            lb = reduce_classes(lb, self.lb_classes, self.reduce_lb_to_single_class)
+
+        if self.lb_min_vol is not None:
+            if len(lb.shape) > 3:
+                lb = remove_small_connected_components_from_batch(lb, self.lb_min_vol, spacing)
             else:
-                # this is what nnUNet does
-                # convert to one hot encoding
-                dtype = img.dtype
-                nclasses = int(img.max())
-                img = stack([img == c for c in range(nclasses+1)])
-                # first resizing
-                if self.apply_resizing:
-                    idim = len(shape_in)
-                    order = 1
-                    # the img is a sample, resize all channels
-                    img = change_sample_pixel_spacing(img, spacing[:idim],
-                                                      self.target_spacing[:idim],
-                                                      orders=(nclasses+1)*[order])
-                # now potentiall downsampling
-                if self.apply_downsampling:
-                    sp = self.target_spacing if self.apply_resizing else\
-                        spacing
-                    img = stack([self._downsample_img(img[c], sp) for c in
-                                 range(nclasses+1)])
-
-                # bring back to integer encoding
-                if is_np:
-                    img = np.argmax(img, 0).astype(dtype)
-                else:
-                    img = torch.argmax(img, 0).type(dtype)
-                return img
-
-        # segmentations are done now! Let's consider only images here
-        if self.apply_resizing:
-            idim = len(shape_in)
-            order = 3 if is_np else 1
-            img = change_img_pixel_spacing(img, spacing[:idim],
-                                           self.target_spacing[:idim],
-                                           order=order)
-
-        # downsampling
-        if self.apply_downsampling:
-            sp = self.target_spacing if self.apply_resizing else\
-                spacing
-            img = self._downsample_img(img, sp)
-
-        # now windowing
-        if self.apply_windowing:
-            if is_np:
-                img = img.clip(self.window[0], self.window[1])
-            else:
-                img = img.clamp(self.window[0], self.window[1])
-
-        # last but not least the rescaling
-        if self.apply_scaling:
-            img = (img - self.scaling[1])/self.scaling[0]
-
-        return img
-
-    def preprocess_sample(self, sample, spacing=None, is_seg=None):
-        '''
-        Preprocesses a sample. Assumes first channel to be the image and
-        the following to be segmentation maps
-
-        Parameters
-        ----------
-        sample : np.ndarray or torch.tensor
-            shape: [channels, nx, ny(, nz)]
-        spacing : dict
-            contains information on spacing
-
-        Returns
-        -------
-        None.
-
-        '''
-        check_type(sample)
-        nch = sample.shape[0]
-        if is_seg is None:
-            is_seg = [False] + [True for _ in range(nch-1)]
-        elif isinstance(is_seg, bool):
-            is_seg = nch * [is_seg]
-        return stack([self.preprocess_image(sample[c], is_seg[c], spacing)
-                      for c in range(nch)])
-
-    def preprocess_batch(self, batch, spacings=None):
-        '''
-        Preprocesses a sample. Assumes first channel to be the image and
-        the following to be segmentation maps
-
-        Parameters
-        ----------
-        sample : np.ndarray or torch.tensor
-            shape: [channels, nx, ny(, nz)]
-        spacing : dict
-            contains information on spacing
-
-        Returns
-        -------
-        None.
-
-            '''
-        if not (isinstance(batch, (tuple, list, np.ndarray))
-                or torch.is_tensor(batch)):
-            raise ValueError('Input must be batch items in a '
-                             'list, tuple, np.ndarray or torch.tensor.')
-        bs = len(batch)
-        if spacings is None:
-            spacings = [None for _ in range(bs)]
-        assert len(batch) == len(spacings)
-        return [self.preprocess_sample(b, s) for b, s in zip(batch, spacings)]
-
-    def preprocess_volume(self, volume, spacing=None, is_seg=None):
-        '''
-        Preprocesses a full volume.
-
-        Parameters
-        ----------
-        volume : 3d or 4d tensor
-            np array or torch tensor, channels first
-        spacing : list, tuple or np.ndarray
-            voxel spacing in real world units (mm)
-
-        Returns
-        -------
-        None.
-
-        '''
-        is_np, _ = check_type(volume)
-        shape_inpt = np.array(volume.shape)
-        if len(shape_inpt) == 3:
-            if is_np:
-                volume = volume[np.newaxis]
-            else:
-                volume = volume.unsqueeze(0)
-
-        if not is_np and self.force_volume_preprocessing_to_cpu:
-            dev = volume.device
-            volume = volume.cpu().numpy()
-
-        # now let's check if we're using the GPU
-        use_gpu = self.try_preprocess_volumes_on_gpu and torch.cuda.device_count() > 0 \
-            and not self.force_volume_preprocessing_to_cpu
-
-        if use_gpu:
-            if is_np:
-                volume = torch.from_numpy(volume)
-            volume = volume.type(torch.float16).cuda()
-
-        try:
-            with torch.no_grad():
-                volume = self.preprocess_sample(volume, spacing, is_seg).type(torch.float32)
-        except RuntimeError:
-            print('RuntimeError caught! This is most likely due to a cuda oom error when '
-                  'resizing a large volume. Trying again on CPU.')
-            volume = self.preprocess_sample(volume.cpu().numpy(), spacing)
-            volume = torch.from_numpy(volume)
-            torch.cuda.empty_cache()
-
-        if use_gpu and is_np:
-            # we're a bit lazy here
-            # if the input is a torch cpu tensor we're not transferring back
-            volume = volume.cpu().numpy()
-
-        if not is_np and self.force_volume_preprocessing_to_cpu:
-            volume = torch.from_numpy(volume).to(dev)
-
-        if len(shape_inpt) == 3:
-            volume = volume[0]
-
-        return volume
-
-    def preprocess_volume_from_data_tpl(self, data_tpl, return_seg=False):
-        if 'orig_shape' in data_tpl:
-            # skip! This data_tpl is already preprocessed
-            if return_seg:
-                return data_tpl['label']
-            else:
-                return data_tpl['image']
-        else:
-            # data_tpl is not preprocessed. Let's do some work
-            if return_seg:
-                # in this case we only want to remove the labels and not do any resizing or such
-                return self._maybe_reduce_label(data_tpl['label'])
-            else:
-                return self.preprocess_volume(data_tpl['image'], data_tpl['spacing'])
-
-    def __call__(self, volume, spacing=None, is_seg=None):
-        return self.preprocess_volume(volume, spacing, is_seg=None)
-
-    def _maybe_reduce_label(self, lb):
-
-        # remove classes from the label for the case we don't want to segment
-        if isinstance(self.use_only_classes, (list, tuple)):
-            lb_new = np.zeros_like(lb)
-            for i, c in enumerate(self.use_only_classes):
-                lb_new[lb == c] = i+1
-            lb = lb_new
-
-        # in case we want to do only differentiate fg and bg (abnormality segmentation)
-        if self.reduce_to_single_class:
-            lb = (lb > 0).astype(lb.dtype)
+                lb = remove_small_connected_components(lb, self.lb_min_vol, spacing)
 
         return lb
+
+    def is_preprocessed_data_tpl(self, data_tpl):
+        return 'orig_shape' in data_tpl
+
+    def __call__(self, data_tpl, preprocess_only_im=False, return_np=False):
+
+        spacing = data_tpl['spacing'] if 'spacing' in data_tpl else None
+        if 'image' not in data_tpl:
+            raise ValueError('No \'image\' found in data_tpl')
+        xb = data_tpl['image']
+
+        assert len(xb.shape) in [3, 4], 'image must be 3d or 4d'
+        if len(xb.shape) == 3:
+            xb = xb[np.newaxis]
+
+        if 'label' in data_tpl and not preprocess_only_im:
+            lb = data_tpl['label']
+
+            assert len(lb.shape) == 3, 'label must be 3d'
+            lb = lb[np.newaxis]
+            xb = np.concatenate([xb, lb])
+
+        xb = xb[np.newaxis]
+        # now do the preprocessing
+        if not torch.cuda.is_available():
+            # the preprocessing is also faster in scipy then it is in torch using the CPU
+            xb_prep = self.np_preprocessing(xb, spacing)
+        else:
+            xb_cuda = torch.from_numpy(xb).type(torch.float).cuda()
+            try:
+                xb_prep = self.torch_preprocessing(xb_cuda, spacing)
+                if return_np:
+                    xb_prep = xb_prep.cpu().numpy()
+            except RuntimeError:
+                print('Ooops! It seems like your GPU has gone out of memory while trying to '
+                      'resize a large volume ({}), trying again on the CPU.'
+                      ''.format(list(xb_cuda.shape)))
+                torch.cuda.empty_cache()
+                xb_prep = self.np_preprocessing(xb, spacing)
+                if not return_np:
+                    xb_prep = torch.from_numpy(xb_prep).type(torch.float).cuda()
+
+        return xb_prep[0]
 
     def _find_nii_subfolder(self, nii_folder):
         subdirs = [d for d in my_listdir(nii_folder) if
@@ -469,20 +272,35 @@ class SegmentationPreprocessing(object):
 
         return folders_and_cases, raw_data_name
 
-    def preprocess_raw_data(self, raw_data, data_name=None, preprocessed_name='default',
-                            save_as_fp16=False):
+    def preprocess_raw_data(self,
+                            raw_data,
+                            preprocessed_name='default',
+                            data_name=None,
+                            save_as_fp16=True,
+                            image_folder=None,
+                            dcm_revers=True,
+                            dcm_names_dict=None):
+
+        if isinstance(raw_data, str):
+            raw_data = [raw_data]
+        elif not isinstance(raw_data, (tuple, list)):
+            raise ValueError('raw_data must be str if only infered from a sinlge folder or '
+                             'list/tuple.')
+
+        if not self.is_initalised:
+            print('Preprocessing classes were not initialised when classing '
+                  '\'preprocess_raw_data\'. Doing it now.\n')
+            self.initialise_preprocessing()
 
         im_dtype = np.float16 if save_as_fp16 else np.float32
 
-        # get cases and name
-        folders_and_cases, raw_data_name = self._get_all_cases_from_raw_data(raw_data)
-
         if data_name is None:
-            data_name = raw_data_name
+            data_name = '_'.join(sorted(raw_data))
 
         # root folder of all saved preprocessed data
         outfolder = join(environ['OV_DATA_BASE'], 'preprocessed', data_name, preprocessed_name)
         plot_folder = join(environ['OV_DATA_BASE'], 'plots', data_name, preprocessed_name)
+        print(outfolder, plot_folder)
         # now let's create the output folders
         for f in ['images', 'labels', 'fingerprints']:
             maybe_create_path(join(outfolder, f))
@@ -493,73 +311,114 @@ class SegmentationPreprocessing(object):
         self.maybe_save_preprocessing_parameters(outfolder)
         # here is the fun
         print()
-        for folder, case in tqdm(folders_and_cases):
-            # read files
-            data_tpl = read_data_tpl_from_nii(folder, case)
+        for raw_name in raw_data:
+            print('Converting ' + raw_name)
+            raw_ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', raw_name),
+                                 image_folder=image_folder,
+                                 dcm_revers=dcm_revers,
+                                 dcm_names_dict=dcm_names_dict)
+            print()
+            sleep(1)
+            for i in tqdm(range(len(raw_ds))):
+                # read files
+                data_tpl = raw_ds[i]
 
-            im, lb, spacing = data_tpl['image'], data_tpl['label'], data_tpl['spacing']
+                im, spacing = data_tpl['image'], data_tpl['spacing']
 
-            orig_shape = im.shape[-3:]
-            orig_spacing = spacing.copy()
-            # TODO allow more complex change of spacing here in case of downsampling or such
-            im = self.preprocess_volume(im, spacing, is_seg=False).astype(im_dtype)
-            lb = self.preprocess_volume(lb, spacing, is_seg=True).astype(np.int8)
-            lb = self._maybe_reduce_label(lb)
-            if lb.max() == 0 and self.use_only_fg_scans:
-                continue
-            spacing = self.target_spacing if self.apply_resizing else spacing
-            fingerprint_keys = [key for key in data_tpl if key not in ['image', 'label']]
-            fingerprint = {key: data_tpl[key] for key in fingerprint_keys}
-            fingerprint['orig_shape'] = orig_shape
-            fingerprint['orig_spacing'] = orig_spacing
-            fingerprint['spacing'] = spacing
-            if 'dataset' not in fingerprint:
-                fingerprint['dataset'] = folder
-            if 'pat_id' not in fingerprint:
-                fingerprint['pat_id'] = case.split('.')[0]
-            # first save the image related stuff
-            name = case[:-7]
-            for arr, folder in [[im, 'images'],
-                                [lb, 'labels'],
-                                [fingerprint, 'fingerprints']]:
-                np.save(join(outfolder, folder, name), arr)
+                orig_shape = im.shape[-3:]
+                orig_spacing = spacing.copy()
+                if 'label' not in data_tpl:
+                    data_tpl['label'] = np.zeros(orig_shape)
+                xb = self.__call__(data_tpl, return_np=True)
+                im = xb[:self.n_im_channels].astype(im_dtype)
+                lb = xb[self.n_im_channels:].astype(np.uint8)
+                if lb.max() == 0 and self.save_only_fg_scans:
+                    continue
+                spacing = self.target_spacing if self.apply_resizing else spacing
+                if self.apply_pooling:
+                    spacing = np.array(spacing) * np.array(self.pooling_stride)
+                fingerprint_keys = [key for key in data_tpl if key not in ['image', 'label']]
+                fingerprint = {key: data_tpl[key] for key in fingerprint_keys}
+                fingerprint['orig_shape'] = orig_shape
+                fingerprint['orig_spacing'] = orig_spacing
+                fingerprint['spacing'] = spacing
+                scan = data_tpl['scan']
+                if 'dataset' not in fingerprint:
+                    fingerprint['dataset'] = raw_name
+                if 'pat_id' not in fingerprint:
+                    fingerprint['pat_id'] = scan
+                # first save the image related stuff
+                for arr, folder in [[np.squeeze(im, 0), 'images'],
+                                    [np.squeeze(lb, 0), 'labels'],
+                                    [fingerprint, 'fingerprints']]:
+                    np.save(join(outfolder, folder, scan), arr)
 
-            # additionally do some plots
-            if len(lb.shape) != 3:
-                continue
-            if len(im.shape) == 3:
-                im = im[np.newaxis]
+                # additionally do some plots
+                lb = np.sum(lb, 0) > 0
+                im = im.astype(float)
 
-            contains = np.where(np.sum(lb, (0, 1)))[0]
-            z_list = [np.argmax(np.sum(lb, (0, 1)))]
-            s_list = ['_largest', '_random_0', '_random_1', '_random_2']
-            if len(contains) > 0:
-                z_list.extend(np.random.choice(contains, size=3))
-            else:
-                z_list.extend(np.random.randint(lb.shape[-1], size=3))
-            n_ch = im.shape[0]
-            for z, s in zip(z_list, s_list):
-                fig = plt.figure()
-                for c in range(n_ch):
-                    plt.subplot(1, n_ch, c+1)
-                    plt.imshow(im[c, ..., z], cmap='gray')
-                    if lb[..., z].max() > 0:
-                        # this if is purely to avoid annoying UserWarning messages that interrupt
-                        # the beautiful beautiful tqdm bar
-                        plt.contour(lb[..., z] > 0, linewidths=0.5, colors='red',
-                                    linestyles='dashed')
-                    plt.axis('off')
-                plt.savefig(join(plot_folder, name + s + '.png'))
-                plt.close(fig)
+                contains = np.where(np.sum(lb, (1, 2)))[0]
+                z_list = [np.argmax(np.sum(lb, (1, 2)))]
+                s_list = ['_largest', '_random']
+                if len(contains) > 0:
+                    z_list.extend(np.random.choice(contains, size=1))
+                else:
+                    z_list.extend(np.random.randint(lb.shape[0], size=1))
+                n_ch = im.shape[0]
+                for z, s in zip(z_list, s_list):
+                    fig = plt.figure()
+                    for c in range(n_ch):
+                        plt.subplot(1, n_ch, c+1)
+                        plt.imshow(im[c, z], cmap='gray')
+                        if lb[z].max() > 0:
+                            # this if is purely to avoid annoying UserWarning messages that
+                            # interrupt the beautiful beautiful tqdm bar
+                            plt.contour(lb[z] > 0, linewidths=0.5, colors='red',
+                                        linestyles='dashed')
+                        plt.axis('off')
+                    plt.savefig(join(plot_folder, scan + s + '.png'))
+                    plt.close(fig)
 
-        torch.cuda.empty_cache()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
         print('Preprocessing done!')
 
-    def plan_preprocessing_raw_data(self, raw_data, percentiles=[0.5, 99.5]):
+    def plan_preprocessing_raw_data(self, raw_data,
+                                    percentiles=[0.5, 99.5],
+                                    image_folder=None,
+                                    dcm_revers=True,
+                                    dcm_names_dict=None):
+
+        if isinstance(raw_data, str):
+            raw_data = [raw_data]
+        elif not isinstance(raw_data, (tuple, list)):
+            raise ValueError('raw_data must be str if only infered from a sinlge folder or '
+                             'list/tuple.')
+
+        # let's first check if we actually do have to do the planning
+        skip_planning = True
+        if self.scaling is None:
+            skip_planning = False
+        if self.apply_resizing and self.target_spacing is None:
+            skip_planning = False
+        if self.apply_windowing and self.window is None:
+            skip_planning = False
+
+        if skip_planning:
+            print('It seems like all necessary information is given. Skipping the planning!\n\n')
+            return
 
         # first let's get the image and label path
-        folders_and_cases, raw_data_name = self._get_all_cases_from_raw_data(raw_data)
-        print('Infering preprocessing parameters from '+raw_data_name)
+        print('Infering preprocessing parameters from ', *raw_data)
+        print('Creating datasets...')
+        datasets = []
+        for data_name in raw_data:
+            print('Reading ' + data_name)
+            raw_ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', data_name),
+                                 image_folder=image_folder,
+                                 dcm_revers=dcm_revers,
+                                 dcm_names_dict=dcm_names_dict)
+            datasets.append(raw_ds)
         # foreground vals for windowing
         fg_cvals = []
         # spacings for resampling
@@ -570,19 +429,25 @@ class SegmentationPreprocessing(object):
         print()
         print('First cycle')
         print()
-        for folder, case in tqdm(folders_and_cases):
-            # read files
-            data_tpl = read_data_tpl_from_nii(folder, case)
+        for raw_name, raw_ds in zip(raw_data, datasets):
+            print(raw_name)
+            print()
+            # Yes I am wasting 1 sec of your time to ensure that the tqdm bars are not
+            # interupted ;)
+            sleep(1)
+            for i in tqdm(range(len(raw_ds))):
+                # read files
+                data_tpl = raw_ds[i]
 
-            im, lb, spacing = data_tpl['image'], data_tpl['label'], data_tpl['spacing']
-            lb = self._maybe_reduce_label(lb)
-            # store spacing
-            spacings.append(spacing)
-            shapes.append(im.shape)
-            if lb.max() > 0:
-                fg_cval = im[lb > 0].astype(float)
-                fg_cvals.extend(fg_cval.tolist())
-                n_fg_classes = np.max([n_fg_classes, lb.max()])
+                im, spacing = data_tpl['image'], data_tpl['spacing']
+                lb = self.maybe_clean_label_from_data_tpl(data_tpl)
+                # store spacing
+                spacings.append(spacing)
+                shapes.append(im.shape)
+                if lb.max() > 0:
+                    fg_cval = im[lb > 0].astype(float)
+                    fg_cvals.extend(fg_cval.tolist())
+                    n_fg_classes = np.max([n_fg_classes, lb.max()])
 
         if len(fg_cvals) > 10**8:
             # in some datasets the length of fg_cvals can become too long
@@ -629,20 +494,26 @@ class SegmentationPreprocessing(object):
         mean_window = 0
         mean2_global = 0
         mean2_window = 0
+        n_cases = 0
         print()
         print('Second cycle')
         print()
-        for folder, case in tqdm(folders_and_cases):
-            # read files
-            data_tpl = read_data_tpl_from_nii(folder, case)
+        for raw_name, raw_ds in zip(raw_data, datasets):
+            print(raw_name)
+            print()
+            n_cases += len(raw_ds)
+            sleep(1)
+            for i in tqdm(range(len(raw_ds))):
+                # read files
+                data_tpl = raw_ds[i]
 
-            im, lb, spacing = data_tpl['image'], data_tpl['label'], data_tpl['spacing']
-            im_win = im.clip(*self.window)
-            mean_global += np.mean(im)
-            mean_window += np.mean(im_win)
-            mean2_global += np.mean(im**2)
-            mean2_window += np.mean(im_win**2)
-        n_cases = len(folders_and_cases)
+                im, lb, spacing = data_tpl['image'], data_tpl['label'], data_tpl['spacing']
+                im = im.astype(float)
+                im_win = im.clip(*self.window)
+                mean_global += np.mean(im)
+                mean_window += np.mean(im_win)
+                mean2_global += np.mean(im**2)
+                mean2_window += np.mean(im_win**2)
         mean_global, mean2_global = mean_global/n_cases, mean2_global/n_cases
         mean_window, mean2_window = mean_window/n_cases, mean2_window/n_cases
         std_global = np.sqrt(mean2_global - mean_global**2)
@@ -651,17 +522,254 @@ class SegmentationPreprocessing(object):
             np.array([std_global, mean_global]).astype(np.float32)
         self.dataset_properties['scaling_window'] = \
             np.array([std_window, mean_window]).astype(np.float32)
-        print('Done')
-        if self.apply_scaling and self.scaling is None:
-            if self.normalise == 'global':
-                self.scaling = self.dataset_properties['scaling_global']
-            elif self.normalise == 'window':
+        print('Done!\n')
+        if self.scaling is None:
+            if self.apply_windowing:
                 self.scaling = self.dataset_properties['scaling_window']
-            elif self.normalise == 'foreground':
-                self.scaling = self.dataset_properties['scaling_foreground']
-        if self.apply_scaling:
+            else:
+                self.scaling = self.dataset_properties['scaling_global']
             print('Scaling: ({:.4f}, {:.4f})'.format(*self.scaling))
         if self.apply_resizing:
             print('Spacing: ({:.4f}, {:.4f}, {:.4f})'.format(*self.target_spacing))
         if self.apply_windowing:
             print('Window: ({:.4f}, {:.4f})'.format(*self.window))
+        print()
+
+
+# %% Let's be fancy and do the preprocessing for np and torch as seperate operators
+class torch_preprocessing(torch.nn.Module):
+
+    # preprocessing module for 2d and 3d
+
+    def __init__(self,
+                 apply_resizing: bool,
+                 apply_pooling: bool,
+                 apply_windowing: bool,
+                 target_spacing=None,
+                 pooling_stride=None,
+                 window=None,
+                 scaling=[1, 0],
+                 lb_classes=None,
+                 reduce_lb_to_single_class=False,
+                 lb_min_vol=None,
+                 n_im_channels: int = 1,
+                 is_2d=False):
+        super().__init__()
+        self.apply_resizing = apply_resizing
+        self.apply_pooling = apply_pooling
+        self.apply_windowing = apply_windowing
+        self.n_im_channels = n_im_channels
+        self.lb_classes = lb_classes
+        self.reduce_lb_to_single_class = reduce_lb_to_single_class
+        self.lb_min_vol = lb_min_vol
+        self.dev = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.is_2d = is_2d
+
+        # let's test if the inputs were fine
+        if self.apply_resizing:
+            self.target_spacing = np.array(target_spacing)
+            if self.is_2d:
+                assert len(target_spacing) == 2, 'target spacing must be of length 2'
+                self.mode = 'bilinear'
+            else:
+                assert len(target_spacing) == 3, 'target spacing must be of length 3'
+                self.mode = 'trilinear'
+
+        if self.apply_pooling:
+            if self.is_2d:
+                assert len(pooling_stride) == 2, 'pooling stride must be of length 3'
+                self.pooling_stride = pooling_stride
+                self.mean_pooling = torch.nn.AvgPool2d(kernel_size=self.pooling_stride,
+                                                       stride=self.pooling_stride)
+                self.max_pooling = torch.nn.MaxPool2d(kernel_size=self.pooling_stride,
+                                                      stride=self.pooling_stride)
+            else:
+                assert len(pooling_stride) == 3, 'pooling stride must be of length 3'
+                self.pooling_stride = pooling_stride
+                self.mean_pooling = torch.nn.AvgPool3d(kernel_size=self.pooling_stride,
+                                                       stride=self.pooling_stride)
+                self.max_pooling = torch.nn.MaxPool3d(kernel_size=self.pooling_stride,
+                                                      stride=self.pooling_stride)
+
+        if self.apply_windowing:
+            assert len(window) == 2, 'window must be of length 2'
+            self.window = window
+
+        assert len(scaling) == 2, 'scaling must be of length 2 (std, mean)'
+        self.scaling = scaling
+
+    def forward(self, xb, spacing=None):
+
+        # assume the image channels are always first
+        n_ch = xb.shape[1]
+        imb = xb[:, :self.n_im_channels]
+        has_lb = n_ch > self.n_im_channels
+        if has_lb:
+            lbb = xb[:, self.n_im_channels:]
+
+            if self.lb_classes is not None and self.lb_min_vol is not None:
+                lbb = lbb.cpu().numpy()
+                lbb = reduce_classes(lbb, self.lb_classes, self.reduce_lb_to_single_class)
+                lbb = remove_small_connected_components_from_batch(lbb, self.lb_min_vol, spacing)
+                lbb = torch.from_numpy(lbb).to(self.dev)
+
+            elif self.lb_classes is not None:
+                lbb = lbb.cpu().numpy()
+                lbb = reduce_classes(lbb, self.lb_classes, self.reduce_lb_to_single_class)
+                lbb = torch.from_numpy(lbb).to(self.dev)
+
+            elif self.lb_min_vol is not None:
+                lbb = lbb.cpu().numpy()
+                lbb = remove_small_connected_components_from_batch(lbb, self.lb_min_vol, spacing)
+                lbb = torch.from_numpy(lbb).to(self.dev)
+
+        # resizing
+        if self.apply_resizing:
+
+            scale_factor = (spacing / self.target_spacing).tolist()
+
+            imb = interpolate(imb, scale_factor=scale_factor, mode=self.mode)
+            if has_lb:
+                lbb = interpolate(lbb, scale_factor=scale_factor)
+
+        # pooling
+        if self.apply_pooling:
+
+            imb = self.mean_pooling(imb)
+            if has_lb:
+                lbb = self.max_pooling(lbb)
+
+        # windowing:
+        if self.apply_windowing:
+
+            imb = imb.clamp(*self.window)
+
+        # scaling
+        imb = (imb - self.scaling[1]) / self.scaling[0]
+
+        if has_lb:
+            xb = torch.cat([imb, lbb], 1)
+        else:
+            xb = imb
+
+        return xb
+
+
+# %%
+class np_preprocessing():
+
+    # preprocessing class for 2d and 3d np niput
+
+    def __init__(self,
+                 apply_resizing: bool,
+                 apply_pooling: bool,
+                 apply_windowing: bool,
+                 target_spacing=None,
+                 pooling_stride=None,
+                 window=None,
+                 scaling=[1, 0],
+                 lb_classes=None,
+                 reduce_lb_to_single_class=False,
+                 lb_min_vol=None,
+                 n_im_channels: int = 1,
+                 is_2d=False):
+        super().__init__()
+        self.apply_resizing = apply_resizing
+        self.apply_pooling = apply_pooling
+        self.apply_windowing = apply_windowing
+        self.n_im_channels = n_im_channels
+        self.lb_classes = lb_classes
+        self.reduce_lb_to_single_class = reduce_lb_to_single_class
+        self.lb_min_vol = lb_min_vol
+        self.is_2d = is_2d
+
+        # let's test if the inputs were fine
+        if self.apply_resizing:
+            self.target_spacing = np.array(target_spacing)
+            if self.is_2d:
+                assert len(target_spacing) == 2, 'target spacing must be of length 2'
+            else:
+                assert len(target_spacing) == 3, 'target spacing must be of length 3'
+
+        if self.apply_pooling:
+            self.pooling_stride = pooling_stride
+            if self.is_2d:
+                assert len(pooling_stride) == 2, 'pooling stride must be of length 3'
+            else:
+                assert len(pooling_stride) == 3, 'pooling stride must be of length 3'
+
+        if self.apply_windowing:
+            assert len(window) == 2, 'window must be of length 2'
+            self.window = window
+
+        assert len(scaling) == 2, 'scaling must be of length 2 (std, mean)'
+        self.scaling = scaling
+
+    def maybe_clean_label(self, lb, spacing=None):
+
+        if self.lb_classes is not None:
+            lb = reduce_classes(lb, self.lb_classes, self.reduce_lb_to_single_class)
+
+        if self.lb_min_vol is not None:
+            if len(lb.shape) > 3:
+                lb = remove_small_connected_components_from_batch(lb, self.lb_min_vol, spacing)
+            else:
+                lb = remove_small_connected_components(lb, self.lb_min_vol, spacing)
+
+        return lb
+
+    def _rescale_batch(self, im, spacing, order=1):
+
+        if spacing is None:
+            raise ValueError('spacing must be given as input when apply_resizing=True.')
+
+        bs, nch = im.shape[0:2]
+        idim = 2 if self.is_2d else 3
+        scale = np.array(spacing) / self.target_spacing
+        shape = im.shape[-1*idim:]
+        im_vec = im.reshape(-1, *shape)
+        im_vec = np.stack([rescale(im_vec[i], scale, order=order) for i in range(im_vec.shape[0])])
+        return im_vec.reshape(bs, nch, *im_vec.shape[1:])
+
+    def __call__(self, xb, spacing=None):
+
+        inpt_dim = 4 if self.is_2d else 5
+        assert len(xb.shape) == inpt_dim, 'input images must be {}d tensor'.format(inpt_dim)
+
+        # assume the image channels are always first
+        n_ch = xb.shape[1]
+        imb = xb[:, :self.n_im_channels]
+        has_lb = n_ch > self.n_im_channels
+        if has_lb:
+            lbb = xb[:, self.n_im_channels:]
+
+            lbb = self.maybe_clean_label(lbb, spacing)
+
+        # resizing
+        if self.apply_resizing:
+
+            imb = self._rescale_batch(imb, spacing)
+            if has_lb:
+                lbb = self._rescale_batch(lbb, spacing, order=0)
+
+        # pooling
+        if self.apply_pooling:
+
+            imb = block_reduce(imb, (1, 1, *self.pooling_stride), func=np.mean)
+            if has_lb:
+                lbb = block_reduce(lbb, (1, 1, *self.pooling_stride), func=np.max)
+
+        # windowing:
+        if self.apply_windowing:
+
+            imb = imb.clip(*self.window)
+
+        # scaling
+        imb = (imb - self.scaling[1]) / self.scaling[0]
+
+        if has_lb:
+            xb = np.concatenate([imb, lbb], 1)
+        else:
+            xb = imb
+
+        return xb

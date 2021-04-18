@@ -26,14 +26,6 @@ class SlidingWindowPrediction(object):
         self.TTA_n_max_augs = TTA_n_max_augs
         self.TTA_eps_stop = TTA_eps_stop
 
-        if len(self.patch_size) == 2:
-            self.is_2d = True
-            self.patch_size = np.concatenate([self.patch_size, [1]])
-        elif len(self.patch_size) == 3:
-            self.is_2d = False
-        else:
-            raise ValueError('patch_size must be of len 2 or 3 (for 2d and 3d networks).')
-
         assert self.patch_weight_type.lower() in ['constant', 'gaussian', 'linear']
 
         # check and build up the patch weight
@@ -48,7 +40,7 @@ class SlidingWindowPrediction(object):
 
             if self.is_2d:
                 # linspace(-1, 1, 1) = [-1]
-                axes[2] = [0]
+                axes[0] = [0]
 
             grid = np.stack(np.meshgrid(axes))
             norm_sq = np.sum(grid**2, 0)
@@ -72,7 +64,17 @@ class SlidingWindowPrediction(object):
             raise ValueError('Unkown patch_weight_type {}. Known types: [constant, gaussian, linear]'
                              ''.format(self.patch_weight_type))
 
-        self.patch_weight = torch.from_numpy(self.patch_weight).to(self.dev)
+        self.patch_weight = self.patch_weight[np.newaxis]
+        self.patch_weight = torch.from_numpy(self.patch_weight).to(self.dev).type(torch.float)
+
+        # add an axis to the patch size and set is_2d
+        if len(self.patch_size) == 2:
+            self.is_2d = True
+            self.patch_size = np.concatenate([[1], self.patch_size])
+        elif len(self.patch_size) == 3:
+            self.is_2d = False
+        else:
+            raise ValueError('patch_size must be of len 2 or 3 (for 2d and 3d networks).')
 
     def _sliding_window(self, volume, ROI=None):
 
@@ -89,51 +91,51 @@ class SlidingWindowPrediction(object):
         pad = [0, self.patch_size[2] - shape_in[3], 0, self.patch_size[1] - shape_in[2],
                0, self.patch_size[0] - shape_in[1]]
         pad = np.maximum(pad, 0).tolist()
-        volume = F.pad(volume, pad)
-        nx, ny, nz = volume.shape[1:]
+        volume = F.pad(volume, pad).type(torch.float)
+        nz, nx, ny = volume.shape[1:]
 
         # %% reserve storage
-        pred = torch.zeros((self.network.out_channels, nx, ny, nz), device=self.dev)
-        ovlp = torch.zeros((1, nx, ny, nz), device=self.dev)
+        pred = torch.zeros((self.network.out_channels, nz, nx, ny), device=self.dev)
+        ovlp = torch.zeros((1, nz, nx, ny), device=self.dev)
         if ROI is None:
             # if the ROI
-            ROI = torch.ones((nx, ny, nz)) > 0
+            ROI = torch.ones((nz, nx, ny)) > 0
 
         # upper left corners of all patches
-        x_list = list(range(0, nx - self.patch_size[0],
-                            int(self.patch_size[0] * self.overlap))) \
-            + [nx - self.patch_size[0]]
-        y_list = list(range(0, ny - self.patch_size[1],
-                            int(self.patch_size[1] * self.overlap))) \
-            + [ny - self.patch_size[1]]
-        z_list = list(range(0, nz - self.patch_size[2],
+        z_list = list(range(0, nz - self.patch_size[0],
+                            max([int(self.patch_size[0] * self.overlap), 1]))) \
+            + [nz - self.patch_size[0]]
+        x_list = list(range(0, nx - self.patch_size[1],
+                            max([int(self.patch_size[1] * self.overlap), 1]))) \
+            + [nx - self.patch_size[1]]
+        y_list = list(range(0, ny - self.patch_size[2],
                             max([int(self.patch_size[2] * self.overlap), 1]))) \
-            + [nz - self.patch_size[2]]
-        xyz_list = []
-        for x in x_list:
-            for y in y_list:
-                for z in z_list:
+            + [ny - self.patch_size[2]]
+        zxy_list = []
+        for z in z_list:
+            for x in x_list:
+                for y in y_list:
                     # we only predict the patch if we intersect the ROI
-                    if ROI[x:x+self.patch_size[0], y:y+self.patch_size[1],
-                           z:z+self.patch_size[2]].any().item():
-                        xyz_list.append((x, y, z))
+                    if ROI[z:z+self.patch_size[0], x:x+self.patch_size[1],
+                           y:y+self.patch_size[2]].any().item():
+                        zxy_list.append((z, x, y))
 
         # introduce batch size
-        n_full_batches = len(xyz_list) // self.batch_size
-        xyz_batched = [xyz_list[i * self.batch_size: (i + 1) * self.batch_size]
+        n_full_batches = len(zxy_list) // self.batch_size
+        zxy_batched = [zxy_list[i * self.batch_size: (i + 1) * self.batch_size]
                        for i in range(n_full_batches)]
-        if n_full_batches * self.batch_size < len(xyz_list):
-            xyz_batched.append(xyz_list[n_full_batches * self.batch_size:])
+        if n_full_batches * self.batch_size < len(zxy_list):
+            zxy_batched.append(zxy_list[n_full_batches * self.batch_size:])
 
         # %% now the magic!
         with torch.no_grad():
-            for xyz_batch in xyz_batched:
+            for zxy_batch in zxy_batched:
                 # crop
-                batch = torch.stack([volume[:, x:x+self.patch_size[0], y:y+self.patch_size[1],
-                                            z:z+self.patch_size[2]] for x, y, z in xyz_batch])
+                batch = torch.stack([volume[:, z:z+self.patch_size[0], x:x+self.patch_size[1],
+                                            y:y+self.patch_size[2]] for z, x, y in zxy_batch])
 
                 # remove z axis if we have 2d prediction
-                batch = batch[..., 0] if self.is_2d else batch
+                batch = batch[:, :, 0] if self.is_2d else batch
                 # remember that the network is outputting a list of predictions for each scale
                 if not self.fp32 and torch.cuda.is_available():
                     with torch.cuda.amp.autocast():
@@ -142,14 +144,14 @@ class SlidingWindowPrediction(object):
                     out = self.network(batch)[0]
 
                 # add z axis again maybe
-                out = out.unsqueeze(-1) if self.is_2d else out
+                out = out.unsqueeze(2) if self.is_2d else out
 
                 # update pred and overlap
-                for i, (x, y, z) in enumerate(xyz_batch):
-                    pred[:, x:x+self.patch_size[0], y:y+self.patch_size[1],
-                         z:z+self.patch_size[2]] += out[i] * self.patch_weight
-                    ovlp[:, x:x+self.patch_size[0], y:y+self.patch_size[1],
-                         z:z+self.patch_size[2]] += self.patch_weight
+                for i, (z, x, y) in enumerate(zxy_batch):
+                    pred[:, z:z+self.patch_size[0], x:x+self.patch_size[1],
+                         y:y+self.patch_size[2]] += out[i] * self.patch_weight
+                    ovlp[:, z:z+self.patch_size[0], x:x+self.patch_size[1],
+                         y:y+self.patch_size[2]] += self.patch_weight
 
         # %% bring maybe back to old shape
         pred = pred[:, :shape_in[1], :shape_in[2], :shape_in[3]]
@@ -204,10 +206,10 @@ class SlidingWindowPrediction(object):
 
         # collect all combinations of flipping
         flip_list = []
-        for fx in [False, True]:
-            for fy in [False, True]:
-                for fz in flip_z_list:
-                    flip_list.append((fx, fy, fz))
+        for fz in flip_z_list:
+            for fx in [False, True]:
+                for fy in [False, True]:
+                    flip_list.append((fz, fx, fy))
 
         # do the first one outside the loop for initialisation
         pred, ovlp = self._sliding_window(volume)

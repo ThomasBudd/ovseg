@@ -34,11 +34,12 @@ class MaskAugmentation(object):
 
     def __init__(self, spacing=None, p_morph=0.4, radius_mm=[1, 8], p_removal=0.2,
                  vol_percentage_removal=0.15, vol_threshold_removal=None,
-                 aug_channels=[1]):
+                 threeD_morph_ops=False, aug_channels=[1]):
 
         # morphological operations
         self.p_morph = p_morph
         self.radius_mm = radius_mm
+        self.threeD_morph_ops = threeD_morph_ops
 
         # removal of small components
         self.p_removal = p_removal
@@ -54,10 +55,7 @@ class MaskAugmentation(object):
                                  morphology.binary_opening,
                                  morphology.binary_erosion]
 
-        if spacing is None:
-            print('No spacing initialised! Using [1, 1, 1]')
-            self.spacing = np.array([1, 1, 1])
-        else:
+        if spacing is not None:
             self.spacing = np.array(spacing)
 
     def _morphological_augmentation(self, img):
@@ -65,6 +63,14 @@ class MaskAugmentation(object):
         # should be 2 or 3
         img_dim = len(img.shape)
         assert img_dim in [2, 3]
+
+        if img_dim == 3:
+            spacing = self.spacing if self.spacing is not None else \
+                np.mean(img.shape) / np.array(img.shape)
+            if img.shape[0] * 2 < np.min(img.shape[1:]):
+                spacing = spacing[1:]
+        else:
+            spacing = self.spacing[1:] if self.spacing is not None else np.array([1, 1])
 
         classes = list(range(1, int(img.max())+1))
         # turn integer in one hot encoding boolean
@@ -76,15 +82,16 @@ class MaskAugmentation(object):
         # radius in mm, e.g. real world units
         r_mm = np.random.uniform(self.radius_mm[0], self.radius_mm[1])
         # radius in amount of pixel
-        r_pixel = (r_mm / self.spacing).astype(int)
+        r_pixel = (r_mm / spacing).astype(int)
 
         # zero centered axes in mm
-        axes = [np.linspace(-1 * sp * rp, sp * rp, 2 * rp + 1) for sp, rp in
-                zip(self.spacing[:img_dim], r_pixel[:img_dim])]
+        axes = [np.linspace(-1 * sp * rp, sp * rp, 2 * rp + 1) for sp, rp in zip(spacing, r_pixel)]
         grid = np.stack(np.meshgrid(*axes, indexing='ij'))
 
         # the structure is a L2 ball with radius r_mm
         structure = np.sum(grid**2, 0) < r_mm**2
+        if len(spacing) == 2 and img_dim == 3:
+            structure = structure[np.newaxis]
 
         # binary operation
         operation = np.random.choice(self.morph_operations)
@@ -130,7 +137,7 @@ class MaskAugmentation(object):
     def augment_image(self, img):
         '''
         augment_img(img)
-        (nx, ny(, nz))
+        (nx, ny)
         '''
         global TORCH_WARNING_PRINTED
 
@@ -180,6 +187,9 @@ class MaskAugmentation(object):
         '''
         return stack([self.augment_sample(batch[i])
                       for i in range(len(batch))])
+
+    def __call__(self, batch):
+        return self.augment_batch(batch)
 
     def augment_volume(self, volume, is_inverse: bool = False):
         if not is_inverse:

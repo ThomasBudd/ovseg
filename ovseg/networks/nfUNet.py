@@ -22,12 +22,13 @@ class UpConv(nn.Module):
                                              bias=False)
                 nn.init.kaiming_normal_(self.up.weight)
             elif upsampling == 'linear':
-                self.conv = WSConv2d(in_channels,
-                                     out_channels,
-                                     kernel_size=1)
-                self.interp = nn.Upsample(scale_factor=kernel_size, mode='bilinear',
-                                          align_corners=align_corners)
-                self.up = nn.Sequential(self.conv, self.interp)
+                self.up = nn.Upsample(scale_factor=kernel_size, mode='bilinear',
+                                      align_corners=align_corners)
+                if in_channels != out_channels:
+                    self.conv = WSConv2d(in_channels,
+                                         out_channels,
+                                         kernel_size=1)
+                    self.up = nn.Sequential(self.conv, self.up)
         else:
             if upsampling == 'conv':
                 self.up = nn.ConvTranspose3d(in_channels, out_channels,
@@ -35,12 +36,13 @@ class UpConv(nn.Module):
                                              bias=False)
                 nn.init.kaiming_normal_(self.up.weight)
             elif upsampling == 'linear':
-                self.conv = WSConv3d(in_channels,
-                                     out_channels,
-                                     kernel_size=1)
-                self.interp = nn.Upsample(scale_factor=kernel_size, mode='trilinear',
-                                          align_corners=align_corners)
-                self.up = nn.Sequential(self.conv, self.interp)
+                self.up = nn.Upsample(scale_factor=kernel_size, mode='trilinear',
+                                      align_corners=align_corners)
+                if in_channels != out_channels:
+                    self.conv = WSConv3d(in_channels,
+                                         out_channels,
+                                         kernel_size=1)
+                    self.up = nn.Sequential(self.conv, self.up)
 
     def forward(self, xb):
         return self.up(xb)
@@ -98,7 +100,8 @@ class nfUNet(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_sizes,
                  is_2d=False, filters=32, filters_max=384, n_pyramid_scales=None,
                  conv_params=None, nonlin_params=None, use_attention_gates=False, upsampling='conv',
-                 align_corners=True, factor_skip_conn=0.5, is_inference_network=False):
+                 align_corners=True, factor_skip_conn=0.5, is_inference_network=False,
+                 is_efficient=False):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -114,26 +117,37 @@ class nfUNet(nn.Module):
         self.align_corners = align_corners
         self.factor_skip_conn = factor_skip_conn
         self.is_inference_network = is_inference_network
-        if self.factor_skip_conn >= 1 or self.factor_skip_conn <= 0:
-            raise ValueError('ERROR: factor_skip_conn, the factor at which the channels at the'
-                             ' skip connections are reduced, must be between 0 and 1 exclusively')
+        self.is_efficient = is_efficient
+        assert self.factor_skip_conn <= 1 and self.factor_skip_conn > 0
         # we double the amount of channels every downsampling step up to a max of filters_max
         self.filters_list = [min([self.filters*2**i, self.filters_max])
                              for i in range(self.n_stages)]
 
         # first let's make the lists for the blocks on both pathes
-        # input and output channels
-        self.in_channels_list = [self.in_channels] + self.filters_list[:-1]
-        self.out_channels_list = self.filters_list
+        # input and output channels for contracting path
+        self.in_channels_down_list = [self.in_channels] + self.filters_list[:-1]
+        self.hid_channels_down_list = [None for _ in range(len(self.filters_list))]
+        if self.is_efficient:
+            self.hid_channels_down_list[0] = self.filters // 4
+        self.out_channels_down_list = self.filters_list
         # initial strides for downsampling
         self.first_stride_list = [1] + [get_stride(ks) for ks in self.kernel_sizes[:-1]]
         # number of channels we feed forward from the contracting to the expaning path
         self.n_skip_channels = [min([max([1, int(self.factor_skip_conn * f)]), f - 1])
-                                for f in self.filters_list]
+                                for f in self.filters_list[:-1]]
+
+        # input and output for exanding path
+        self.in_channels_up_list = [2 * n_ch for n_ch in self.n_skip_channels]
+        self.hid_channels_up_list = self.n_skip_channels
+        if self.is_efficient:
+            self.out_channels_up_list = [n_ch // 4 for n_ch in self.in_channels_up_list]
+        else:
+            self.out_channels_up_list = [n_ch // 2 for n_ch in self.in_channels_up_list]
+
         # now the upsampling
-        self.up_conv_in_list = self.out_channels_list[1:]
-        self.up_conv_out_list = [out_ch - skip_ch for out_ch, skip_ch in zip(self.out_channels_list,
-                                                                             self.n_skip_channels)]
+        self.up_conv_in_list = self.out_channels_up_list[1:] + self.out_channels_down_list[-1:]
+        self.up_conv_out_list = self.n_skip_channels
+
         # determine how many scales on the upwars path with be connected to
         # a loss function
         if n_pyramid_scales is None:
@@ -143,12 +157,14 @@ class nfUNet(nn.Module):
 
         # first the downsampling blocks
         self.blocks_down = []
-        for in_ch, out_ch, ks, fs in zip(self.in_channels_list,
-                                         self.out_channels_list,
-                                         self.kernel_sizes,
-                                         self.first_stride_list):
+        for in_ch, out_ch, hid_ch, ks, fs in zip(self.in_channels_down_list,
+                                                 self.out_channels_down_list,
+                                                 self.hid_channels_down_list,
+                                                 self.kernel_sizes,
+                                                 self.first_stride_list):
             block = nfConvBlock(in_channels=in_ch,
                                 out_channels=out_ch,
+                                hid_channels=hid_ch,
                                 is_2d=self.is_2d,
                                 kernel_size=ks,
                                 first_stride=fs,
@@ -157,12 +173,15 @@ class nfUNet(nn.Module):
                                 is_inference_block=self.is_inference_network)
             self.blocks_down.append(block)
 
-        # now the upsampling blocks, note that the number of input channels equals the number of
-        # output channels to save a convolution on the skip connections there
+        # now the upsampling blocks
         self.blocks_up = []
-        for channels, ks in zip(self.out_channels_list[:-1], self.kernel_sizes[:-1]):
-            block = nfConvBlock(in_channels=channels,
-                                out_channels=channels,
+        for in_ch, out_ch, hid_ch, ks in zip(self.in_channels_up_list,
+                                             self.out_channels_up_list,
+                                             self.hid_channels_up_list,
+                                             self.kernel_sizes[:-1]):
+            block = nfConvBlock(in_channels=in_ch,
+                                out_channels=out_ch,
+                                hid_channels=hid_ch,
                                 is_2d=self.is_2d,
                                 kernel_size=ks,
                                 first_stride=1,
@@ -196,7 +215,7 @@ class nfUNet(nn.Module):
 
         # last but not least all the logits
         self.all_logits = []
-        for in_ch in self.out_channels_list[:self.n_pyramid_scales]:
+        for in_ch in self.out_channels_up_list[:self.n_pyramid_scales]:
             self.all_logits.append(Logits(in_channels=in_ch,
                                           out_channels=self.out_channels,
                                           is_2d=self.is_2d))
@@ -212,10 +231,13 @@ class nfUNet(nn.Module):
         # keep all out tensors from the contracting path
         xb_list = []
         logs_list = []
-        for i in range(self.n_stages):
+        for i in range(self.n_stages - 1):
             xb = self.blocks_down[i](xb)
             # new feature: we only forward half of the channels
             xb_list.append(xb[:, :self.n_skip_channels[i]])
+
+        # bottleneck block
+        xb = self.blocks_down[-1](xb)
 
         # expanding path without logits
         for i in range(self.n_stages - 2, self.n_pyramid_scales-1, -1):
@@ -233,6 +255,7 @@ class nfUNet(nn.Module):
 
         # as we iterate from bottom to top we have to flip the logits list
         return logs_list[::-1]
+
 
 # %% normalization free U-Nets with residual connections
 class nfUResNet(nn.Module):
@@ -489,11 +512,15 @@ class nfUResNet_benchmark(nfUResNet):
 # %%
 if __name__ == '__main__':
     gpu = torch.device('cuda:0')
-    net = nfUResNet(in_channels=1, out_channels=2, kernel_sizes=[(1, 3, 3), (3, 3, 3), 3, 3],
-                    is_2d=False,
-                    filters=8, factor_skip_conn=0.5, use_bottleneck=True,
-                    upsampling='linear').cuda()
-    xb = torch.randn((1, 1, 32, 64, 64), device=gpu)
+    net = nfUNet(in_channels=1,
+                 out_channels=2,
+                 kernel_sizes=[(1, 3, 3), (1, 3, 3), 3, 3, 3, 3],
+                 is_2d=False,
+                 filters=8,
+                 factor_skip_conn=1.0,
+                 upsampling='linear',
+                 is_efficient=True).cuda()
+    xb = torch.randn((1, 1, 32, 128, 128), device=gpu)
     # xb = torch.randn((3, 1, 512, 512), device=gpu)
     with torch.no_grad():
         yb = net(xb)

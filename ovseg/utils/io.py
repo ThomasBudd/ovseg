@@ -29,6 +29,31 @@ def save_pkl(data, path_to_file):
         pickle.dump(data, file)
 
 
+def save_txt(data, path_to_file):
+    if not path_to_file.endswith('.txt'):
+        path_to_file += 'txt'
+
+    dict_name = basename(path_to_file)[:-4]
+    with open(path_to_file, 'w') as file:
+        _write_dict_to_txt(dict_name, data, file, n_tabs=0)
+
+
+def _write_dict_to_txt(self, dict_name, data, file, n_tabs):
+    # recurively go down all dicts and print their content
+    # each time we go a dict deeper we add another tab for more beautiful
+    # nested printing
+    tabs = ''.join(n_tabs * ['\t'])
+    s = tabs + dict_name + ' =\n'
+    file.write(s)
+    for key in data.keys():
+        item = data[key]
+        if isinstance(item, dict):
+            self._write_parameter_dict_to_txt(key, item, file, n_tabs+1)
+        else:
+            s = tabs + '\t' + key + ' = ' + str(item) + '\n'
+            file.write(s)
+
+
 def read_nii(nii_file):
     global _isotropic_volume_loaded_warning_printed, _ananisotropic_volume_loaded_warning_printed
     img = nib.load(nii_file)
@@ -124,6 +149,9 @@ def read_data_tpl_from_nii(folder, case):
 
     if not isinstance(case, str):
         raise TypeError('Input \'case\' must be string, not {}'.format(type(case)))
+
+    if not case.endswith('.nii.gz'):
+        case += '.nii.gz'
 
     # first let's read the data info
     if exists(join(folder, 'data_info.pkl')):
@@ -230,7 +258,7 @@ def _is_roi_dcm_ds(ds):
     return True
 
 
-def read_dcms(dcm_folder, reverse=True, names_dict=None):
+def read_dcms(dcm_folder, reverse=True, names_dict=None, dataset=None):
     '''
     read_dcms(dcms, dcmrt=None, reverse=True, names_dict=None)
 
@@ -266,8 +294,7 @@ def read_dcms(dcm_folder, reverse=True, names_dict=None):
     '''
     global _names_sorting_warning_printed, _names_dict_warning_printed
     # read the image and sort it with respect to the z coordinates
-    dcms = [join(dcm_folder, dcm) for dcm in listdir(dcm_folder)
-            if dcm.endswith('.dcm')]
+    dcms = [join(dcm_folder, dcm) for dcm in listdir(dcm_folder)]
     dcms.sort()
     imdss = []
     roidss = []
@@ -291,7 +318,7 @@ def read_dcms(dcm_folder, reverse=True, names_dict=None):
     # now get the spacing
     ps = np.array(imdss[0].PixelSpacing).astype(float)
     z_sp = np.abs(np.median(np.diff(z_im)))
-    spacing = [z_sp, *ps]
+    spacing = np.array([z_sp, *ps])
 
     # convert the image in HU
     a = imdss[0].RescaleSlope
@@ -303,7 +330,7 @@ def read_dcms(dcm_folder, reverse=True, names_dict=None):
     if len(roidss) == 1:
         roids = roidss[0]
         roidcm = roidcms[0]
-        seg = np.zeros_like(im)
+        seg = np.zeros_like(im, dtype=np.uint8)
 
         pos_r = float(imdss[0].ImagePositionPatient[1])
         pos_c = float(imdss[0].ImagePositionPatient[0])
@@ -316,7 +343,7 @@ def read_dcms(dcm_folder, reverse=True, names_dict=None):
                 names_dict = {}
                 for name in names_found:
                     i = 0
-                    while name[:i+1].isgidit():
+                    while name[:i+1].isdigit():
                         i += 1
                         if i == len(name):
                             break
@@ -357,7 +384,7 @@ def read_dcms(dcm_folder, reverse=True, names_dict=None):
                 # from patient coordinate system to index of the image
                 c = (nodes[:, 0] - pos_c) / spacing[1]
                 rr, cc = polygon(r, c)
-                seg[rr, cc, z_index] = num
+                seg[z_index, rr, cc] = num
 
     data_tpl = {}
     data_tpl['image'] = im
@@ -368,10 +395,20 @@ def read_dcms(dcm_folder, reverse=True, names_dict=None):
             roidcms = roidcms[0]
         data_tpl['raw_label_file'] = roidcms
     data_tpl['spacing'] = spacing
-    for key, attr in zip(['pat_id', 'date'], ['PatientID', 'AcquisitionDate']):
+    data_tpl['z_pos'] = z_im
+    try:
+        data_tpl['SOP_ids'] = [ds.SOPInstanceUID for ds in imdss]
+    except AttributeError:
+        print('Warning: at least on SOPInstanceUID is missing for the dcm files in {}. '
+              'This means that the results can not be saved as dcm rt files, but will be saved '
+              'as nifti.'.format(dcm_folder))
+    ds = imdss[0]
+    for key, attr in zip(['pat_id', 'date', 'pat_name'],
+                         ['PatientID', 'AcquisitionDate', 'PatientName']):
         if hasattr(ds, attr):
-            data_tpl[key] = ds.__getattr__(attr)
-    data_tpl['dataset'] = basename(split(dcm_folder)[0])
+            data_tpl[key] = str(ds.__getattr__(attr))
+
+    data_tpl['dataset'] = basename(split(dcm_folder)[0]) if dataset is None else dataset
 
     return data_tpl
 

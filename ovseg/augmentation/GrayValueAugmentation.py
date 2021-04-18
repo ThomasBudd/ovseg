@@ -250,3 +250,124 @@ class GrayValueAugmentation(object):
             else:
                 volume = self.augment_sample(volume)
         return volume
+
+
+# %%
+class torch_gray_value_augmentation(torch.nn.Module):
+
+    def __init__(self,
+                 p_noise=0.15,
+                 p_blur=0.1,
+                 p_bright=0.15,
+                 p_contr=0.15,
+                 mm_var_noise=[0, 0.1],
+                 mm_sigma_blur=[0.5, 1.5],
+                 mm_bright=[0.7, 1.3],
+                 mm_contr=[0.65, 1.5],
+                 n_im_channels: int = 1
+                 ):
+        super().__init__()
+        self.p_noise = p_noise
+        self.p_blur = p_blur
+        self.p_bright = p_bright
+        self.p_contr = p_contr
+        self.mm_var_noise = mm_var_noise
+        self.mm_sigma_blur = mm_sigma_blur
+        self.mm_bright = mm_bright
+        self.mm_contr = mm_contr
+        self.n_im_channels = n_im_channels
+
+        # torch filters for gaussian blur
+        self._gfilter_3d = torch.nn.Conv3d(1, 1, kernel_size=(1, 11, 11), bias=False,
+                                           padding=(0, 5, 5))
+        self._gfilter_2d = torch.nn.Conv2d(1, 1, kernel_size=11, bias=False, padding=5)
+
+    def _uniform(self, mm, device='cpu'):
+        return (mm[1] - mm[0]) * torch.rand([], device=device) + mm[0]
+
+    def _noise(self, img):
+        var = self._uniform(self.mm_var_noise, device=img.device)
+        sigma = torch.sqrt(var)
+        return img + sigma * torch.randn_like(img)
+
+    def _blur(self, img):
+        sigma = self._uniform(self.mm_sigma_blur, device=img.device)
+        var = sigma ** 2
+        axes = torch.arange(-5, 6, device=img.device)
+        grid = torch.stack(torch.meshgrid([axes for _ in range(2)]))
+        gkernel = torch.exp(-1*torch.sum(grid**2, dim=0)/2.0/var)
+        gkernel = gkernel/gkernel.sum()
+        if len(img.shape) == 4:
+            # 2d case
+            gkernel = gkernel.view(1, 1, 11, 11).to(img.device)
+            self._gfilter_2d.weight.data = gkernel
+            self._gfilter_2d.weight.requires_grad = False
+            return self._gfilter_2d(img)
+        else:
+            gkernel = gkernel.view(1, 1, 1, 11, 11).to(img.device)
+            self._gfilter_3d.weight.data = gkernel
+            self._gfilter_3d.weight.requires_grad = False
+            return self._gfilter_3d(img)
+
+    def _brightness(self, img):
+        fac = self._uniform(self.mm_bright, device=img.device)
+        return img * fac
+
+    def _contrast(self, img):
+        fac = self._uniform(self.mm_contr, device=img.device)
+        mean = img.mean()
+        mn = img.min().item()
+        mx = img.max().item()
+        img = (img - mean) * fac + mean
+        return img.clamp(mn, mx)
+
+    def _get_ops_list(self):
+        ops_list = []
+        if np.random.rand() < self.p_noise:
+            ops_list.append(self._noise)
+        if np.random.rand() < self.p_blur:
+            ops_list.append(self._blur)
+        if np.random.rand() < self.p_bright:
+            ops_list.append(self._brightness)
+        if np.random.rand() < self.p_contr:
+            ops_list.append(self._contrast)
+        np.random.shuffle(ops_list)
+
+        return ops_list
+
+    def forward(self, xb):
+
+        c = self.n_im_channels
+
+        for b in range(xb.shape[0]):
+            for op in self._get_ops_list():
+                xb[b:b+1, :c] = op(xb[b:b+1, :c])
+        return xb
+
+
+# %%
+if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+    plt.close('all')
+    
+    im_full = np.load('D:\\PhD\\Data\\ov_data_base\\preprocessed\\OV04_test\\default\\images'
+                      '\\OV04_034_20091014.npy')
+    lb_full = np.load('D:\\PhD\\Data\\ov_data_base\\preprocessed\\OV04_test\\default\\labels'
+                      '\\OV04_034_20091014.npy') > 0
+    im_crop = im_full[30:78, 100:292, 100:292].astype(np.float32)
+    imt = torch.from_numpy(im_crop).cuda().unsqueeze(0).unsqueeze(0).type(torch.float)
+    lb_crop = lb_full[30:78, 100:292, 100:292].astype(np.float32)
+    lbt = torch.from_numpy(lb_crop).cuda().unsqueeze(0).unsqueeze(0).type(torch.float)
+    xb = torch.cat([imt, lbt], 1).cuda()
+    aug = torch_gray_value_augmentation(p_noise=0.5, p_blur=0.5, p_bright=0.5, p_contr=0.5)
+
+    # %%
+    xb_aug = aug(xb).cpu().numpy()
+
+    z = np.argmax(np.sum(lb_crop > 0, (1, 2)))
+    plt.subplot(1, 2, 1)
+    plt.imshow(im_crop[z], cmap='gray')
+    plt.contour(lb_crop[z])
+    plt.subplot(1, 2, 2)
+    plt.imshow(xb_aug[0, 0, z], cmap='gray')
+    plt.contour(xb_aug[0, 1, z])

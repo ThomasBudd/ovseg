@@ -2,6 +2,7 @@ import torch
 import numpy as np
 from ovseg.data.utils import crop_and_pad_image
 import os
+from time import sleep
 try:
     from tqdm import tqdm
 except ModuleNotFoundError:
@@ -13,7 +14,7 @@ class SegmentationBatchDataset(object):
 
     def __init__(self, vol_ds, patch_size, batch_size, epoch_len=250, p_bias_sampling=0,
                  min_biased_samples=1, augmentation=None, padded_patch_size=None,
-                 store_coords_in_ram=True, memmap='r', image_key='image',
+                 n_im_channels: int = 1, store_coords_in_ram=True, memmap='r', image_key='image',
                  label_key='label', store_data_in_ram=False, return_fp16=True, n_max_volumes=None):
         self.vol_ds = vol_ds
         self.patch_size = np.array(patch_size)
@@ -27,6 +28,7 @@ class SegmentationBatchDataset(object):
         self.image_key = image_key
         self.label_key = label_key
         self.store_data_in_ram = store_data_in_ram
+        self.n_im_channels = n_im_channels
         self.return_fp16 = return_fp16
         if n_max_volumes is None:
             self.n_volumes = len(self.vol_ds)
@@ -35,7 +37,7 @@ class SegmentationBatchDataset(object):
 
         if len(self.patch_size) == 2:
             self.twoD_patches = True
-            self.patch_size = np.concatenate([self.patch_size, [1]])
+            self.patch_size = np.concatenate([[1], self.patch_size])
         else:
             self.twoD_patches = False
 
@@ -48,6 +50,7 @@ class SegmentationBatchDataset(object):
         if self.store_data_in_ram:
             print('Store data in RAM.\n')
             self.data = []
+            sleep(1)
             for ind in tqdm(range(self.n_volumes)):
                 path_dict = self.vol_ds.path_dicts[ind]
                 seg = np.load(path_dict[self.label_key])
@@ -60,6 +63,7 @@ class SegmentationBatchDataset(object):
         if self.store_coords_in_ram:
             print('Precomputing foreground coordinates to store them in RAM.\n')
             self.coords_list = []
+            sleep(1)
             for ind in tqdm(range(self.n_volumes)):
                 if self.store_data_in_ram:
                     _, seg = self.data[ind]
@@ -92,7 +96,13 @@ class SegmentationBatchDataset(object):
             path_dict = self.vol_ds.path_dicts[ind]
             im = np.load(path_dict[self.image_key], 'r')
             seg = np.load(path_dict[self.label_key], 'r')
-        return im, seg
+
+        if len(im.shape) == 3:
+            im = im[np.newaxis]
+        if len(seg.shape) == 3:
+            seg = seg[np.newaxis]
+
+        return np.concatenate([im, seg])
 
     def __len__(self):
         return self.epoch_len * self.batch_size
@@ -107,8 +117,8 @@ class SegmentationBatchDataset(object):
             biased_sampling = np.random.rand() < self.p_bias_sampling
 
         ind = np.random.randint(self.n_volumes)
-        im, seg = self._get_volume_tuple(ind)
-        shape = np.array(seg.shape)
+        volume = self._get_volume_tuple(ind)
+        shape = np.array(volume.shape)[1:]
 
         if biased_sampling:
             # if we're not there let's choose a center coordinate
@@ -121,44 +131,36 @@ class SegmentationBatchDataset(object):
                 coords = np.load(os.path.join(self.bias_coords_fol, case))
             n_coords = coords.shape[1]
             if n_coords > 0:
-                coord = coords[:, np.random.randint(n_coords)] \
-                    - self.patch_size//2
+                coord = coords[:, np.random.randint(n_coords)] - self.patch_size//2
             else:
                 # random coordinate
-                coord = np.random.randint(
-                    np.maximum(shape - self.patch_size+1, 1))
+                coord = np.random.randint(np.maximum(shape - self.patch_size+1, 1))
         else:
             # random coordinate
-            coord = np.random.randint(
-                np.maximum(shape - self.patch_size+1, 1))
+            coord = np.random.randint(np.maximum(shape - self.patch_size+1, 1))
         coord = np.minimum(np.maximum(coord, 0), shape - self.patch_size)
         # now get the cropped and padded sample
-        im = crop_and_pad_image(im, coord, self.patch_size,
-                                self.padded_patch_size)
-        seg = crop_and_pad_image(seg, coord, self.patch_size,
-                                 self.padded_patch_size)
+        volume = crop_and_pad_image(volume, coord, self.patch_size, self.padded_patch_size)
 
         if self.twoD_patches:
-            im, seg = im[..., 0], seg[..., 0]
+            # remove z axis
+            volume = volume[:, 0]
 
         if self.augmentation is not None:
-            sample = np.stack([im, seg])
-            sample = self.augmentation.augment_sample(sample)
-            im, seg = sample
+            volume = self.augmentation(volume[np.newaxis])[0]
 
         if self.return_fp16:
-            im, seg = im.astype(np.float16), seg.astype(np.float16)
+            volume = volume.astype(np.float16)
         else:
-            im, seg = im.astype(np.float32), seg.astype(np.float32)
+            volume = volume.astype(np.float32)
 
-        return {self.image_key: im[np.newaxis],
-                self.label_key: seg[np.newaxis]}
+        return volume
 
 
 def SegmentationDataloader(vol_ds, patch_size, batch_size, num_workers=None,
                            pin_memory=True, epoch_len=250, p_bias_sampling=1/3,
                            min_biased_samples=1, augmentation=None, padded_patch_size=None,
-                           store_coords_in_ram=True, memmap='r',
+                           store_coords_in_ram=True, memmap='r', n_im_channels: int = 1,
                            store_data_in_ram=False,
                            return_fp16=True,
                            n_max_volumes=None):

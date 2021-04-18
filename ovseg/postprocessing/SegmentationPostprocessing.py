@@ -2,11 +2,7 @@ import numpy as np
 import torch
 from ovseg.utils.interp_utils import resize_sample
 from ovseg.utils.torch_np_utils import check_type
-try:
-    from skimage.measure import label
-except ImportError:
-    print('Caught Import Error while importing some function from scipy or skimage. '
-          'Please use a newer version of gcc.')
+from skimage.measure import label
 
 
 class SegmentationPostprocessing(object):
@@ -73,7 +69,7 @@ class SegmentationPostprocessing(object):
             # this can only be done on the CPU
             volume = self.remove_small_components(volume, spacing)
 
-        return volume
+        return volume.astype(np.uint8)
 
     def postprocess_data_tpl(self, data_tpl, prediction_key):
 

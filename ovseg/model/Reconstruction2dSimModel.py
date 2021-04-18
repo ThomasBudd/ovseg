@@ -280,7 +280,7 @@ class Reconstruction2dSimModel(ModelBase):
             im = self.postprocessing(im)
         mse = np.mean((pred - im)**2)
         Imax2 = (im - im.min()).max()**2
-        PSNR = 10 * np.log10(Imax2 / mse)
+        PSNR = 10 * np.log10(Imax2 / mse) if mse > 0 else np.nan
         im_win = im.clip(*self.plot_window)
         pred_win = pred.clip(*self.plot_window)
         mse_win = np.mean((pred_win - im_win)**2)

@@ -52,7 +52,7 @@ class SegmentationModel(ModelBase):
             else:
                 prep_params = load_pkl(join(self.preprocessed_path,
                                             'preprocessing_parameters.pkl'))
-                self.model_parameters.update({'preprocessing': prep_params})
+                self.model_parameters['preprocessing'] = prep_params
                 if self.parameters_match_saved_ones:
                     print('Loaded preprocessing parameters and updating model '
                           'parameters.')
@@ -62,8 +62,8 @@ class SegmentationModel(ModelBase):
                           'parameters as current model parameters don\'t match saved ones.')
         params = self.model_parameters['preprocessing'].copy()
         self.preprocessing = SegmentationPreprocessing(**params)
-        if self.preprocessing.use_only_classes is not None:
-            self.n_fg_classes = len(self.preprocessing.use_only_classes)
+        if self.preprocessing.lb_classes is not None:
+            self.n_fg_classes = len(self.preprocessing.lb_classes)
         else:
             try:
                 self.n_fg_classes = self.preprocessing.dataset_properties['n_fg_classes']
@@ -87,11 +87,13 @@ class SegmentationModel(ModelBase):
                                  'dict of network paramters.')
         params = self.model_parameters['network'].copy()
         if self.model_parameters['architecture'].lower() in ['unet', 'u-net']:
-            self.network = UNet(**params).cuda()
+            self.network = UNet(**params).to(self.dev)
         elif self.model_parameters['architecture'].lower() in ['iunet', 'iu-net']:
-            self.network = iUNet(**params).cuda()
+            self.network = iUNet(**params).to(self.dev)
 
     def initialise_prediction(self):
+        # by default we take the same batch size as we used during training for inference
+        # but in theory we should also be able to use a larger one to seep up everything
         params = {'network': self.network,
                   'patch_size': self.model_parameters['data']['trn_dl_params']['patch_size']}
         if 'prediction' not in self.model_parameters:
@@ -100,7 +102,7 @@ class SegmentationModel(ModelBase):
         else:
             params.update(self.model_parameters['prediction'])
 
-        self.prediction = SlidingWindowPrediction(**params, TTA=self.augmentation.TTA)
+        self.prediction = SlidingWindowPrediction(**params)
 
     def initialise_postprocessing(self):
         try:
@@ -119,10 +121,7 @@ class SegmentationModel(ModelBase):
 
         # Let's get the parameters and add the cpu augmentation
         params = self.model_parameters['data'].copy()
-        try:
-            data_aug = self.augmentation.CPU_augmentation
-        except AttributeError:
-            data_aug = None
+        data_aug = self.augmentation.np_augmentation
 
         # add augmentation
         for key in ['trn_dl_params', 'val_dl_params']:
@@ -147,14 +146,13 @@ class SegmentationModel(ModelBase):
                                  '\'training\'. These must contain the '
                                  'dict of training paramters.')
         params = self.model_parameters['training'].copy()
-        self.training = \
-            SegmentationTraining(network=self.network,
-                                 trn_dl=self.data.trn_dl,
-                                 val_dl=self.data.val_dl,
-                                 model_path=self.model_path,
-                                 network_name=self.network_name,
-                                 augmentation=self.augmentation.GPU_augmentation,
-                                 **params)
+        self.training = SegmentationTraining(network=self.network,
+                                             trn_dl=self.data.trn_dl,
+                                             val_dl=self.data.val_dl,
+                                             model_path=self.model_path,
+                                             network_name=self.network_name,
+                                             augmentation=self.augmentation.torch_augmentation,
+                                             **params)
 
     def predict(self, data_tpl, image_key='image'):
         '''
@@ -167,33 +165,36 @@ class SegmentationModel(ModelBase):
         im = data_tpl[image_key]
         is_np,  _ = check_type(im)
         if is_np:
-            im = torch.from_numpy(im).cuda()
+            im = torch.from_numpy(im).to(self.dev)
         else:
-            im = im.cuda()
+            im = im.to(self.dev)
 
-        with torch.no_grad():
-            # the preprocessing will only do something if the image is not preprocessed yet
-            im = self.preprocessing.preprocess_volume_from_data_tpl(data_tpl, return_seg=False)
+        # the preprocessing will only do something if the image is not preprocessed yet
+        if not self.preprocessing.is_preprocessed_data_tpl(data_tpl):
+            im = self.preprocessing(data_tpl)
 
-            # now the importat part: the sliding window evaluation (or derivatices of it)
-            pred = self.prediction(im)
+        # now the importat part: the sliding window evaluation (or derivatices of it)
+        pred = self.prediction(im)
+        data_tpl[self.pred_key] = pred
 
-            data_tpl[self.pred_key] = pred
-
-            self.postprocessing.postprocess_data_tpl(data_tpl, self.pred_key)
+        # inside the postprocessing the result will be attached to the data_tpl
+        self.postprocessing.postprocess_data_tpl(data_tpl, self.pred_key)
 
         return data_tpl[self.pred_key]
 
-    def __call__(self, data_tpl):
-        return self.predict(data_tpl)
+    def __call__(self, data_tpl, image_key='image'):
+        return self.predict(data_tpl, image_key=image_key)
 
     def save_prediction(self, data_tpl, folder_name, filename=None):
 
         # find name of the file
         if filename is None:
-            filename = basename(data_tpl['raw_image_file'])
-            if filename.endswith('_0000.nii.gz'):
-                filename = filename[:-12]
+            if 'raw_label_file' in data_tpl:
+                filename = basename(data_tpl['raw_label_file'])
+            else:
+                filename = basename(data_tpl['raw_image_file'])
+                if filename.endswith('_0000.nii.gz'):
+                    filename = filename[:-12]
 
         # remove fileextension e.g. .nii.gz
         filename = filename.split('.')[0]
@@ -219,9 +220,12 @@ class SegmentationModel(ModelBase):
 
         # find name of the file
         if filename is None:
-            filename = basename(data_tpl['raw_image_file'])
-            if filename.endswith('_0000.nii.gz'):
-                filename = filename[:-12]
+            if 'raw_label_file' in data_tpl:
+                filename = basename(data_tpl['raw_label_file'])
+            else:
+                filename = basename(data_tpl['raw_image_file'])
+                if filename.endswith('_0000.nii.gz'):
+                    filename = filename[:-12]
 
         # remove fileextension e.g. .nii.gz
         filename = filename.split('.')[0]
@@ -241,19 +245,20 @@ class SegmentationModel(ModelBase):
             im = im.cpu().numpy()
         if len(im.shape) == 3:
             im = im[np.newaxis]
+        im = im.astype(float)
         n_ch = im.shape[0]
         if 'label' in data_tpl:
             # in case of raw data this only removes the lables that this model doesn't segment
-            labels.append(self.preprocessing.preprocess_volume_from_data_tpl(data_tpl,
-                                                                             return_seg=True))
+            labels.append(self.preprocessing.maybe_clean_label_from_data_tpl(data_tpl))
 
         labels.append(data_tpl[self.pred_key])
-        labels = (np.array(labels) > 0).astype(int)
-        contains = np.where(np.sum(labels, (0, 1, 2)))[0]
+        labels = np.stack(labels)
+        # sum over channel, x and y axis
+        contains = np.where(np.sum(labels, (0, 2, 3)))[0]
         if len(contains) == 0:
             return
 
-        z_list = [np.argmax(np.sum(labels, (0, 1, 2)))]
+        z_list = [np.argmax(np.sum(labels, (0, 2, 3)))]
         s_list = ['_largest']
         z_list.extend(np.random.choice(contains, size=self.plot_n_random_slices))
         if self.plot_n_random_slices > 1:
@@ -267,9 +272,9 @@ class SegmentationModel(ModelBase):
             fig = plt.figure()
             for c in range(n_ch):
                 plt.subplot(1, n_ch, c+1)
-                plt.imshow(im[c, ..., z], cmap='gray')
+                plt.imshow(im[c, z], cmap='gray')
                 for i in range(labels.shape[0]):
-                    if labels[i, ..., z].max() > 0:
+                    if labels[i, z].max() > 0:
                         # this if is purely to avoid annoying UserWarning messages that interrupt
                         # the beautiful beautiful tqdm bar
                         plt.contour(labels[i, ..., z] > 0, linewidths=0.5, colors=colors[i],
@@ -284,7 +289,7 @@ class SegmentationModel(ModelBase):
             return None
         pred = data_tpl[self.pred_key]
         # in case of raw data this only removes the lables that this model doesn't segment
-        seg = self.preprocessing.preprocess_volume_from_data_tpl(data_tpl, return_seg=True)
+        seg = self.preprocessing.maybe_clean_label_from_data_tpl(data_tpl)
         results = {}
         for c in range(1, self.n_fg_classes+1):
             seg_c = (seg == c).astype(float)
@@ -320,12 +325,13 @@ class SegmentationModel(ModelBase):
     def _init_global_metrics(self):
         self.global_metrics_helper = {}
         self.global_metrics = {}
-        for i in range(1, self.n_fg_classes + 1):
-            self.global_metrics_helper.update({s+'_'+str(i): 0 for s in ['overlap', 'gt_volume',
-                                                                         'pred_volume']})
-            self.global_metrics.update({'dice_'+str(i): -1,
-                                        'recall_'+str(i): -1,
-                                        'precision_'+str(i): -1})
+        for c in range(1, self.n_fg_classes + 1):
+            self.global_metrics_helper.update({s+str(c): 0 for s in ['overlap_',
+                                                                     'gt_volume_',
+                                                                     'pred_volume_']})
+            self.global_metrics.update({'dice_'+str(c): -1,
+                                        'recall_'+str(c): -1,
+                                        'precision_'+str(c): -1})
 
     def _update_global_metrics(self, data_tpl):
 
@@ -335,28 +341,28 @@ class SegmentationModel(ModelBase):
         pred = data_tpl[self.pred_key]
 
         # volume of one voxel
-        # fac = np.prod(data_tpl['spacing'])
-        for i in range(1, self.n_fg_classes + 1):
-            lb_i = (label == i).astype(float)
-            pred_i = (pred == i).astype(float)
-            ovlp = self.global_metrics_helper['overlap_'+str(i)] + np.sum(lb_i * pred_i)
-            gt_vol = self.global_metrics_helper['gt_volume_'+str(i)] + np.sum(lb_i)
-            pred_vol = self.global_metrics_helper['pred_volume_'+str(i)] + np.sum(pred_i)
+        fac = np.prod(data_tpl['spacing'])
+        for c in range(1, self.n_fg_classes + 1):
+            lb_c = (label == c).astype(float)
+            pred_c = (pred == c).astype(float)
+            ovlp = self.global_metrics_helper['overlap_'+str(c)] + np.sum(lb_c * pred_c) * fac
+            gt_vol = self.global_metrics_helper['gt_volume_'+str(c)] + np.sum(lb_c) * fac
+            pred_vol = self.global_metrics_helper['pred_volume_'+str(c)] + np.sum(pred_c) * fac
             # update global dice, recall and precision
             if gt_vol + pred_vol > 0:
-                self.global_metrics['dice_'+str(i)] = 200 * ovlp / (gt_vol + pred_vol)
+                self.global_metrics['dice_'+str(c)] = 200 * ovlp / (gt_vol + pred_vol)
             else:
-                self.global_metrics['dice_'+str(i)] = 100
+                self.global_metrics['dice_'+str(c)] = 100
             if gt_vol > 0:
-                self.global_metrics['recall_'+str(i)] = 100 * ovlp / gt_vol
+                self.global_metrics['recall_'+str(c)] = 100 * ovlp / gt_vol
             else:
-                self.global_metrics['recall_'+str(i)] = 100 if pred_vol == 0 else 0
+                self.global_metrics['recall_'+str(c)] = 100 if pred_vol == 0 else 0
             if pred_vol > 0:
-                self.global_metrics['precision_'+str(i)] = 100 * ovlp / pred_vol
+                self.global_metrics['precision_'+str(c)] = 100 * ovlp / pred_vol
             else:
-                self.global_metrics['precision_'+str(i)] = 100 if gt_vol == 0 else 0
+                self.global_metrics['precision_'+str(c)] = 100 if gt_vol == 0 else 0
 
             # now update global metrics helper
-            self.global_metrics_helper['overlap_'+str(i)] = ovlp
-            self.global_metrics_helper['gt_volume'+str(i)] = gt_vol
-            self.global_metrics_helper['pred_volume'+str(i)] = pred_vol
+            self.global_metrics_helper['overlap_'+str(c)] = ovlp
+            self.global_metrics_helper['gt_volume_'+str(c)] = gt_vol
+            self.global_metrics_helper['pred_volume_'+str(c)] = pred_vol

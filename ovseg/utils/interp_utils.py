@@ -185,9 +185,8 @@ def np_interp_img(img, grid, order, cval=None):
 
     elif dim == 3 and idim == 2:
         # 2.5d interpolation, we will perform interpolation onyl in xy plane
-        return np.stack([map_coordinates(img[..., z], grid,
-                                         order=order, cval=cval)
-                         for z in range(img.shape[-1])], -1)
+        return np.stack([map_coordinates(img[z], grid, order=order, cval=cval)
+                         for z in range(img.shape[0])], 0)
 
 
 def interp_img(img, grid, order, cval=None):
