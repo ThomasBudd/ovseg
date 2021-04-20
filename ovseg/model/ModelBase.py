@@ -32,7 +32,7 @@ class ModelBase(object):
     network and to evaluate it on a full 3d volume.
     '''
 
-    def __init__(self, val_fold: int, data_name: str, model_name: str,
+    def __init__(self, val_fold, data_name: str, model_name: str,
                  model_parameters=None, preprocessed_name=None,
                  network_name='network', is_inference_only: bool = False,
                  fmt_write='{:.4f}', model_parameters_name='model_parameters'):
@@ -47,6 +47,12 @@ class ModelBase(object):
         self.fmt_write = fmt_write
         self.model_parameters_name = model_parameters_name
 
+        if isinstance(self.val_fold, int):
+            self.val_fold_str = 'fold_' + str(self.val_fold)
+        else:
+            assert isinstance(self.val_fold, (tuple, list)), "val_fold must be int, list or tuple"
+            self.val_fold_str = 'ensemble_'+'_'.join([str(f) for f in self.val_fold])
+
         # just to enable CPU execution where the GPU is missing
         self.dev = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
         # the model path will be pointing to the model of this particular fold
@@ -56,7 +62,7 @@ class ModelBase(object):
                                   'trained_models',
                                   self.data_name,
                                   self.model_name)
-        self.model_path = join(self.model_cv_path, 'fold_%d' % self.val_fold)
+        self.model_path = join(self.model_cv_path, self.val_fold_str)
         path_utils.maybe_create_path(self.model_path)
         self.path_to_params = join(self.model_cv_path, self.model_parameters_name+'.pkl')
         if self.preprocessed_name is None:
@@ -327,7 +333,7 @@ class ModelBase(object):
         global NO_NAME_FOUND_WARNING_PRINTED
 
         if save_folder_name is None:
-            save_folder_name = ds_name + '_{}'.format(int(self.val_fold))
+            save_folder_name = ds_name + self.val_fold_str
 
         # first check if the evaluation is already done and quit in case we don't want to force
         # the evaluation
@@ -412,22 +418,25 @@ class ModelBase(object):
         # first we store the results for this fold in the validation folder
         self._save_results_to_pkl_and_txt(results, self.model_path, ds_name=ds_name)
 
-        # we also store the results in the CV folder and merge them with
-        # possible other results from other folds
-        path_to_results = join(self.model_cv_path, ds_name+'_CV_results.pkl')
-        # to differentiate by name what comes from which fold we add fold_x to the names
-        results_fold = {key+'_fold_{}'.format(self.val_fold): results[key] for key in results}
-        if exists(path_to_results):
-            print('Found exsiting results of other folds in CV path. Merge and save!\n')
-            merged_results = io.load_pkl(path_to_results)
-            merged_results.update(results_fold)
-        else:
-            print('Found no existing results of other folds in CV path. Saving only '
-                  'these results.\n')
-            merged_results = results_fold
+        if merge_to_CV_results:
+            # we also store the results in the CV folder and merge them with
+            # possible other results from other folds
+            path_to_results = join(self.model_cv_path, ds_name+'_CV_results.pkl')
+            # to differentiate by name what comes from which fold we add fold_x to the names
+            results_fold = {key+self.val_fold_str: results[key] for key in results}
+            if exists(path_to_results):
+                print('Found exsiting results of other folds in CV path. Merge and save!\n')
+                merged_results = io.load_pkl(path_to_results)
+                merged_results.update(results_fold)
+            else:
+                print('Found no existing results of other folds in CV path. Saving only '
+                      'these results.\n')
+                merged_results = results_fold
 
-        # the merged results are kept in the model_cv_path
-        self._save_results_to_pkl_and_txt(merged_results, self.model_cv_path, ds_name=ds_name+'_CV')
+            # the merged results are kept in the model_cv_path
+            self._save_results_to_pkl_and_txt(merged_results,
+                                              self.model_cv_path,
+                                              ds_name=ds_name+'_CV')
 
     def eval_validation_set(self, save_preds=True, save_plots=False, force_evaluation=False):
         self.eval_ds(self.data.val_ds, ds_name='validation',

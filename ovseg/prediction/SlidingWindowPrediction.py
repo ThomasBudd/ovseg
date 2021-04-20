@@ -8,7 +8,7 @@ class SlidingWindowPrediction(object):
 
     def __init__(self, network, patch_size, batch_size=1, overlap=0.5, fp32=False,
                  patch_weight_type='linear', sigma_gaussian_weight=1, linear_min=0.1,
-                 mode='simple', TTA=None, TTA_n_full_predictions=1, TTA_n_max_augs=99,
+                 mode='flip', TTA=None, TTA_n_full_predictions=1, TTA_n_max_augs=99,
                  TTA_eps_stop=0.02):
 
         self.dev = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -162,7 +162,7 @@ class SlidingWindowPrediction(object):
             torch.cuda.empty_cache()
 
         # note that the network returns logits
-        return F.softmax(pred, 0), ovlp
+        return F.softmax(pred / ovlp, 0)
 
     def predict_volume(self, volume, mode=None):
         # evaluates the siliding window on this volume
@@ -186,7 +186,9 @@ class SlidingWindowPrediction(object):
         elif mode == 'flip':
             pred = self._predict_volume_flip(volume)
         elif mode == 'TTA':
-            pred = self._predict_volume_tta(volume)
+            raise NotImplementedError('Test time augmentations were not implemented beyond '
+                                      'flipping.')
+            # pred = self._predict_volume_tta(volume)
 
         if is_np:
             pred = pred.cpu().numpy()
@@ -197,8 +199,7 @@ class SlidingWindowPrediction(object):
         return self.predict_volume(volume, mode)
 
     def _predict_volume_simple(self, volume):
-        pred, ovlp = self._sliding_window(volume)
-        return pred/ovlp
+        return self._sliding_window(volume)
 
     def _predict_volume_flip(self, volume):
 
@@ -212,21 +213,20 @@ class SlidingWindowPrediction(object):
                     flip_list.append((fz, fx, fy))
 
         # do the first one outside the loop for initialisation
-        pred, ovlp = self._sliding_window(volume)
+        pred = self._sliding_window(volume)
 
         # now some flippings!
         for f in flip_list[1:]:
             volume = self._flip_volume(volume, f)
 
             # predict flipped volume
-            pred_flipped, ovlp_flipped = self._sliding_window(volume)
+            pred_flipped = self._sliding_window(volume)
 
             # flip back and update
             pred += self._flip_volume(pred_flipped, f)
-            ovlp += self._flip_volume(ovlp_flipped, f)
             volume = self._flip_volume(volume, f)
 
-        return pred/ovlp
+        return pred / len(flip_list)
 
     def _flip_volume(self, volume, f):
         for i in range(3):
@@ -234,50 +234,47 @@ class SlidingWindowPrediction(object):
                 volume = volume.flip(i+1)
         return volume
 
-    def _predict_volume_tta(self, volume):
+    # def _predict_volume_tta(self, volume):
 
-        if self.TTA is None:
-            raise TypeError('When test time augmentations are used the argument TTA of '
-                            'SlidingWindowPrediction must be initialised.')
+    #     if self.TTA is None:
+    #         raise TypeError('When test time augmentations are used the argument TTA of '
+    #                         'SlidingWindowPrediction must be initialised.')
 
-        # counter for the amount of augmentations we do to the image
-        self.augs = 0
-        # first prediction without augmentation
-        pred, ovlp = self._sliding_window(volume)
+    #     # counter for the amount of augmentations we do to the image
+    #     self.augs = 0
+    #     # first prediction without augmentation
+    #     pred = self._sliding_window(volume)
 
-        # now we do some full predictions
-        for _ in range(1, self.TTA_n_full_predictions):
-            volume_aug = self.TTA.augment_volume(volume, is_inverse=False)
-            pred_aug, ovlp_aug = self._sliding_window(volume_aug)
-            pred = self.TTA.augment_volume(pred_aug, is_inverse=True)
-            ovlp = self.TTA.augment_volume(ovlp_aug, is_inverse=True)
-            self.augs += 1
+    #     # now we do some full predictions
+    #     for _ in range(1, self.TTA_n_full_predictions):
+    #         volume_aug = self.TTA.augment_volume(volume, is_inverse=False)
+    #         pred_aug = self._sliding_window(volume_aug)
+    #         pred = self.TTA.augment_volume(pred_aug, is_inverse=True)
+    #         self.augs += 1
 
-        # as the full predictions are over we only predict where we have error left
-        prev_pred = torch.zeros_like(pred)
-        prev_ovlp = torch.ones_like(ovlp)
+    #     # as the full predictions are over we only predict where we have error left
+    #     prev_pred = torch.zeros_like(pred)
 
-        # the ROI is defined as the pixels where the soft probabilities deviated
-        # more than eps from the previous prabilities
-        ROI = torch.abs(pred / ovlp - prev_pred / prev_ovlp).sum(0) > self.TTA_eps_stop
-        eps = ROI.max().item()
-        while self.augs < self.TTA_n_max_augs and eps > self.TTA_eps_stop:
+    #     # the ROI is defined as the pixels where the soft probabilities deviated
+    #     # more than eps from the previous prabilities
+    #     ROI = torch.abs(pred - prev_pred).sum(0) > self.TTA_eps_stop
+    #     eps = ROI.max().item()
+    #     while self.augs < self.TTA_n_max_augs and eps > self.TTA_eps_stop:
 
-            # store current pred and ovlp
-            prev_pred, prev_ovlp = pred, ovlp
+    #         # store current pred and ovlp
+    #         prev_pred = pred
 
-            # create new augmentation
-            volume_aug = self.TTA.augment_volume(volume, is_inverse=False)
-            self.augs += 1
+    #         # create new augmentation
+    #         volume_aug = self.TTA.augment_volume(volume, is_inverse=False)
+    #         self.augs += 1
 
-            # do sliding window only in the ROI and update
-            pred_aug, ovlp_aug = self._sliding_window(volume_aug, ROI)
-            pred = pred + self.TTA.augment_volume(pred_aug, is_inverse=True)
-            ovlp = ovlp + self.TTA.augment_volume(ovlp_aug, is_inverse=True)
+    #         # do sliding window only in the ROI and update
+    #         pred_aug = self._sliding_window(volume_aug, ROI)
+    #         pred = pred + self.TTA.augment_volume(pred_aug, is_inverse=True)
 
-            # compute new ROI and max error
-            ROI = torch.abs(pred / ovlp - prev_pred / prev_ovlp).sum(0)
-            eps = ROI.max().item()
-            ROI = ROI > self.TTA_eps_stop
+    #         # compute new ROI and max error
+    #         ROI = torch.abs(pred - prev_pred).sum(0)
+    #         eps = ROI.max().item()
+    #         ROI = ROI > self.TTA_eps_stop
 
-        return pred / ovlp
+    #     return pred

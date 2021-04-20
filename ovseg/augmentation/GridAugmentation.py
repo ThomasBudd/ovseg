@@ -101,18 +101,15 @@ class torch_inplane_grid_augmentations(nn.Module):
         theta = torch.zeros((bs, img_dims, img_dims+1), device=xb.device, dtype=xb.dtype)
         for j in range(img_dims):
             theta[:, j, j] = 1
-        do_aug = False
         for i in range(bs):
             ops_list = self._get_ops_list()
-            do_aug = do_aug or len(ops_list) > 0
             for op in ops_list:
                 theta[i] = op(theta[i])
 
-        if do_aug:
-            size = xb.size() if self.out_shape is None else (bs, n_ch, *self.out_shape)
-            grid = F.affine_grid(theta, size).cuda().type(xb.dtype)
-            xb = torch.cat([F.grid_sample(xb[:, :self.n_im_channels], grid, mode='bilinear'),
-                            F.grid_sample(xb[:, self.n_im_channels:], grid, mode='nearest')], dim=1)
+        size = xb.size() if self.out_shape is None else (bs, n_ch, *self.out_shape)
+        grid = F.affine_grid(theta, size).cuda().type(xb.dtype)
+        xb = torch.cat([F.grid_sample(xb[:, :self.n_im_channels], grid, mode='bilinear'),
+                        F.grid_sample(xb[:, self.n_im_channels:], grid, mode='nearest')], dim=1)
 
         # now flipping
         if self.apply_flipping:
