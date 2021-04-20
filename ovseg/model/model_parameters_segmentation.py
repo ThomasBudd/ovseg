@@ -25,7 +25,7 @@ def get_model_params_2d_segmentation(n_classes=1,
                       'p_transl': 0,
                       'p_shear': 0,
                       'mm_zoom': [0.7, 1.4],
-                      'mm_rot': [-15, 15],
+                      'mm_rot': [-180, 180],
                       'mm_transl': [-0.25, 0.25],
                       'mm_shear': [-0.2, 0.2],
                       'apply_flipping': True,
@@ -42,7 +42,7 @@ def get_model_params_2d_segmentation(n_classes=1,
                           'kernel_sizes': 7 * [3],
                           'is_2d': True,
                           'filters': 32,
-                          'filters_max': 384,
+                          'filters_max': 320,
                           'n_pyramid_scales': None,
                           'conv_params': None,
                           'norm': None,
@@ -116,23 +116,31 @@ def get_model_params_3d_nnUNet(patch_size, n_2d_convs, n_classes=1, fp32=False):
                                                     fp32=fp32)
 
     # first determine the number of stages plus the kernel sizes used there
-    kernel_sizes = []
+    i = 1
+    kernel_sizes = [(1, 3, 3) if 0 < n_2d_convs else (3, 3, 3)]
     psb = np.array(patch_size).copy()
-    i = 0
     while psb.max() >= 8:
-        j = 1 if i < n_2d_convs else 0
+        j = 1 if kernel_sizes[-1][0] == 1 else 0
         psb[j:] = psb[j:] // 2
-        kernel_sizes.append((1, 3, 3) if i < n_2d_convs else (3, 3, 3))
+        kernel_sizes.append((1, 3, 3) if len(kernel_sizes) < n_2d_convs else (3, 3, 3))
         i += 1
 
     model_params['network']['kernel_sizes'] = kernel_sizes
     model_params['network']['is_2d'] = False
+    model_params['network']['use_3d_convs_when_upsampling'] = True
+
+    padded_patch_size = patch_size.copy()
+    padded_patch_size[1] = padded_patch_size[1] * 2
+    padded_patch_size[2] = padded_patch_size[2] * 2
+
+    model_params['augmentation']['torch_params']['grid_inplane']['out_shape'] = patch_size
 
     # next change the dataloader arguments
     for key in ['trn_dl_params', 'val_dl_params']:
         model_params['data'][key]['patch_size'] = patch_size
         model_params['data'][key]['batch_size'] = 2
         model_params['data'][key]['min_biased_samples'] = 1
+        model_params['data'][key]['padded_patch_size'] = padded_patch_size
 
     model_params['prediction']['patch_size'] = patch_size
 

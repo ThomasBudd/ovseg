@@ -21,3 +21,4 @@ for pred_case in tqdm(pred_cases):
     if gt.max() == 0:
         print(pred_case)
     dscs.append(200 * np.sum(gt * pred) / np.sum(gt + pred))
+

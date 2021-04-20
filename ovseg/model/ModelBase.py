@@ -4,7 +4,7 @@ from ovseg.utils.dict_equal import dict_equal
 from ovseg.data.Dataset import raw_Dataset
 import os
 import torch
-from time import sleep
+from time import sleep, asctime
 try:
     from tqdm import tqdm
 except ModuleNotFoundError:
@@ -276,6 +276,7 @@ class ModelBase(object):
         medians = np.nanmedian(metrics, 0)
         with open(join(path_to_store, file_name+'.txt'), 'w') as file:
             # first we write the global stats
+            file.write(asctime())
             file.write('GLOBAL RESULTS:\n')
             file.write('\n')
             for metric in self.global_metrics:

@@ -132,7 +132,11 @@ class TrainingBase():
     def on_training_end(self):
 
         self.print_and_log('Training finished!')
-        self.trn_end_time = time.asctime()
+        if self.trn_end_time == -1:
+            self.trn_end_time = time.asctime()
+        self.print_and_log('Training time: {} - {} ({:.3f}h)'.format(self.trn_start_time,
+                                                                     self.trn_end_time,
+                                                                     self.total_train_time/3600))
         self.save_checkpoint()
 
     def save_checkpoint(self, path=None):

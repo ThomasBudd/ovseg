@@ -32,6 +32,8 @@ class torch_inplane_grid_augmentations(nn.Module):
         self.apply_flipping = apply_flipping
         self.n_im_channels = n_im_channels
         self.out_shape = out_shape
+        if out_shape is not None:
+            self.out_shape = np.array(self.out_shape)
 
     def _rot(self, theta):
 
@@ -106,8 +108,12 @@ class torch_inplane_grid_augmentations(nn.Module):
             for op in ops_list:
                 theta[i] = op(theta[i])
 
-        size = xb.size() if self.out_shape is None else (bs, n_ch, *self.out_shape)
-        grid = F.affine_grid(theta, size).cuda().type(xb.dtype)
+        grid = F.affine_grid(theta, xb.size()).cuda().type(xb.dtype)
+        if self.out_shape is not None:
+            # crop from the grid
+            crp_l = (np.array(xb.shape[2:]) - self.out_shape) // 2
+            crp_u = (crp_l + self.out_shape)
+            grid = grid[:, crp_l[0]:crp_u[0], crp_l[1]:crp_u[1], crp_l[2]:crp_u[2]]
         xb = torch.cat([F.grid_sample(xb[:, :self.n_im_channels], grid, mode='bilinear'),
                         F.grid_sample(xb[:, self.n_im_channels:], grid, mode='nearest')], dim=1)
 

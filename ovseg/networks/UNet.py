@@ -121,7 +121,8 @@ class UNet(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_sizes,
                  is_2d, filters=32, filters_max=384, n_pyramid_scales=None,
-                 conv_params=None, norm=None, norm_params=None, nonlin_params=None):
+                 conv_params=None, norm=None, norm_params=None, nonlin_params=None,
+                 use_3d_convs_when_upsampling=False):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -134,6 +135,7 @@ class UNet(nn.Module):
         self.norm = norm
         self.norm_params = norm_params
         self.nonlin_params = nonlin_params
+        self.use_3d_convs_when_upsampling = use_3d_convs_when_upsampling
         # we double the amount of channels every downsampling step
         # up to a max of filters_max
         self.filters_list = [min([self.filters*2**i, self.filters_max])
@@ -182,6 +184,8 @@ class UNet(nn.Module):
         for in_channels, out_channels, kernel_size in zip(self.in_channels_up_list,
                                                           self.out_channels_up_list,
                                                           self.kernel_sizes):
+            if self.use_3d_convs_when_upsampling and not self.is_2d:
+                kernel_size = 3
             block = ConvNormNonlinBlock(in_channels=in_channels,
                                         out_channels=out_channels,
                                         is_2d=self.is_2d,

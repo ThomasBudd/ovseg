@@ -45,7 +45,7 @@ class SegmentationBatchDataset(object):
         if padded_patch_size is None:
             self.padded_patch_size = self.patch_size
         else:
-            self.padded_patch_size = np.array(self.padded_patch_size)
+            self.padded_patch_size = np.array(padded_patch_size)
 
         if self.store_data_in_ram:
             print('Store data in RAM.\n')

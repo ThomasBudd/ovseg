@@ -277,11 +277,6 @@ class torch_gray_value_augmentation(torch.nn.Module):
         self.mm_contr = mm_contr
         self.n_im_channels = n_im_channels
 
-        # torch filters for gaussian blur
-        self._gfilter_3d = torch.nn.Conv3d(1, 1, kernel_size=(1, 11, 11), bias=False,
-                                           padding=(0, 5, 5))
-        self._gfilter_2d = torch.nn.Conv2d(1, 1, kernel_size=11, bias=False, padding=5)
-
     def _uniform(self, mm, device='cpu'):
         return (mm[1] - mm[0]) * torch.rand([], device=device) + mm[0]
 
@@ -300,14 +295,10 @@ class torch_gray_value_augmentation(torch.nn.Module):
         if len(img.shape) == 4:
             # 2d case
             gkernel = gkernel.view(1, 1, 11, 11).to(img.device)
-            self._gfilter_2d.weight.data = gkernel
-            self._gfilter_2d.weight.requires_grad = False
-            return self._gfilter_2d(img)
+            return torch.nn.functional.conv2d(img, gkernel, padding=5)
         else:
             gkernel = gkernel.view(1, 1, 1, 11, 11).to(img.device)
-            self._gfilter_3d.weight.data = gkernel
-            self._gfilter_3d.weight.requires_grad = False
-            return self._gfilter_3d(img)
+            return torch.nn.functional.conv3d(img, gkernel, padding=(0, 5, 5))
 
     def _brightness(self, img):
         fac = self._uniform(self.mm_bright, device=img.device)

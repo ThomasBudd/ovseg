@@ -12,7 +12,7 @@ model_params = get_model_params_3d_nnUNet([48, 192, 192], 1)
 model = SegmentationModel(val_fold=int(args.fold),
                           data_name='OV04',
                           preprocessed_name='pod_half',
-                          model_name='pod_half_default',
+                          model_name='pod_half_benchmark',
                           model_parameters=model_params)
 
 model.training.train()
