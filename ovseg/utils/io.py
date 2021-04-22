@@ -38,7 +38,7 @@ def save_txt(data, path_to_file):
         _write_dict_to_txt(dict_name, data, file, n_tabs=0)
 
 
-def _write_dict_to_txt(self, dict_name, data, file, n_tabs):
+def _write_dict_to_txt(dict_name, data, file, n_tabs):
     # recurively go down all dicts and print their content
     # each time we go a dict deeper we add another tab for more beautiful
     # nested printing
@@ -48,7 +48,7 @@ def _write_dict_to_txt(self, dict_name, data, file, n_tabs):
     for key in data.keys():
         item = data[key]
         if isinstance(item, dict):
-            self._write_dict_to_txt(key, item, file, n_tabs+1)
+            _write_dict_to_txt(key, item, file, n_tabs+1)
         else:
             s = tabs + '\t' + key + ' = ' + str(item) + '\n'
             file.write(s)

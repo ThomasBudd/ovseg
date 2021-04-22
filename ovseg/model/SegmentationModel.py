@@ -171,7 +171,7 @@ class SegmentationModel(ModelBase):
 
         # the preprocessing will only do something if the image is not preprocessed yet
         if not self.preprocessing.is_preprocessed_data_tpl(data_tpl):
-            im = self.preprocessing(data_tpl)
+            im = self.preprocessing(data_tpl, preprocess_only_im=True)
 
         # now the importat part: the sliding window evaluation (or derivatices of it)
         pred = self.prediction(im)

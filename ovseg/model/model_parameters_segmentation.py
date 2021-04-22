@@ -47,7 +47,8 @@ def get_model_params_2d_segmentation(n_classes=1,
                           'conv_params': None,
                           'norm': None,
                           'norm_params': None,
-                          'nonlin_params': None}
+                          'nonlin_params': None,
+                          'kernel_sizes_up': None}
     model_parameters['network'] = network_parameters
 
     # we have no postprocessing parameters and just go with the default
@@ -124,6 +125,13 @@ def get_model_params_3d_nnUNet(patch_size, n_2d_convs, n_classes=1, fp32=False):
         psb[j:] = psb[j:] // 2
         kernel_sizes.append((1, 3, 3) if len(kernel_sizes) < n_2d_convs else (3, 3, 3))
         i += 1
+
+    kernel_sizes_up = []
+    for i in range(len(kernel_sizes) - 1):
+        if kernel_sizes[i] == (1, 3, 3) and kernel_sizes[i+1] == (1, 3, 3):
+            kernel_sizes_up.append((1, 3, 3))
+        else:
+            kernel_sizes_up.append((3, 3, 3))
 
     model_params['network']['kernel_sizes'] = kernel_sizes
     model_params['network']['is_2d'] = False
