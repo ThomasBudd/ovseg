@@ -7,7 +7,7 @@ parser.add_argument("fold")
 
 args = parser.parse_args()
 
-model_params = get_model_params_3d_nnUNet([56, 192, 160], 1)
+model_params = get_model_params_3d_nnUNet([56, 192, 160], 2)
 
 model = SegmentationModel(val_fold=int(args.fold),
                           data_name='OV04',

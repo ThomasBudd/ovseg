@@ -134,6 +134,7 @@ def get_model_params_3d_nnUNet(patch_size, n_2d_convs, n_classes=1, fp32=False):
             kernel_sizes_up.append((3, 3, 3))
 
     model_params['network']['kernel_sizes'] = kernel_sizes
+    model_params['network']['kernel_sizes_up'] = kernel_sizes_up
     model_params['network']['is_2d'] = False
     model_params['network']['use_3d_convs_when_upsampling'] = True
 
