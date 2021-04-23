@@ -320,8 +320,8 @@ class torch_gray_value_augmentation(torch.nn.Module):
     def _low_res(self, img):
         size = img.size()[2:]
         mode = 'bilinear' if len(size) == 2 else 'trilinear'
-        fac = self._uniform(self.mm_low_res, device=img.device)
-        img = interpolate(img, scale_factor=1/fac, mode='nearest')
+        fac = np.random.uniform(*self.mm_low_res)
+        img = interpolate(img, scale_factor=1/fac)
         return interpolate(img, size=size, mode=mode)
 
     def _get_ops_list(self):
