@@ -46,6 +46,7 @@ class ModelBase(object):
         self.is_inference_only = is_inference_only
         self.fmt_write = fmt_write
         self.model_parameters_name = model_parameters_name
+        self.ov_data_base = os.environ['OV_DATA_BASE']
 
         if isinstance(self.val_fold, int):
             self.val_fold_str = 'fold_' + str(self.val_fold)
@@ -84,7 +85,6 @@ class ModelBase(object):
 
         # the model path will be pointing to the model of this particular fold
         # weights and (hyper) parameters are stored here
-        self.ov_data_base = os.environ['OV_DATA_BASE']
         self.model_cv_path = join(self.ov_data_base,
                                   'trained_models',
                                   self.data_name,
