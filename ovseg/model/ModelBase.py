@@ -55,54 +55,44 @@ class ModelBase(object):
 
         # just to enable CPU execution where the GPU is missing
         self.dev = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+        if self.preprocessed_name is None:
+            path_to_preprocessed_data = join(self.ov_data_base,
+                                             'preprocessed',
+                                             self.data_name)
+            if not exists(path_to_preprocessed_data):
+                raise FileNotFoundError('No input \'preprocessed_name\' was given and it could '
+                                        'not be identified automatically. Please make sure to '
+                                        'set this argument unless there is only one preprocessed '
+                                        'folder for the given data_name.')
+
+            preprocessed_folders = os.listdir(path_to_preprocessed_data)
+
+            if not len(preprocessed_folders) == 1:
+                raise FileNotFoundError('No input \'preprocessed_name\' was given and it could '
+                                        'not be identified automatically. Please make sure to '
+                                        'set this argument unless there is only one preprocessed '
+                                        'folder for the given data_name.')
+            else:
+                self.preprocessed_name = preprocessed_folders[0]
+
+        # set the path to the preprocessed data
+        self.preprocessed_path = join(self.ov_data_base,
+                                      'preprocessed',
+                                      self.data_name,
+                                      self.preprocessed_name)
+
         # the model path will be pointing to the model of this particular fold
         # weights and (hyper) parameters are stored here
         self.ov_data_base = os.environ['OV_DATA_BASE']
         self.model_cv_path = join(self.ov_data_base,
                                   'trained_models',
                                   self.data_name,
+                                  self.preprocessed_name,
                                   self.model_name)
         self.model_path = join(self.model_cv_path, self.val_fold_str)
         path_utils.maybe_create_path(self.model_path)
         self.path_to_params = join(self.model_cv_path, self.model_parameters_name+'.pkl')
-        if self.preprocessed_name is None:
-            if not self.is_inference_only:
-                print('Model was called not in inference mode and no '
-                      'preprocessed path was given. Searching for preprocessed data...\n')
-                preprocessed_folders = os.listdir(join(self.ov_data_base,
-                                                       'preprocessed',
-                                                       self.data_name))
-                if len(preprocessed_folders) == 1:
-                    self.preprocessed_name = preprocessed_folders[0]
-                    print('Only one folder of preprocessed data found ({}). '
-                          'It is assumed that is it the right one.\n'
-                          ''.format(self.preprocessed_name))
-                elif self.model_name is preprocessed_folders:
-                    print('Found preprocessed folder of the same name as the '
-                          'model. Assume this is the right one.\n')
-                    self.preprocessed_name = self.model_name
-                elif 'default' in preprocessed_folders:
-                    print('Found default preprocessed folder (default). Assume this is '
-                          'the right one.\n')
-                    self.preprocessed_name = 'default'
-                else:
-                    raise ValueError('No name for preprocessed data was given,'
-                                     ' even though the model was not '
-                                     'initialised in inference mode. If you '
-                                     'want to train you have to know where the'
-                                     ' data is.')
-
-                # if we've made it until here there was no error raised.
-                self.preprocessed_path = join(self.ov_data_base,
-                                              'preprocessed',
-                                              self.data_name,
-                                              self.preprocessed_name)
-
-        else:
-            self.preprocessed_path = join(self.ov_data_base,
-                                          'preprocessed',
-                                          self.data_name,
-                                          self.preprocessed_name)
 
         # %% check and load model_parameters
         params_given = isinstance(self.model_parameters, dict)
@@ -180,8 +170,7 @@ class ModelBase(object):
             self._write_parameter_dict_to_txt(self.model_parameters_name,
                                               self.model_parameters, file, 0)
 
-    def _write_parameter_dict_to_txt(self, dict_name, param_dict, file,
-                                     n_tabs):
+    def _write_parameter_dict_to_txt(self, dict_name, param_dict, file, n_tabs):
         # recurively go down all dicts and print their content
         # each time we go a dict deeper we add another tab for more beautiful
         # nested printing
@@ -276,12 +265,13 @@ class ModelBase(object):
         medians = np.nanmedian(metrics, 0)
         with open(join(path_to_store, file_name+'.txt'), 'w') as file:
             # first we write the global stats
-            file.write(asctime())
-            file.write('GLOBAL RESULTS:\n')
-            file.write('\n')
-            for metric in self.global_metrics:
-                s = metric+': '+self.fmt_write+'\n'
-                file.write(s.format(self.global_metrics[metric]))
+            file.write(asctime() + '\n')
+            if hasattr(self, 'global_metrics'):
+                file.write('GLOBAL RESULTS:\n')
+                file.write('\n')
+                for metric in self.global_metrics:
+                    s = metric+': '+self.fmt_write+'\n'
+                    file.write(s.format(self.global_metrics[metric]))
 
             # now the per volume results from the results dict
             # here the mean and median
@@ -331,6 +321,11 @@ class ModelBase(object):
         None.
 
         '''
+
+        if len(ds) == 0:
+            print('Got empty dataset for evaluation. Nothing to do here --> leaving!')
+            return
+
         global NO_NAME_FOUND_WARNING_PRINTED
 
         if save_folder_name is None:
@@ -349,6 +344,7 @@ class ModelBase(object):
                 # next check if the prediction folder exists
                 pred_folder = os.path.join(os.environ['OV_DATA_BASE'], 'predictions',
                                            self.data_name,
+                                           self.preprocessed_name,
                                            self.model_name,
                                            save_folder_name)
                 if not exists(pred_folder):
@@ -358,6 +354,7 @@ class ModelBase(object):
                 # same for the plot folder, if it doesn't exsist we do the prediction
                 plot_folder = os.path.join(os.environ['OV_DATA_BASE'], 'plots',
                                            self.data_name,
+                                           self.preprocessed_name,
                                            self.model_name,
                                            save_folder_name)
                 if not exists(plot_folder):
@@ -397,7 +394,7 @@ class ModelBase(object):
                 names_for_txt[scan] = scan
 
             # predict from this datapoint
-            pred = self.predict(data_tpl)
+            pred = self.__call__(data_tpl)
             if torch.is_tensor(pred):
                 pred = pred.cpu().numpy()
 

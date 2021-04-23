@@ -108,8 +108,8 @@ class SegmentationModel(ModelBase):
         try:
             params = self.model_parameters['postprocessing'].copy()
         except KeyError:
-            print('No parameter for postprocessing were given. Take default '
-                  'values (no removing of small connected components.')
+            print('No parameter for postprocessing were given. Take default: argmax without '
+                  'removing of small connected components.')
             params = {}
         self.postprocessing = SegmentationPostprocessing(**params)
 
@@ -201,7 +201,7 @@ class SegmentationModel(ModelBase):
 
         # all predictions are stored in the designated 'predictions' folder in the OV_DATA_BASE
         pred_folder = join(environ['OV_DATA_BASE'], 'predictions', self.data_name,
-                           self.model_name, folder_name)
+                           self.preprocessed_name, self.model_name, folder_name)
         if not exists(pred_folder):
             makedirs(pred_folder)
 
@@ -232,7 +232,7 @@ class SegmentationModel(ModelBase):
 
         # all predictions are stored in the designated 'plots' folder in the OV_DATA_BASE
         plot_folder = join(environ['OV_DATA_BASE'], 'plots', self.data_name,
-                           self.model_name, folder_name)
+                           self.preprocessed_name, self.model_name, folder_name)
         if not exists(plot_folder):
             makedirs(plot_folder)
 

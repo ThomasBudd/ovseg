@@ -1,24 +1,48 @@
 import numpy as np
-import os
 import nibabel as nib
-from tqdm import tqdm
+import os
 from time import sleep
-bp = 'D:\\PhD\\Data\\nnUnet_raw_data_base\\RESULTS_FOLDER\\nnUNet\\3d_lowres\\Task120_OVPOD\\nnUNetTrainerV2__nnUNetPlansv2.1'
+from tqdm import tqdm
+import pickle
 
-print(os.listdir(bp))
+dp = 'D:\\PhD\\Data\\nnUnet_raw_data_base\\RESULTS_FOLDER\\nnUNet\\3d_lowres\\Task120_OVPOD\\nnUNetTrainerV2__nnUNetPlansv2.1'
+rawp = 'D:\\PhD\\Data\\ov_data_base\\raw_data\\OV04\\labels'
 
-gtp = os.path.join(bp, 'gt_niftis')
-pred_cases = []
-for f in range(5):
-    valp = os.path.join(bp, 'fold_%d' % f, 'validation_raw')
-    pred_cases.extend([os.path.join(valp, case) for case in os.listdir(valp) if case.endswith('.gz')])
 
 dscs = []
-sleep(0.5)
-for pred_case in tqdm(pred_cases):
-    pred = nib.load(pred_case).get_fdata()
-    gt = nib.load(os.path.join(gtp, os.path.basename(pred_case))).get_fdata()
-    if gt.max() == 0:
-        print(pred_case)
-    dscs.append(200 * np.sum(gt * pred) / np.sum(gt + pred))
 
+for f in range(5):
+    print(f, '\n')
+    dscs_fold = []
+    valp = os.path.join(dp, 'fold_'+str(f), 'validation_raw')
+    sleep(0.5)
+    cases = [case for case in os.listdir(valp) if case.endswith('.nii.gz')]
+    for case in tqdm(cases):
+        pred = nib.load(os.path.join(valp, case)).get_fdata()
+        lb = nib.load(os.path.join(rawp, case)).get_fdata()
+        pod = (lb == 9).astype(float)
+        dscs_fold.append(200 * np.sum(pod * pred) / np.sum(pod + pred))
+    dscs.append(np.array(dscs_fold))
+
+all_dscs = []
+for dsc in dscs[:-1]:
+    all_dscs.extend(dsc)
+
+# %%
+val_cases = []
+all_cases = []
+for f in range(5):
+    print(f, '\n')
+    dscs_fold = []
+    valp = os.path.join(dp, 'fold_'+str(f), 'validation_raw')
+    sleep(0.5)
+    cases = [case.split('.')[0] for case in os.listdir(valp) if case.endswith('.nii.gz')]
+    val_cases.append(cases)
+    all_cases.extend(cases)
+
+splits = []
+for f in range(5):
+    val = val_cases[f]
+    trn = [case for case in all_cases if case not in val]
+    splits.append({'train': np.array(trn), 'val': np.array(val)})
+pickle.dump(splits, open('splits_pod.pkl', 'wb'))

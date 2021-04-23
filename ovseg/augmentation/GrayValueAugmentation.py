@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from ovseg.utils.torch_np_utils import check_type, stack
+from torch.nn.functional import interpolate
 try:
     from scipy.ndimage import gaussian_filter
 except ImportError:
@@ -260,10 +261,12 @@ class torch_gray_value_augmentation(torch.nn.Module):
                  p_blur=0.1,
                  p_bright=0.15,
                  p_contr=0.15,
+                 p_low_res=0.125,
                  mm_var_noise=[0, 0.1],
                  mm_sigma_blur=[0.5, 1.5],
                  mm_bright=[0.7, 1.3],
                  mm_contr=[0.65, 1.5],
+                 mm_low_res=[1, 2],
                  n_im_channels: int = 1
                  ):
         super().__init__()
@@ -271,10 +274,12 @@ class torch_gray_value_augmentation(torch.nn.Module):
         self.p_blur = p_blur
         self.p_bright = p_bright
         self.p_contr = p_contr
+        self.p_low_res = p_low_res
         self.mm_var_noise = mm_var_noise
         self.mm_sigma_blur = mm_sigma_blur
         self.mm_bright = mm_bright
         self.mm_contr = mm_contr
+        self.mm_low_res = mm_low_res
         self.n_im_channels = n_im_channels
 
     def _uniform(self, mm, device='cpu'):
@@ -312,6 +317,13 @@ class torch_gray_value_augmentation(torch.nn.Module):
         img = (img - mean) * fac + mean
         return img.clamp(mn, mx)
 
+    def _low_res(self, img):
+        size = img.size()[2:]
+        mode = 'bilinear' if len(size) == 2 else 'trilinear'
+        fac = self._uniform(self.mm_low_res, device=img.device)
+        img = interpolate(img, scale_factor=1/fac, mode='nearest')
+        return interpolate(img, size=size, mode=mode)
+
     def _get_ops_list(self):
         ops_list = []
         if np.random.rand() < self.p_noise:
@@ -322,6 +334,8 @@ class torch_gray_value_augmentation(torch.nn.Module):
             ops_list.append(self._brightness)
         if np.random.rand() < self.p_contr:
             ops_list.append(self._contrast)
+        if np.random.rand() < self.p_low_res:
+            ops_list.append(self._low_res)
         np.random.shuffle(ops_list)
 
         return ops_list

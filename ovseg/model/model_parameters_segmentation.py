@@ -14,10 +14,12 @@ def get_model_params_2d_segmentation(n_classes=1,
                         'p_blur': 0.1,
                         'p_bright': 0.15,
                         'p_contr': 0.15,
+                        'p_low_res': 0.125,
                         'mm_var_noise': [0, 0.1],
                         'mm_sigma_blur': [0.5, 1.5],
                         'mm_bright': [0.7, 1.3],
                         'mm_contr': [0.65, 1.5],
+                        'mm_low_res': [1, 2],
                         'n_im_channels': 1
                         }
     spatial_params = {'p_rot': 0.2,
@@ -75,7 +77,7 @@ def get_model_params_2d_segmentation(n_classes=1,
     val_dl_params['n_max_volumes'] = 50
     keys = ['image', 'label']
     folders = ['images', 'labels']
-    data_params = {'n_folds': 4,
+    data_params = {'n_folds': 5,
                    'fixed_shuffle': True,
                    'ds_params': ds_params,
                    'trn_dl_params': trn_dl_params,
@@ -136,7 +138,6 @@ def get_model_params_3d_nnUNet(patch_size, n_2d_convs, n_classes=1, fp32=False):
     model_params['network']['kernel_sizes'] = kernel_sizes
     model_params['network']['kernel_sizes_up'] = kernel_sizes_up
     model_params['network']['is_2d'] = False
-    model_params['network']['use_3d_convs_when_upsampling'] = True
 
     padded_patch_size = patch_size.copy()
     padded_patch_size[1] = padded_patch_size[1] * 2

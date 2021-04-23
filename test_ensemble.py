@@ -13,3 +13,8 @@ print(200 * np.sum(prep_ens * lb) / np.sum(lb + prep_ens))
 
 preps_sm = [model(data_tpl) for model in ens.models]
 print([200 * np.sum(prep * lb) / np.sum(lb + prep) for prep in preps_sm])
+
+
+# %%
+if ens.all_folds_complete():
+    ens.eval_raw_dataset('BARTS_test', save_preds=True, save_plots=True)

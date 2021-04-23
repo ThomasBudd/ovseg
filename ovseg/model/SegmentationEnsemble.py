@@ -5,6 +5,7 @@ from os import environ, listdir
 from os.path import join, isdir, exists
 import torch
 from ovseg.utils.torch_np_utils import check_type
+import numpy as np
 
 
 class SegmentationEnsemble(ModelBase):
@@ -15,12 +16,11 @@ class SegmentationEnsemble(ModelBase):
 
     def __init__(self, data_name: str, model_name: str, preprocessed_name=None, val_fold=None,
                  network_name='network', fmt_write='{:.4f}',
-                 model_parameters_name='model_parameters', check_if_training_is_done=True):
+                 model_parameters_name='model_parameters'):
         self.model_cv_path = join(environ['OV_DATA_BASE'],
                                   'trained_models',
                                   data_name,
                                   model_name)
-        self.check_if_training_is_done = check_if_training_is_done
         if val_fold is None:
             fold_folders = [f for f in listdir(self.model_cv_path)
                             if isdir(join(self.model_cv_path, f)) and f.startswith('fold')]
@@ -29,25 +29,6 @@ class SegmentationEnsemble(ModelBase):
                          preprocessed_name=preprocessed_name,
                          network_name=network_name, is_inference_only=True,
                          fmt_write=fmt_write, model_parameters_name=model_parameters_name)
-
-        # maybe check if all the models have finished training
-        if self.check_if_training_is_done:
-            num_epochs = self.model_parameters['training']['num_epochs']
-            not_finished_folds = []
-            for fold in self.val_fold:
-                path_to_attr = join(self.model_cv_path,
-                                    'fold_'+str(fold),
-                                    'attribute_checkpoint.pkl')
-                if not exists(path_to_attr):
-                    raise FileNotFoundError('Trying to check if the training is done for all folds,'
-                                            ' but not checkpoint was found for fold '+str(fold)+'.')
-
-                attr = load_pkl(path_to_attr)
-
-                if attr['epochs_done'] != num_epochs:
-                    not_finished_folds.append(fold)
-
-            assert len(not_finished_folds) == 0, "It seems like the folds "+str(not_finished_folds)+" have not finished training."
 
         # create all models
         self.models = []
@@ -72,6 +53,33 @@ class SegmentationEnsemble(ModelBase):
         # now we do a hack by initialising the two objects like this...
         self.preprocessing = self.models[0].preprocessing
         self.postprocessing = self.models[0].postprocessing
+
+        self.n_fg_classes = self.models[0].n_fg_classes
+
+    def all_folds_complete(self):
+        num_epochs = self.model_parameters['training']['num_epochs']
+        not_finished_folds = []
+        for fold in self.val_fold:
+            path_to_attr = join(self.model_cv_path,
+                                'fold_'+str(fold),
+                                'attribute_checkpoint.pkl')
+            if not exists(path_to_attr):
+                print('Trying to check if the training is done for all folds,'
+                      ' but not checkpoint was found for fold '+str(fold)+'.')
+                return False
+
+            attr = load_pkl(path_to_attr)
+
+            if attr['epochs_done'] != num_epochs:
+                not_finished_folds.append(fold)
+
+        if len(not_finished_folds) == 0:
+            return True
+
+        else:
+            print("It seems like the folds " + str(not_finished_folds) +
+                  " have not finished training.")
+            return False
 
     def initialise_preprocessing(self):
         return
@@ -124,7 +132,46 @@ class SegmentationEnsemble(ModelBase):
         return self.models[0].compute_error_metrics(data_tpl)
 
     def _init_global_metrics(self):
-        self.models[0]._init_global_metrics()
+        self.global_metrics_helper = {}
+        self.global_metrics = {}
+        for c in range(1, self.n_fg_classes + 1):
+            self.global_metrics_helper.update({s+str(c): 0 for s in ['overlap_',
+                                                                     'gt_volume_',
+                                                                     'pred_volume_']})
+            self.global_metrics.update({'dice_'+str(c): -1,
+                                        'recall_'+str(c): -1,
+                                        'precision_'+str(c): -1})
 
     def _update_global_metrics(self, data_tpl):
-        self.models[0]._update_global_metrics(data_tpl)
+
+        if 'label' not in data_tpl:
+            return
+        label = data_tpl['label']
+        pred = data_tpl[self.pred_key]
+
+        # volume of one voxel
+        fac = np.prod(data_tpl['spacing'])
+        for c in range(1, self.n_fg_classes + 1):
+            lb_c = (label == c).astype(float)
+            pred_c = (pred == c).astype(float)
+            ovlp = self.global_metrics_helper['overlap_'+str(c)] + np.sum(lb_c * pred_c) * fac
+            gt_vol = self.global_metrics_helper['gt_volume_'+str(c)] + np.sum(lb_c) * fac
+            pred_vol = self.global_metrics_helper['pred_volume_'+str(c)] + np.sum(pred_c) * fac
+            # update global dice, recall and precision
+            if gt_vol + pred_vol > 0:
+                self.global_metrics['dice_'+str(c)] = 200 * ovlp / (gt_vol + pred_vol)
+            else:
+                self.global_metrics['dice_'+str(c)] = 100
+            if gt_vol > 0:
+                self.global_metrics['recall_'+str(c)] = 100 * ovlp / gt_vol
+            else:
+                self.global_metrics['recall_'+str(c)] = 100 if pred_vol == 0 else 0
+            if pred_vol > 0:
+                self.global_metrics['precision_'+str(c)] = 100 * ovlp / pred_vol
+            else:
+                self.global_metrics['precision_'+str(c)] = 100 if gt_vol == 0 else 0
+
+            # now update global metrics helper
+            self.global_metrics_helper['overlap_'+str(c)] = ovlp
+            self.global_metrics_helper['gt_volume_'+str(c)] = gt_vol
+            self.global_metrics_helper['pred_volume_'+str(c)] = pred_vol

@@ -43,6 +43,9 @@ class Dataset(object):
 
     def __getitem__(self, ind=None):
 
+        if self.__len__() == 0:
+            return
+
         if ind is None:
             ind = np.random.randint(len(self.scans))
         else:
@@ -137,12 +140,15 @@ class raw_Dataset(object):
             else:
                 self.scans = [join(self.raw_path, scan) for scan in scans]
 
-        print('Using scans: ', [basename(scan) for scan in self.scans])
+        print('Using scans: ', [basename(scan) for scan in sorted(self.scans)])
 
     def __len__(self):
         return len(self.scans)
 
     def __getitem__(self, ind=None):
+
+        if self.__len__() == 0:
+            return
 
         if ind is None:
             ind = np.random.randint(len(self.scans))

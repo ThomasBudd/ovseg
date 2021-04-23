@@ -9,7 +9,7 @@ from ovseg.data.Dataset import Dataset
 
 class DataBase():
 
-    def __init__(self, val_fold, preprocessed_path, keys, folders, n_folds=4,
+    def __init__(self, val_fold, preprocessed_path, keys, folders, n_folds=5,
                  fixed_shuffle=True, trn_dl_params={}, ds_params={},
                  val_dl_params={}):
         '''
@@ -58,10 +58,19 @@ class DataBase():
                                                     patient_ids,
                                                     self.n_folds,
                                                     self.fixed_shuffle)
+            # we add an additional fold with 100% of the data being used as training data
+            # this is usefull for hyperparameter tuning where we can train on this
+            # fold instead of doing a full CV
+            self.split.append({'train': self.scans, 'val': []})
             io.save_pkl(self.splits, path_to_splits)
-            print('New split saved')
+            print('New split saved.\n')
 
-        self.split = self.splits[self.val_fold]
+        if self.val_fold > len(self.splits):
+            print('WARNING! More val_fold > len(splits)! Picking the last fold. Unless you have '
+                  'created a custom split this will be the 100% training, no validation data fold.')
+            self.split = self.splits[-1]
+        else:
+            self.split = self.splits[self.val_fold]
         self.trn_scans = self.split['train']
         self.val_scans = self.split['val']
 
