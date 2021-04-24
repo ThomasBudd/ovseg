@@ -3,6 +3,8 @@ import torch
 from ovseg.utils.interp_utils import resize_sample
 from ovseg.utils.torch_np_utils import check_type
 from skimage.measure import label
+from skimage.transform import resize
+from torch.nn.functional import interpolate
 
 
 class SegmentationPostprocessing(object):
@@ -56,8 +58,14 @@ class SegmentationPostprocessing(object):
         if orig_shape is not None:
             if np.any(orig_shape != inpt_shape):
                 orig_shape = np.array(orig_shape)
-                order = 3 if is_np else 1
-                volume = resize_sample(volume, orig_shape, order)
+                if is_np:
+                    volume = np.stack([resize(volume[c], orig_shape, 3)
+                                       for c in range(volume.shape[0])])
+                else:
+                    size = [int(s) for s in orig_shape]
+                    volume = interpolate(volume.unsqueeze(0),
+                                         size=size,
+                                         mode='trilinear')[0]
 
         # now change from soft to hard labels
         if is_np:

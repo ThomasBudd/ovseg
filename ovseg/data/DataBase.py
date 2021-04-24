@@ -61,11 +61,11 @@ class DataBase():
             # we add an additional fold with 100% of the data being used as training data
             # this is usefull for hyperparameter tuning where we can train on this
             # fold instead of doing a full CV
-            self.split.append({'train': self.scans, 'val': []})
+            self.splits.append({'train': self.scans, 'val': []})
             io.save_pkl(self.splits, path_to_splits)
             print('New split saved.\n')
 
-        if self.val_fold > len(self.splits):
+        if self.val_fold >= len(self.splits):
             print('WARNING! More val_fold > len(splits)! Picking the last fold. Unless you have '
                   'created a custom split this will be the 100% training, no validation data fold.')
             self.split = self.splits[-1]
@@ -86,7 +86,7 @@ class DataBase():
         if is_train:
             self.trn_ds = Dataset(self.trn_scans, self.preprocessed_path,
                                   self.keys, self.folders, **self.ds_params)
-        else:
+        elif len(self.val_scans) > 0:
             self.val_ds = Dataset(self.val_scans, self.preprocessed_path,
                                   self.keys, self.folders, **self.ds_params)
 

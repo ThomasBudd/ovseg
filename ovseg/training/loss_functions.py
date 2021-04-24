@@ -39,10 +39,9 @@ class dice_loss(nn.Module):
         return -1 * dice.mean()
 
 
-def to_one_hot_encoding(logs, yb):
+def to_one_hot_encoding(yb, n_ch):
 
     yb = yb.long()
-    n_ch = logs.shape[1]
     yb_oh = torch.cat([(yb == c) for c in range(n_ch)], 1).float()
     return yb_oh
 
@@ -59,7 +58,7 @@ class CE_dice_loss(nn.Module):
     def forward(self, logs, yb):
         if yb.shape[1] == 1:
             # turn yb to one hot encoding
-            yb = to_one_hot_encoding(logs, yb)
+            yb = to_one_hot_encoding(yb, logs.shape[1])
         ce = self.ce_loss(logs, yb) * self.ce_weight
         dice = self.dice_loss(logs, yb) * self.dice_weight
         loss = ce + dice
@@ -99,20 +98,21 @@ def downsample_yb(logs_list, yb):
 
 class CE_dice_pyramid_loss(nn.Module):
 
-    def __init__(self, eps=1e-5, ce_weight=1.0, dice_weight=1.0, 
+    def __init__(self, eps=1e-5, ce_weight=1.0, dice_weight=1.0,
                  pyramid_weight=0.5):
         super().__init__()
         self.ce_dice_loss = CE_dice_loss(eps, ce_weight, dice_weight)
         self.pyramid_weight = pyramid_weight
 
     def forward(self, logs_list, yb):
+        if yb.shape[1] == 1:
+            yb = to_one_hot_encoding(yb, logs_list[0].shape[1])
         # compute the weights to be powers of pyramid_weight
         scale_weights = self.pyramid_weight ** np.arange(len(logs_list))
         # let them sum to one
         scale_weights = scale_weights / np.sum(scale_weights)
         # turn labels into one hot encoding and downsample to same resolutions
         # as the logits
-        yb = to_one_hot_encoding(logs_list[0], yb)
         yb_list = downsample_yb(logs_list, yb)
 
         # now let's compute the loss for each scale

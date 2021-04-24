@@ -106,9 +106,9 @@ class Logits(nn.Module):
     def __init__(self, in_channels, out_channels, is_2d):
         super().__init__()
         if is_2d:
-            self.logits = nn.Conv2d(in_channels, out_channels, 1)#, bias=False)
+            self.logits = nn.Conv2d(in_channels, out_channels, 1, bias=False)
         else:
-            self.logits = nn.Conv3d(in_channels, out_channels, 1)#, bias=False)
+            self.logits = nn.Conv3d(in_channels, out_channels, 1, bias=False)
         nn.init.kaiming_normal_(self.logits.weight)
 
     def forward(self, xb):

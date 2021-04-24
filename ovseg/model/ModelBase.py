@@ -291,7 +291,7 @@ class ModelBase(object):
                                        for metric in metric_names])
                 file.write(s.format(*metrics[j]) + '\n')
 
-    def eval_ds(self, ds, ds_name: str, save_preds: bool = True, save_plots: bool = True,
+    def eval_ds(self, ds, ds_name: str, save_preds: bool = True, save_plots: bool = False,
                 force_evaluation: bool = False, merge_to_CV_results: bool = False,
                 save_folder_name=None):
         '''
@@ -447,7 +447,7 @@ class ModelBase(object):
                      save_preds=save_preds, save_plots=save_plots,
                      force_evaluation=force_evaluation)
 
-    def eval_raw_dataset(self, data_name, save_preds=True, save_plots=False,
+    def eval_raw_dataset(self, data_name, save_preds=False, save_plots=False,
                          force_evaluation=False, scans=None, image_folder=None, dcm_revers=True,
                          dcm_names_dict=None):
         ds = raw_Dataset(join(os.environ['OV_DATA_BASE'], 'raw_data', data_name),
