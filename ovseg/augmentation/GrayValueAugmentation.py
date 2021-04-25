@@ -349,6 +349,15 @@ class torch_gray_value_augmentation(torch.nn.Module):
                 xb[b:b+1, :c] = op(xb[b:b+1, :c])
         return xb
 
+    def update_prg_trn(self, param_dict, h):
+
+        attr_list = ['p_noise', 'p_blur', 'p_bright', 'p_contr', 'p_low_res', 'mm_var_noise',
+                     'mm_sigma_blur', 'mm_bright', 'mm_contr', 'mm_low_res']
+
+        for attr in attr_list:
+            if attr in param_dict:
+                self.__setattr__(attr, (1 - h) * param_dict[attr][0] + h * param_dict[attr][1])
+
 
 # %%
 if __name__ == '__main__':

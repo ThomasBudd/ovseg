@@ -1,9 +1,10 @@
 import os
 import torch
 import numpy as np
+import pickle
 
 
-def get_model_params_2d_segmentation(n_classes=1,
+def get_model_params_2d_segmentation(n_fg_classes=1,
                                      fp32=False):
     model_parameters = {}
     # we're doing no preprocessing parameters here as they can be loaded
@@ -114,8 +115,12 @@ def get_model_params_2d_segmentation(n_classes=1,
     return model_parameters
 
 
-def get_model_params_3d_nnUNet(patch_size, n_2d_convs, n_classes=1, fp32=False):
-    model_params = get_model_params_2d_segmentation(n_classes=n_classes,
+def get_model_params_3d_nnUNet(patch_size,
+                               n_2d_convs,
+                               use_prg_trn=False,
+                               n_fg_classes=1,
+                               fp32=False):
+    model_params = get_model_params_2d_segmentation(n_fg_classes=n_fg_classes,
                                                     fp32=fp32)
 
     # first determine the number of stages plus the kernel sizes used there
@@ -134,6 +139,20 @@ def get_model_params_3d_nnUNet(patch_size, n_2d_convs, n_classes=1, fp32=False):
             kernel_sizes_up.append((1, 3, 3))
         else:
             kernel_sizes_up.append((3, 3, 3))
+
+    if use_prg_trn:
+        total_pooling = np.ones(3).astype(int)
+        for ks in kernel_sizes[:-1]:
+            total_pooling *= (np.array(ks) + 1) // 2
+
+        size_lowest_block = np.array(patch_size) // total_pooling
+        prg_trn_sizes = total_pooling * np.stack([(np.linspace(s, s/2, 4)+0.5).astype(int)
+                                                  for s in size_lowest_block], 1)
+        if total_pooling[0] < total_pooling[1]:
+            prg_trn_sizes[:, 0] = patch_size[0]
+        prg_trn_sizes = prg_trn_sizes.tolist()[::-1]
+    else:
+        prg_trn_sizes = None
 
     model_params['network']['kernel_sizes'] = kernel_sizes
     model_params['network']['kernel_sizes_up'] = kernel_sizes_up
@@ -155,3 +174,46 @@ def get_model_params_3d_nnUNet(patch_size, n_2d_convs, n_classes=1, fp32=False):
     model_params['prediction']['patch_size'] = patch_size
 
     return model_params
+
+
+# %%
+def get_model_params_3d_from_preprocessed_folder(data_name, preprocessed_name,
+                                                 use_prg_trn=False, fp32=False):
+
+    path_to_params = os.path.join(os.environ['OV_DATA_BASE'],
+                                  'preprocessed',
+                                  data_name,
+                                  preprocessed_name,
+                                  'preprocessing_parameters.pkl')
+
+    prep_params = pickle.load(open(path_to_params, 'rb'))
+
+    if prep_params['apply_resizing']:
+        spacing = prep_params['target_spacing']
+    else:
+        spacing = prep_params['dataset_properties']['median_spacing']
+
+    spacing = np.array(spacing)
+    if prep_params['apply_pooling']:
+        spacing = spacing * np.array(prep_params['pooling_stride'])
+
+    n_2d_convs = np.max([int(np.log2(spacing[0] / spacing[1]) + 0.5), 0])
+
+    if n_2d_convs == 0:
+        # isotropic case! The spacing in z direction is roughly as much as it is in xy
+        patch_size = [96, 96, 96]
+    elif n_2d_convs == 1:
+        patch_size = [80, 160, 160]
+    elif n_2d_convs == 2:
+        patch_size = [48, 192, 192]
+    elif n_2d_convs == 3:
+        patch_size = [28, 224, 224]
+    elif n_2d_convs == 4:
+        patch_size = [20, 320, 320]
+    else:
+        raise NotImplementedError('It seems like your ')
+
+    n_fg_classes = prep_params['dataset_properties']['n_fg_classes']
+
+    return get_model_params_3d_nnUNet(patch_size, n_2d_convs, use_prg_trn=use_prg_trn,
+                                      n_fg_classes=n_fg_classes, fp32=fp32)

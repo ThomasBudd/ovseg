@@ -105,6 +105,11 @@ class torch_concatenated_augmentation(nn.Module):
     def forward(self, xb):
         return self.module(xb)
 
+    def update_prg_trn(self, param_dict, h):
+
+        for aug in self.aug_list:
+            aug.update_prg_trn(param_dict, h)
+
 
 # %%
 class np_concatenated_augmentation():
@@ -125,3 +130,9 @@ class np_concatenated_augmentation():
         for op in self.ops_list:
             xb = op(xb)
         return xb
+
+    def update_prg_trn(self, param_dict, h):
+
+        for aug in self.ops_list:
+            aug.update_prg_trn(param_dict, h)
+

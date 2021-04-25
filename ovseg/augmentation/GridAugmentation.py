@@ -122,6 +122,15 @@ class torch_inplane_grid_augmentations(nn.Module):
             xb = self._flip(xb)
         return xb
 
+    def update_prg_trn(self, param_dict, h):
+
+        attr_list = ['p_rot', 'p_zoom', 'p_transl', 'p_shear', 'mm_zoom', 'mm_rot',
+                     'mm_transl', 'mm_shear']
+
+        for attr in attr_list:
+            if attr in param_dict:
+                self.__setattr__(attr, (1 - h) * param_dict[attr][0] + h * param_dict[attr][1])
+
 
 # %%
 if __name__ == '__main__':

@@ -198,3 +198,9 @@ class MaskAugmentation(object):
             else:
                 volume = self.augment_sample(volume)
         return volume
+
+    def update_prg_trn(self, param_dict, h):
+
+        for attr in ['p_morph', 'p_removal', 'radius_mm', 'vol_percentage_removal']:
+            if attr in param_dict:
+                self.__setattr__(attr, (1 - h) * param_dict[attr][0] + h * param_dict[attr][1])
