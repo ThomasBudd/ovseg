@@ -470,7 +470,7 @@ class SegmentationPreprocessing(object):
         print('Done!\n')
         if self.scaling is None:
             if self.apply_windowing:
-                self.scaling = self.dataset_properties['scaling_window']
+                self.scaling = self.dataset_properties['scaling_foreground']
             else:
                 self.scaling = self.dataset_properties['scaling_global']
             print('Scaling: ({:.4f}, {:.4f})'.format(*self.scaling))
