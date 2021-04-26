@@ -41,7 +41,7 @@ def get_model_params_2d_segmentation(n_fg_classes=1,
     # now the network parameters. classic 2d UNet
     model_parameters['architecture'] = 'UNet'
     network_parameters = {'in_channels': 1,
-                          'out_channels': n_classes + 1,
+                          'out_channels': n_fg_classes + 1,
                           'kernel_sizes': 7 * [3],
                           'is_2d': True,
                           'filters': 32,
@@ -177,8 +177,10 @@ def get_model_params_3d_nnUNet(patch_size,
 
 
 # %%
-def get_model_params_3d_from_preprocessed_folder(data_name, preprocessed_name,
-                                                 use_prg_trn=False, fp32=False):
+def get_model_params_3d_from_preprocessed_folder(data_name,
+                                                 preprocessed_name,
+                                                 use_prg_trn=False,
+                                                 fp32=False):
 
     path_to_params = os.path.join(os.environ['OV_DATA_BASE'],
                                   'preprocessed',
