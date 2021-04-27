@@ -144,7 +144,8 @@ class ModelBase(object):
         path_to_weights = join(self.model_path, self.network_name + '_weights')
         if exists(path_to_weights):
             print('Found '+self.network_name+' weights. Loading from '+path_to_weights+'\n\n')
-            self.network.load_state_dict(torch.load(path_to_weights))
+            self.network.load_state_dict(torch.load(path_to_weights),
+                                         map_location=torch.device(self.dev))
         else:
             print('Found no preivous existing '+self.network_name+' weights. '
                   'Using random initialisation.\n')
