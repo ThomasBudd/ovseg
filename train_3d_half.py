@@ -11,17 +11,20 @@ args = parser.parse_args()
 model_params = get_model_params_3d_nnUNet([56, 192, 160], 2)
 
 if int(args.i) == 0:
-    folds = [0, 4, 2]
-    p_names = ['pod_half', 'pod_half', 'om_half']
+    folds = [0, 0]
+    p_names = ['pod_half', 'om_half']
 elif int(args.i) == 1:
-    folds = [1, 5, 3]
-    p_names = ['pod_half', 'pod_half', 'om_half']
+    folds = [1, 1]
+    p_names = ['pod_half', 'om_half']
 elif int(args.i) == 2:
-    folds = [2, 0, 4]
-    p_names = ['pod_half', 'om_half', 'om_half']
+    folds = [2, 2]
+    p_names = ['pod_half', 'om_half']
 elif int(args.i) == 3:
-    folds = [3, 1, 5]
-    p_names = ['pod_half', 'om_half', 'om_half']
+    folds = [3, 3]
+    p_names = ['pod_half', 'om_half']
+elif int(args.i) == 4:
+    folds = [4, 4, 5, 5]
+    p_names = ['pod_half', 'om_half', 'pod_half', 'om_half']
 
 
 for fold, p_name in zip(folds, p_names):

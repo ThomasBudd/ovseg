@@ -2,6 +2,9 @@ import torch
 import numpy as np
 from ovseg.utils.torch_np_utils import check_type, stack
 from ovseg.utils.path_utils import maybe_create_path
+from ovseg.data.Dataset import raw_Dataset
+from os.path import join, isdir, exists
+from os import environ, listdir
 import os
 try:
     from tqdm import tqdm
@@ -79,19 +82,19 @@ class Reconstruction2dSimPreprocessing(object):
             raise ValueError('Preprocessing/simulation of projection data is '
                              'only implemented for 3d volumes. '
                              'Got shape {}'.format(len(volume.shape)))
-        if not volume.shape[0] == 512 or not volume.shape[1] == 512:
+        if not volume.shape[1] == 512 or not volume.shape[2] == 512:
             raise ValueError('Volume must be of shape (512, 512, nz). '
                              'Got {}'.format(volume.shape))
         projs = []
         im_atts = []
         nz = volume.shape[-1]
         for z in range(nz):
-            proj, im_att = self.preprocess_image(volume[..., z])
+            proj, im_att = self.preprocess_image(volume[z])
             projs.append(proj)
             im_atts.append(im_att)
 
-        proj = stack(projs, -1)
-        im_att = stack(im_atts, -1)
+        proj = stack(projs)
+        im_att = stack(im_atts)
 
         return proj, im_att
 
@@ -99,7 +102,7 @@ class Reconstruction2dSimPreprocessing(object):
                                data_name=None,
                                proj_folder_name='projections',
                                im_folder_name='images',
-                               save_as_fp16=False):
+                               save_as_fp16=True):
         if isinstance(folders, str):
             folders = [folders]
         elif not isinstance(folders, (list, tuple)):
@@ -117,7 +120,7 @@ class Reconstruction2dSimPreprocessing(object):
             if not isinstance(folder, str):
                 raise TypeError('Input folders must be string, list or tuple of '
                                 'strings. ')
-            elif not folder in raw_folders:
+            elif folder not in raw_folders:
                 raise FileNotFoundError('Folder {} was not found in {}'
                                         ''.format(folder, raw_data_base))
 
@@ -127,26 +130,30 @@ class Reconstruction2dSimPreprocessing(object):
                                               'preprocessed',
                                               data_name,
                                               preprocessed_name)
-        scans = []
-        for folder in folders:
-            imp = os.path.join(raw_data_base, folder, 'images')
-            scans.extend([os.path.join(imp, scan) for scan in os.listdir(imp)])
-
         for f in [proj_folder_name, im_folder_name]:
             maybe_create_path(os.path.join(preprocessed_data_base, f))
 
-        for scan in tqdm(scans):
-            name = os.path.basename(scan)[:8]
-            volume = nib.load(scan).get_fdata()
-            try:
-                proj, im = self.preprocess_volume(volume)
-                np.save(os.path.join(preprocessed_data_base,
-                                     proj_folder_name,
-                                     name+'.npy'),
-                        proj.astype(dtype), allow_pickle=True)
-                np.save(os.path.join(preprocessed_data_base,
-                                     im_folder_name,
-                                     name+'.npy'),
-                        im.astype(dtype), allow_pickle=True)
-            except ValueError:
-                print('Skip {}. Got shape {}.'.format(name, volume.shape))
+        print('Creating datasets...')
+        datasets = []
+        for data_name in folders:
+            print('Reading ' + data_name)
+            raw_ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', data_name))
+            datasets.append(raw_ds)
+
+        for ds in datasets:
+            for i in range(len(ds)):
+                data_tpl = ds[i]
+                name = data_tpl['scan']
+                volume = data_tpl['image']
+                try:
+                    proj, im = self.preprocess_volume(volume)
+                    np.save(os.path.join(preprocessed_data_base,
+                                         proj_folder_name,
+                                         name+'.npy'),
+                            proj.astype(dtype), allow_pickle=True)
+                    np.save(os.path.join(preprocessed_data_base,
+                                         im_folder_name,
+                                         name+'.npy'),
+                            im.astype(dtype), allow_pickle=True)
+                except ValueError:
+                    print('Skip {}. Got shape {}.'.format(name, volume.shape))

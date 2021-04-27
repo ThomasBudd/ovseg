@@ -18,7 +18,7 @@ elif int(args.i) == 1:
 for fold in range(6):
     model = SegmentationModel(val_fold=fold,
                               data_name='OV04',
-                              preprocessed_name=les+'_quater',
+                              preprocessed_name=les+'_half',
                               model_name=les+'_quater_benchmark',
                               model_parameters=model_params)
     model.training.train()

@@ -203,3 +203,6 @@ class post_processing_U_Net(nn.Module):
         xb = self.block9(torch.cat([xb1, self.up4(xb)], 1))
 
         return self.logits(xb)
+
+
+# %% now the new resnet like 

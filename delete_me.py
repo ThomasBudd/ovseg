@@ -12,4 +12,20 @@ for case in tqdm(os.listdir(dp)):
     if lb.max() > 0:
         pred = nib.load(os.path.join(predp, case)).get_fdata()
         dscs.append(200 * np.sum(lb * pred) / np.sum(lb+pred))
+
+# %%
+import torch
+from torch.cuda.amp import autocast
+
+xb = torch.rand(1, 1, 100, 100).cuda()
+print(xb.dtype)
+
+conv = torch.nn.Conv2d(1, 1, 1).cuda()
+
+with autocast():
+    print(conv(xb).dtype)
+
+    with autocast(enabled=False):
+        print(conv(xb).dtype)
+
         

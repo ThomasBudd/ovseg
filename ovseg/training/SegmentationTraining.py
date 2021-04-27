@@ -52,9 +52,10 @@ class SegmentationTraining(NetworkTraining):
         # compute which stage we are in atm
         self.prg_trn_stage = self.epochs_done // self.prg_trn_epochs_per_stage
 
-        self.print_and_log('\nProgressive Training: Stage {}, size {}'.format(self.prg_trn_stage,
-                                                                              self.prg_trn_sizes[self.prg_trn_stage])
-                           )
+        self.print_and_log('\nProgressive Training: '
+                           'Stage {}, size {}'.format(self.prg_trn_stage,
+                                                      self.prg_trn_sizes[self.prg_trn_stage]),
+                           2)
         if self.prg_trn_stage < self.prg_trn_n_stages - 1:
             # the most imporant part of progressive training: we update the resizing function
             # that should make the batches smaller
@@ -69,17 +70,19 @@ class SegmentationTraining(NetworkTraining):
             # here we update architectural paramters, this should be dropout and stochastic depth
             # rate
             h = self.prg_trn_stage / (self.prg_trn_n_stages - 1)
-            prnt_str = self.network.update_prg_trn(self.prg_trn_arch_params, h)
-            self.print_and_log('Updated architecture params: '+prnt_str)
+            self.network.update_prg_trn(self.prg_trn_arch_params, h)
 
         if self.prg_trn_aug_params is not None:
             # here we update augmentation parameters. The idea is we augment more towards the
             # end of the training
             h = self.prg_trn_stage / (self.prg_trn_n_stages - 1)
-            prnt_str = self.augmentation.update_prg_trn(self.prg_trn_aug_params, h)
-            self.print_and_log('Updated augmentation params: '+prnt_str)
-
-        self.print_and_log('\n')
+            if self.augmentation is not None:
+                self.augmentation.update_prg_trn(self.prg_trn_aug_params, h)
+            if self.trn_dl.dataset.augmentation is not None:
+                self.trn_dl.dataset.augmentation.update_prg_trn(self.prg_trn_aug_params, h)
+            if self.val_dl is not None:
+                if self.val_dl.dataset.augmentation is not None:
+                    self.val_dl.dataset.augmentation.update_prg_trn(self.prg_trn_aug_params, h)
 
     def on_epoch_end(self):
         super().on_epoch_end()
