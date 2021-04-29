@@ -1,3 +1,5 @@
+import warnings
+warnings.simplefilter("ignore", UserWarning)
 from ovseg.preprocessing.SegmentationPreprocessing import \
     SegmentationPreprocessing
 from ovseg.augmentation.SegmentationAugmentation import \
@@ -11,7 +13,7 @@ from ovseg.model.ModelBase import ModelBase
 from ovseg.utils.torch_np_utils import check_type
 from ovseg.postprocessing.SegmentationPostprocessing import \
     SegmentationPostprocessing
-from ovseg.utils.io import save_nii, load_pkl
+from ovseg.utils.io import save_nii_from_data_tpl, load_pkl
 import torch
 import numpy as np
 from os import environ, makedirs
@@ -197,7 +199,7 @@ class SegmentationModel(ModelBase):
                     filename = filename[:-12]
 
         # remove fileextension e.g. .nii.gz
-        filename = filename.split('.')[0]
+        filename = filename.split('.')[0] + '.nii.gz'
 
         # all predictions are stored in the designated 'predictions' folder in the OV_DATA_BASE
         pred_folder = join(environ['OV_DATA_BASE'], 'predictions', self.data_name,
@@ -208,13 +210,11 @@ class SegmentationModel(ModelBase):
         # get storing info from the data_tpl
         # IMPORTANT: We will always store the prediction in original shape
         # not in preprocessed shape
-        spacing = data_tpl['orig_spacing'] if 'orig_spacing' in data_tpl else data_tpl['spacing']
+        key = self.pred_key
         if self.pred_key+'_orig_shape' in data_tpl:
-            pred = data_tpl[self.pred_key+'_orig_shape']
-        else:
-            pred = data_tpl[self.pred_key]
+            key += '_orig_shape'
 
-        save_nii(pred, join(pred_folder, filename), spacing)
+        save_nii_from_data_tpl(data_tpl, join(pred_folder, filename), key)
 
     def plot_prediction(self, data_tpl, folder_name, filename=None, image_key='image'):
 

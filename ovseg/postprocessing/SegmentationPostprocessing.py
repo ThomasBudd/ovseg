@@ -77,39 +77,29 @@ class SegmentationPostprocessing(object):
             # this can only be done on the CPU
             volume = self.remove_small_components(volume, spacing)
 
-        if had_z_first:
-            volume = np.stack([volume[z] for z in range(volume.shape[0])], -1)
-
         return volume.astype(np.uint8)
 
     def postprocess_data_tpl(self, data_tpl, prediction_key):
 
         pred = data_tpl[prediction_key]
-        if 'had_z_first' in data_tpl:
-            had_z_first = data_tpl['had_z_first']
-        else:
-            had_z_first = False
 
         if 'orig_shape' in data_tpl:
             # the data_tpl has preprocessed data.
             # predictions in both preprocessed and original shape will be added
             data_tpl[prediction_key] = self.postprocess_volume(pred,
                                                                spacing=data_tpl['spacing'],
-                                                               orig_shape=None,
-                                                               had_z_first=had_z_first)
+                                                               orig_shape=None)
             spacing = data_tpl['orig_spacing'] if 'orig_spacing' in data_tpl else None
             shape = data_tpl['orig_shape']
             data_tpl[prediction_key+'_orig_shape'] = self.postprocess_volume(pred,
                                                                              spacing=spacing,
-                                                                             orig_shape=shape,
-                                                                             had_z_first=had_z_first)
+                                                                             orig_shape=shape)
         else:
             # in this case the data is not preprocessed
             orig_shape = data_tpl['image'].shape
             data_tpl[prediction_key] = self.postprocess_volume(pred,
                                                                spacing=data_tpl['spacing'],
-                                                               orig_shape=orig_shape,
-                                                               had_z_first=had_z_first)
+                                                               orig_shape=orig_shape)
         return data_tpl
 
     def remove_small_components(self, volume, spacing):

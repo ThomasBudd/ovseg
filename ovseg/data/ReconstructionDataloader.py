@@ -73,8 +73,8 @@ class Reconstruction2dDataset(object):
             z = np.random.choice(bias)
         else:
             z = np.random.randint(im.shape[-1])
-        proj = proj[np.newaxis, ..., z]
-        im = im[np.newaxis, ..., z]
+        proj = proj[np.newaxis, z]
+        im = im[np.newaxis, z]
         if self.return_fp16:
             proj, im = proj.astype(np.float16), im.astype(np.float16)
         else:

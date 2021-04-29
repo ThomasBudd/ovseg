@@ -448,3 +448,15 @@ def save_nii(im, out_file, spacing=None, img=None):
         im_nii = nib.Nifti1Image(im, np.eye(4))
         im_nii.header['pixdim'][1:4] = spacing
     nib.save(im_nii, out_file)
+
+
+def save_nii_from_data_tpl(data_tpl, out_file, key):
+
+    arr = data_tpl[key]
+    if 'had_z_first' in data_tpl:
+        if not data_tpl['had_z_first']:
+            arr = np.stack([arr[z] for z in range(arr.shape[0])], -1)
+
+    img = nib.load(data_tpl['raw_image_file'])
+    nii_img = nib.Nifti1Image(arr, img.affine, img.header)
+    nib.save(nii_img, out_file)

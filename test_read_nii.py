@@ -1,29 +1,20 @@
-import nibabel as nib
+from ovseg.model.SegmentationModel import SegmentationModel
+from ovseg.utils.io import read_data_tpl_from_nii
 import numpy as np
-import os
-from ovseg.utils.io import read_nii
+import matplotlib.pyplot as plt
 
-imp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', 'test_read_nii', 'images')
+data_tpl = read_data_tpl_from_nii('BARTS', 283)
 
-if not os.path.exists(imp):
-    os.makedirs(imp)
+model = SegmentationModel(val_fold=6, data_name='OV04', preprocessed_name='pod_quater',
+                          model_name='test_prg_trn', is_inference_only=True)
 
+pred = model(data_tpl)
+lb = (data_tpl['label'] == 9).astype(float)
+print(200 * np.sum(pred * lb) / np.sum(pred + lb))
 
-def save_nii(im, sp, case):
-    im_nii = nib.Nifti1Image(im, np.eye(4))
-    im_nii.header['pixdim'][1:4] = sp
-    nib.save(im_nii, os.path.join(imp, 'case_%03d.nii.gz' % int(case)))
+z = np.argmax(np.sum(lb, (1, 2)))
+plt.imshow(data_tpl['image'][z].clip(-150, 250), cmap='gray')
+plt.contour(lb[z] > 0, linewidths=0.5, colors='red', linestyles='solid')
+plt.contour(pred[z] > 0, linewidths=0.5, colors='blue', linestyles='dashed')
 
-
-shapes = [[128, 128, 64], [64, 128, 128], [128, 128, 96], [96, 128, 128], [128, 128, 128],
-          [128, 128, 128]]
-spacings = [[1, 1, 2], [2, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 2, 3]]
-
-for case, (shape, sp) in enumerate(zip(shapes, spacings)):
-    print('{}: save shape = {}, save spacing = {}'.format(case, shape, sp))
-    im = np.random.rand(*shape)
-    sp = np.array(sp)
-    save_nii(im, sp, case)
-    im_load, sp_load, _ = read_nii(os.path.join(imp, 'case_%03d.nii.gz' % int(case)))
-    print('{}: load shape = {}, load spacing = {}'.format(case, im_load.shape, sp_load))
-
+model.save_prediction(data_tpl, 'test_save', 'delete_me.nii.gz')
