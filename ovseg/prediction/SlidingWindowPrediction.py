@@ -151,7 +151,7 @@ class SlidingWindowPrediction(object):
                 # update pred and overlap
                 for i, (z, x, y) in enumerate(zxy_batch):
                     pred[:, z:z+self.patch_size[0], x:x+self.patch_size[1],
-                         y:y+self.patch_size[2]] += out[i] * self.patch_weight
+                         y:y+self.patch_size[2]] += F.softmax(out[i], 0) * self.patch_weight
                     ovlp[:, z:z+self.patch_size[0], x:x+self.patch_size[1],
                          y:y+self.patch_size[2]] += self.patch_weight
 
@@ -163,8 +163,7 @@ class SlidingWindowPrediction(object):
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-        # note that the network returns logits
-        return F.softmax(pred / ovlp, 0)
+        return pred / ovlp
 
     def predict_volume(self, volume, mode=None):
         # evaluates the siliding window on this volume

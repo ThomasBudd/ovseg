@@ -321,10 +321,10 @@ class SegmentationModel(ModelBase):
             tp = np.sum(seg_c * pred_c)
             seg_c_vol = np.sum(seg_c)
             pred_c_vol = np.sum(pred_c)
-            if has_fg or fg_pred:
+            if has_fg:
                 dice = 200 * tp / (seg_c_vol + pred_c_vol)
             else:
-                dice = 100
+                dice = np.nan
             results.update({'dice_%d' % c: dice})
 
             if has_fg:

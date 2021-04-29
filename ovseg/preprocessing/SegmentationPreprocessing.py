@@ -422,7 +422,7 @@ class SegmentationPreprocessing(object):
             std_fg, mean_fg = np.mean(std_fg_list), np.mean(mean_fg_list)
         else:
             fg_percentiles = np.percentile(fg_cvals, percentiles)
-            fg_cvals = np.array(fg_cvals).clip(*fg_percentiles)
+            fg_cvals = np.array(fg_cvals)#.clip(*fg_percentiles)
             std_fg, mean_fg = np.std(fg_cvals), np.mean(fg_cvals)
 
         self.dataset_properties['median_shape'] = np.median(shapes, 0)
