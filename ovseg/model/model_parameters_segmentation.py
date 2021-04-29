@@ -92,8 +92,8 @@ def get_model_params_2d_segmentation(n_fg_classes=1,
                          'batch_size': 1,
                          'overlap': 0.5,
                          'fp32': fp32,
-                         'patch_weight_type': 'linear',
-                         'linear_min': 0.1,
+                         'patch_weight_type': 'gaussian',
+                         'sigma_gaussian_weight': 1/8,
                          'mode': 'flip'}
     model_parameters['prediction'] = prediction_params
 

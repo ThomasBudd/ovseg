@@ -1,13 +1,14 @@
 import numpy as np
 import torch
 from torch.nn import functional as F
+from scipy.ndimage.filters import gaussian_filter
 from ovseg.utils.torch_np_utils import check_type
 
 
 class SlidingWindowPrediction(object):
 
     def __init__(self, network, patch_size, batch_size=1, overlap=0.5, fp32=False,
-                 patch_weight_type='linear', sigma_gaussian_weight=1, linear_min=0.1,
+                 patch_weight_type='gaussian', sigma_gaussian_weight=1/8, linear_min=0.1,
                  mode='flip', TTA=None, TTA_n_full_predictions=1, TTA_n_max_augs=99,
                  TTA_eps_stop=0.02):
 
@@ -36,21 +37,21 @@ class SlidingWindowPrediction(object):
         elif self.patch_weight_type.lower() == 'gaussian':
             # we distrust the edge voxel the same in each direction regardless of the
             # patch size in that dimension
-            axes = [np.linspace(-1, 1, p) for p in self.patch_size]
 
-            if self.is_2d:
-                # linspace(-1, 1, 1) = [-1]
-                axes[0] = [0]
-
-            grid = np.stack(np.meshgrid(axes))
-            norm_sq = np.sum(grid**2, 0)
-            self.patch_weight = np.exp(-0.5 * norm_sq/self.sigma_gaussian_weight**2)
+            # thanks to Fabian Isensee! I took this from his code:
+            # https://github.com/MIC-DKFZ/nnUNet/blob/14992342919e63e4916c038b6dc2b050e2c62e3c/nnunet/network_architecture/neural_network.py#L250
+            tmp = np.zeros(self.patch_size)
+            center_coords = [i // 2 for i in self.patch_size]
+            sigmas = [i * self.sigma_gaussian_weight for i in self.patch_size]
+            tmp[tuple(center_coords)] = 1
+            self.patch_weight = gaussian_filter(tmp, sigmas, 0, mode='constant', cval=0)
+            self.patch_weight = self.patch_weight / np.max(self.patch_weight) * 1
             self.patch_weight = self.patch_weight.astype(np.float32)
-            n_zeros = np.sum(self.patch_weight == 0)
-            if n_zeros > 0:
-                print('Small sigma for gaussian weighting. {:.3f} % of the weights are 0 and will '
-                      'be set to 1e-5.'.format(100*n_zeros/self.patch_weight.size))
-                self.patch_weight = np.maximum(self.patch_weight, 1e-5)
+
+            # self.patch_weight cannot be 0, otherwise we may end up with nans!
+            self.patch_weight[self.patch_weight == 0] = np.min(
+                self.patch_weight[self.patch_weight != 0])
+
         elif self.patch_weight_type.lower() == 'linear':
             lin_slopes = [np.linspace(self.linear_min, 1, s//2) for s in self.patch_size]
             hats = [np.concatenate([lin_slope, lin_slope[::-1]]) for lin_slope in lin_slopes]
@@ -60,9 +61,6 @@ class SlidingWindowPrediction(object):
             self.patch_weight = np.ones(self.patch_size)
             for hat in hats:
                 self.patch_weight *= hat
-        else:
-            raise ValueError('Unkown patch_weight_type {}. Known types: [constant, gaussian, linear]'
-                             ''.format(self.patch_weight_type))
 
         self.patch_weight = self.patch_weight[np.newaxis]
         self.patch_weight = torch.from_numpy(self.patch_weight).to(self.dev).type(torch.float)
@@ -85,7 +83,7 @@ class SlidingWindowPrediction(object):
 
         # in case the volume is smaller than the patch size we pad it
         # and save the input size to crop again before returning
-        shape_in = volume.shape
+        shape_in = np.array(volume.shape)
 
         # %% possible padding of too small volumes
         pad = [0, self.patch_size[2] - shape_in[3], 0, self.patch_size[1] - shape_in[2],
@@ -95,22 +93,24 @@ class SlidingWindowPrediction(object):
         nz, nx, ny = volume.shape[1:]
 
         # %% reserve storage
-        pred = torch.zeros((self.network.out_channels, nz, nx, ny), device=self.dev)
-        ovlp = torch.zeros((1, nz, nx, ny), device=self.dev)
+        pred = torch.zeros((self.network.out_channels, nz, nx, ny),
+                           device=self.dev,
+                           dtype=torch.float)
+        ovlp = torch.zeros((1, nz, nx, ny),
+                           device=self.dev,
+                           dtype=torch.float)
         if ROI is None:
             # if the ROI
             ROI = torch.ones((nz, nx, ny)) > 0
 
+        n_patches = np.ceil((np.array([nz, nx, ny]) - self.patch_size) / 
+                            (self.overlap * self.patch_size)).astype(int) + 1
+
         # upper left corners of all patches
-        z_list = list(range(0, nz - self.patch_size[0],
-                            max([int(self.patch_size[0] * self.overlap), 1]))) \
-            + [nz - self.patch_size[0]]
-        x_list = list(range(0, nx - self.patch_size[1],
-                            max([int(self.patch_size[1] * self.overlap), 1]))) \
-            + [nx - self.patch_size[1]]
-        y_list = list(range(0, ny - self.patch_size[2],
-                            max([int(self.patch_size[2] * self.overlap), 1]))) \
-            + [ny - self.patch_size[2]]
+        z_list = np.linspace(0, nz - self.patch_size[0], n_patches[0]).astype(int).tolist()
+        x_list = np.linspace(0, nx - self.patch_size[1], n_patches[1]).astype(int).tolist()
+        y_list = np.linspace(0, ny - self.patch_size[2], n_patches[2]).astype(int).tolist()
+
         zxy_list = []
         for z in z_list:
             for x in x_list:
@@ -131,7 +131,9 @@ class SlidingWindowPrediction(object):
         with torch.no_grad():
             for zxy_batch in zxy_batched:
                 # crop
-                batch = torch.stack([volume[:, z:z+self.patch_size[0], x:x+self.patch_size[1],
+                batch = torch.stack([volume[:,
+                                            z:z+self.patch_size[0],
+                                            x:x+self.patch_size[1],
                                             y:y+self.patch_size[2]] for z, x, y in zxy_batch])
 
                 # remove z axis if we have 2d prediction

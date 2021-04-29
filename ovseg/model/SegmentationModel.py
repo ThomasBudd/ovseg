@@ -75,6 +75,21 @@ class SegmentationModel(ModelBase):
                       'Setting the n_fg_classes to out_channles -1.')
                 self.n_fg_classes = self.model_parameters['network']['out_channels'] - 1
 
+        # now we check if we perform a cascasde:
+        if self.is_cascade():
+            # in this case we will create a second preprocessing module for the segmentations
+            # of the previous stage
+            params_ps = {'apply_windowing': False,
+                         'scaling': [1, 0],
+                         'apply_resizing': params['apply_resizing'],
+                         'apply_pooling': params['apply_pooling'],
+                         'do_nn_img_interp': True}
+            if params_ps['apply_resizing']:
+                params_ps['target_spacing'] = params['target_spacing']
+            if params_ps['apply_pooling']:
+                params_ps['pooling_stride'] = params['pooling_stride']
+                self.preprocessing_for_pred_from_prev_stage = SegmentationPreprocessing(**params_ps)
+
     def initialise_augmentation(self):
 
         # first initialise CPU augmentation
@@ -155,6 +170,9 @@ class SegmentationModel(ModelBase):
                                              network_name=self.network_name,
                                              augmentation=self.augmentation.torch_augmentation,
                                              **params)
+
+    def is_cascade(self):
+        return 'previous_stage' in self.model_parameters
 
     def predict(self, data_tpl, image_key='image'):
         '''

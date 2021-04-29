@@ -49,6 +49,7 @@ class SegmentationPreprocessing(object):
                  reduce_lb_to_single_class=False,
                  lb_min_vol=None,
                  n_im_channels: int = 1,
+                 do_nn_img_interp=False,
                  save_only_fg_scans=True,
                  dataset_properties={}):
 
@@ -64,6 +65,7 @@ class SegmentationPreprocessing(object):
         self.reduce_lb_to_single_class = reduce_lb_to_single_class
         self.lb_min_vol = lb_min_vol
         self.n_im_channels = n_im_channels
+        self.do_nn_img_interp = do_nn_img_interp
         # this is only important for preprocessing of raw data
         self.save_only_fg_scans = save_only_fg_scans
         self.dataset_properties = dataset_properties
@@ -80,6 +82,7 @@ class SegmentationPreprocessing(object):
                                          'reduce_lb_to_single_class',
                                          'lb_min_vol',
                                          'n_im_channels',
+                                         'do_nn_img_interp',
                                          'save_only_fg_scans',
                                          'dataset_properties']
 
@@ -498,6 +501,7 @@ class torch_preprocessing(torch.nn.Module):
                  reduce_lb_to_single_class=False,
                  lb_min_vol=None,
                  n_im_channels: int = 1,
+                 do_nn_img_interp=False,
                  is_2d=False):
         super().__init__()
         self.apply_resizing = apply_resizing
@@ -509,6 +513,7 @@ class torch_preprocessing(torch.nn.Module):
         self.lb_min_vol = lb_min_vol
         self.dev = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.is_2d = is_2d
+        self.do_nn_img_interp = do_nn_img_interp
 
         # let's test if the inputs were fine
         if self.apply_resizing:
@@ -519,6 +524,9 @@ class torch_preprocessing(torch.nn.Module):
             else:
                 assert len(target_spacing) == 3, 'target spacing must be of length 3'
                 self.mode = 'trilinear'
+
+        if self.do_nn_img_interp:
+            self.mode = 'nearest'
 
         if self.apply_pooling:
             if self.is_2d:
@@ -617,6 +625,7 @@ class np_preprocessing():
                  reduce_lb_to_single_class=False,
                  lb_min_vol=None,
                  n_im_channels: int = 1,
+                 do_nn_img_interp=False,
                  is_2d=False):
         super().__init__()
         self.apply_resizing = apply_resizing
@@ -627,6 +636,8 @@ class np_preprocessing():
         self.reduce_lb_to_single_class = reduce_lb_to_single_class
         self.lb_min_vol = lb_min_vol
         self.is_2d = is_2d
+        self.do_nn_img_interp = do_nn_img_interp
+        self.img_order = 0 if self.do_nn_img_interp else 1
 
         # let's test if the inputs were fine
         if self.apply_resizing:
@@ -693,7 +704,7 @@ class np_preprocessing():
         # resizing
         if self.apply_resizing:
 
-            imb = self._rescale_batch(imb, spacing)
+            imb = self._rescale_batch(imb, spacing, order=self.img_order)
             if has_lb:
                 lbb = self._rescale_batch(lbb, spacing, order=0)
 
