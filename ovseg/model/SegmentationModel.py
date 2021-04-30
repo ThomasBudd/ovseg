@@ -13,12 +13,14 @@ from ovseg.model.ModelBase import ModelBase
 from ovseg.utils.torch_np_utils import check_type
 from ovseg.postprocessing.SegmentationPostprocessing import \
     SegmentationPostprocessing
-from ovseg.utils.io import save_nii_from_data_tpl, load_pkl
+from ovseg.utils.io import save_nii_from_data_tpl, load_pkl, read_nii
 import torch
 import numpy as np
-from os import environ, makedirs
+from os import environ, makedirs, listdir, mkdir
 from os.path import join, basename, exists
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+from time import sleep
 
 
 class SegmentationModel(ModelBase):
@@ -74,6 +76,7 @@ class SegmentationModel(ModelBase):
                       'This will cause a problem when computing evaluation metrics.\n'
                       'Setting the n_fg_classes to out_channles -1.')
                 self.n_fg_classes = self.model_parameters['network']['out_channels'] - 1
+            self.n_fg_classes = int(self.n_fg_classes)
 
         # now we check if we perform a cascasde:
         if self.is_cascade():
@@ -88,7 +91,7 @@ class SegmentationModel(ModelBase):
                 params_ps['target_spacing'] = params['target_spacing']
             if params_ps['apply_pooling']:
                 params_ps['pooling_stride'] = params['pooling_stride']
-                self.preprocessing_for_pred_from_prev_stage = SegmentationPreprocessing(**params_ps)
+            self.preprocessing_for_pred_from_prev_stage = SegmentationPreprocessing(**params_ps)
 
     def initialise_augmentation(self):
 
@@ -384,3 +387,63 @@ class SegmentationModel(ModelBase):
             self.global_metrics_helper['overlap_'+str(c)] = ovlp
             self.global_metrics_helper['gt_volume_'+str(c)] = gt_vol
             self.global_metrics_helper['pred_volume_'+str(c)] = pred_vol
+
+    def preprocess_prediction_for_next_stage(self, prep_name_next_stage):
+
+        print('Preprocessing cross validation predictions for the next stage...\n\n')
+        # first check if all the prediction from this model are actually there
+        pred_folder = join(environ['OV_DATA_BASE'], 'predictions', self.data_name,
+                           self.preprocessed_name, self.model_name, 'cross_validation')
+
+        cases_missing = False
+        print('Checking if all predictions are there.')
+        for scan in self.data.val_ds.used_scans:
+            nii_file = basename(scan).split('.')[0] + '.nii.gz'
+            if nii_file not in listdir(pred_folder):
+                cases_missing = True
+
+        if cases_missing:
+            print('Not all validation cases were found in the prediction path '+pred_folder)
+            print('Doing the validation prediction now.\n')
+            self.eval_validation_set(save_preds=True, save_plots=False, force_evaluation=True)
+
+        prep_folder_next_stage = join(environ['OV_DATA_BASE'], 'preprocessed', self.data_name,
+                                      prep_name_next_stage)
+        prep_pred_folder = join(prep_folder_next_stage,
+                                self.preprocessed_name + '_' + self.model_name)
+        if not exists(prep_pred_folder):
+            mkdir(prep_pred_folder)
+        # pickled paramters used for the next stage
+        prep_params_next_stage = load_pkl(join(prep_folder_next_stage,
+                                               'preprocessing_parameters.pkl'))
+
+        # create the preprocessing object for the next stage
+        # IMPORTANT! This is not the same preprocessing object as
+        #   self.preprocessing_for_pred_from_prev_stage
+        # this one is being used to preprocess prediction from a previous, to this stage
+        params_ps = {'apply_windowing': False,
+                     'scaling': [1, 0],
+                     'apply_resizing': prep_params_next_stage['apply_resizing'],
+                     'apply_pooling': prep_params_next_stage['apply_pooling'],
+                     'do_nn_img_interp': True}
+        if params_ps['apply_resizing']:
+            params_ps['target_spacing'] = prep_params_next_stage['target_spacing']
+        if params_ps['apply_pooling']:
+            params_ps['pooling_stride'] = prep_params_next_stage['pooling_stride']
+
+        print('Creating preprocessing object for next stage...')
+        preprocessing_for_next_stage = SegmentationPreprocessing(**params_ps)
+
+        # cool! Let's go on and cylce through the cases
+        print('Preprocessing nifti predictions for next stage')
+        sleep(1)
+        for scan in tqdm(self.data.val_ds.used_scans):
+            scan_name = basename(scan).split('.')[0]
+            nii_file = join(pred_folder, scan_name + '.nii.gz')
+            im, spacing, _ = read_nii(nii_file)
+            lb_prep = preprocessing_for_next_stage({'image': im, 'spacing': spacing},
+                                                   return_np=True)
+            np.save(join(prep_pred_folder, scan_name+'.npy'), lb_prep[0].astype(np.uint8))
+
+        print('Done!')
+        return

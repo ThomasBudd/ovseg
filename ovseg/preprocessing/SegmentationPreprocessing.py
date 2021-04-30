@@ -344,7 +344,8 @@ class SegmentationPreprocessing(object):
                                     percentiles=[0.5, 99.5],
                                     image_folder=None,
                                     dcm_revers=True,
-                                    dcm_names_dict=None):
+                                    dcm_names_dict=None,
+                                    force_planning=False):
 
         if isinstance(raw_data, str):
             raw_data = [raw_data]
@@ -352,7 +353,7 @@ class SegmentationPreprocessing(object):
             raise ValueError('raw_data must be str if only infered from a sinlge folder or '
                              'list/tuple.')
 
-        if self.check_parameters():
+        if self.check_parameters() and not force_planning:
             print('It seems like all necessary information is given. Skipping the planning!\n\n')
             return
 

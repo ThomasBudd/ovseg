@@ -97,7 +97,8 @@ preprocessing = SegmentationPreprocessing(apply_resizing=apply_resizing,
                                           save_only_fg_scans=save_only_fg_scans)
 
 
-preprocessing.plan_preprocessing_raw_data(args.raw_data)
+preprocessing.plan_preprocessing_raw_data(args.raw_data,
+                                          force_planning=True)
 
 preprocessing.preprocess_raw_data(raw_data=args.raw_data,
                                   preprocessed_name=args.preprocessed_name,

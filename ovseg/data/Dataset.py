@@ -26,11 +26,13 @@ class Dataset(object):
 
         # these will carry all the pathes to data we need for training
         self.path_dicts = []
+        self.used_scans = []
         for scan in self.scans:
             path_dict = {key: join(self.preprocessed_path, folder, scan)
                          for key, folder in zip(self.keys, self.folders)}
             if np.all([exists(path_dict[key]) for key in self.keys]):
                 self.path_dicts.append(path_dict)
+                self.used_scans.append(scan)
             else:
                 print('Warning some .npy files of scan {} missing'.format(scan))
 
