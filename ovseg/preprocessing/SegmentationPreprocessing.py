@@ -432,7 +432,7 @@ class SegmentationPreprocessing(object):
         self.dataset_properties['percentiles'] = percentiles
         self.dataset_properties['scaling_foreground'] = \
             np.array([std_fg, mean_fg]).astype(np.float32)
-        self.dataset_properties['n_fg_classes'] = n_fg_classes
+        self.dataset_properties['n_fg_classes'] = int(n_fg_classes)
 
         if self.apply_resizing and self.target_spacing is None:
             self.target_spacing = self.dataset_properties['median_spacing']
