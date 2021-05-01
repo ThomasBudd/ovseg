@@ -68,15 +68,14 @@ class SegmentationModel(ModelBase):
         self.preprocessing = SegmentationPreprocessing(**params)
         if self.preprocessing.lb_classes is not None:
             self.n_fg_classes = len(self.preprocessing.lb_classes)
+        elif self.model_parameters['network']['out_channels'] is not None:
+            self.n_fg_classes = self.model_parameters['network']['out_channels'] - 1
+        elif hasattr(self.preprocessing, 'dataset_properties'):
+            print('Using all foreground classes for computing the DSCS')
+            self.n_fg_classes = self.preprocessing.dataset_properties['n_fg_classes']
         else:
-            try:
-                self.n_fg_classes = self.preprocessing.dataset_properties['n_fg_classes']
-            except (AttributeError, KeyError):
-                print('Could not find number of fg classes appearing in the data.\n'
-                      'This will cause a problem when computing evaluation metrics.\n'
-                      'Setting the n_fg_classes to out_channles -1.')
-                self.n_fg_classes = self.model_parameters['network']['out_channels'] - 1
-            self.n_fg_classes = int(self.n_fg_classes)
+            raise AttributeError('Something seems to be wrong. Could not figure out the number '
+                                 'of foreground classes in the problem...')
 
         # now we check if we perform a cascasde:
         if self.is_cascade():
@@ -105,6 +104,13 @@ class SegmentationModel(ModelBase):
             raise AttributeError('model_parameters must have key '
                                  '\'network\'. These must contain the '
                                  'dict of network paramters.')
+
+        if self.model_parameters['network']['out_channels'] is None:
+            # we check if no out_channels argument was set. In this case
+            # the default is chosen: Number of foreground classes +1
+            self.model_parameters['network']['out_channels'] = self.n_fg_classes + 1
+            if self.parameters_match_saved_ones:
+                self.save_model_parameters()
         params = self.model_parameters['network'].copy()
         if self.model_parameters['architecture'].lower() in ['unet', 'u-net']:
             self.network = UNet(**params).to(self.dev)
@@ -412,7 +418,7 @@ class SegmentationModel(ModelBase):
         prep_pred_folder = join(prep_folder_next_stage,
                                 self.preprocessed_name + '_' + self.model_name)
         if not exists(prep_pred_folder):
-            mkdir(prep_pred_folder)
+            makedirs(prep_pred_folder)
         # pickled paramters used for the next stage
         prep_params_next_stage = load_pkl(join(prep_folder_next_stage,
                                                'preprocessing_parameters.pkl'))

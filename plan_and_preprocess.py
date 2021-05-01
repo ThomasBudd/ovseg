@@ -1,4 +1,6 @@
 from ovseg.preprocessing.SegmentationPreprocessing import SegmentationPreprocessing
+from os.path import join
+from os import environ
 import argparse
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -9,7 +11,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("raw_data", nargs='+',
                     help='Name or names of folders in \'raw_data\' that are used for planning '
                     'and that are preprocessed.')
-parser.add_argument("--preprocessed_name", default='default', required=False,
+parser.add_argument("preprocessed_name",
                     help='Name that the folder in \'preprocessed\' will have.')
 parser.add_argument("--data_name", required=False, default=None,
                     help='set this in case you want to give the parent folder of the preprocessed '
@@ -104,3 +106,14 @@ preprocessing.preprocess_raw_data(raw_data=args.raw_data,
                                   preprocessed_name=args.preprocessed_name,
                                   data_name=args.data_name,
                                   save_as_fp16=not args.save_as_fp32)
+
+print('Done! Here are the preprocessing paramters:')
+if args.data_name is None:
+    data_name = '_'.join(sorted(args.raw_data))
+
+# root folder of all saved preprocessed data
+path_to_file = join(environ['OV_DATA_BASE'], 'preprocessed', data_name, args.preprocessed_name,
+                    'preprocessing_parameters.txt')
+
+with open(path_to_file, 'r') as file:
+    print(file.read())

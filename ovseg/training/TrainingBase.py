@@ -123,10 +123,10 @@ class TrainingBase():
         epoch_time = time.time() - self.epoch_start_time
         self.total_train_time += epoch_time
 
-        self.print_and_log('Epoch {} done after {:.2f} seconds'
+        self.print_and_log('Epoch training {} done after {:.2f} seconds'
                            .format(self.epochs_done, epoch_time))
         self.epochs_done += 1
-        self.print_and_log('Average epoch time: {:.2f} seconds'
+        self.print_and_log('Average epoch training time: {:.2f} seconds'
                            .format(self.total_train_time/self.epochs_done))
 
     def on_training_end(self):

@@ -250,6 +250,7 @@ class NetworkTraining(TrainingBase):
                 (1 - self.nu_ema_trn) * loss.detach().item()
 
     def on_epoch_start(self):
+        self.total_epoch_time = -1*perf_counter()
         super().on_epoch_start()
         self.network.train()
 
@@ -271,6 +272,8 @@ class NetworkTraining(TrainingBase):
         # now make some nice plots and we're happy!
         self.plot_training_progess()
         self.update_lr()
+        self.total_epoch_time += perf_counter()
+        self.print_and_log('The total epoch time was {:.2f} seconds'.format(self.total_epoch_time))
 
     def on_training_end(self):
         super().on_training_end()
