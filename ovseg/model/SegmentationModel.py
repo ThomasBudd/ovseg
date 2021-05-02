@@ -183,7 +183,7 @@ class SegmentationModel(ModelBase):
     def is_cascade(self):
         return 'previous_stage' in self.model_parameters
 
-    def predict(self, data_tpl, image_key='image'):
+    def predict(self, data_tpl, image_key='image', pred_fps_key='pred_fps'):
         '''
         There are a lot of differnt ways to do prediction. Some do require direct preprocessing
         some don't need the postprocessing imidiately (e.g. when ensembling)
@@ -193,16 +193,43 @@ class SegmentationModel(ModelBase):
         self.network = self.network.eval()
         im = data_tpl[image_key]
         is_np,  _ = check_type(im)
+        is_cascade = pred_fps_key in data_tpl
+        if len(im.shape) == 3:
+            im = im[np.newaxis] if is_np else im.unsqueeze(0)
         if is_np:
-            im = torch.from_numpy(im).to(self.dev)
+            if is_cascade:
+                pred_fps = data_tpl[pred_fps_key]
+                if len(pred_fps.shape) == 3:
+                    if type(pred_fps) == np.ndarray:
+                        pred_fps = pred_fps[np.newaxis]
+                        im = np.concatenate([im, pred_fps])
+                        im = torch.from_numpy(im).to(self.dev)
+                    else:
+                        pred_fps = pred_fps.unsqueeze(0).to(self.dev)
+                        im = im.to(self.dev)
+                        im = torch.cat([im, pred_fps])
+
         else:
             im = im.to(self.dev)
+            if is_cascade:
+                pred_fps = data_tpl[pred_fps_key]
+                if type(pred_fps) == np.ndarray:
+                    pred_fps = torch.from_numpy(pred_fps).to(self.dev)
+                if len(pred_fps.shape) == 3:
+                    pred_fps = pred_fps.unsqueeze(0)
+                im = torch.cat([im, pred_fps])
 
         # the preprocessing will only do something if the image is not preprocessed yet
         if not self.preprocessing.is_preprocessed_data_tpl(data_tpl):
             im = self.preprocessing(data_tpl, preprocess_only_im=True)
 
-        # now the importat part: the sliding window evaluation (or derivatices of it)
+        # let's quickly get back to the prediction from the previous stage
+        if is_cascade and self.n_fg_classes > 1:
+            im, pred_fps = im[:1], im[1]
+            pred_fps = torch.stack([pred_fps == c for c in range(1, self.n_fg_classes + 1)])
+            im = torch.cat([im, pred_fps.type(im.dtype)])
+
+        # now the importat part: the sliding window evaluation (or derivatives of it)
         pred = self.prediction(im)
         data_tpl[self.pred_key] = pred
 
@@ -403,10 +430,13 @@ class SegmentationModel(ModelBase):
 
         cases_missing = False
         print('Checking if all predictions are there.')
-        for scan in self.data.val_ds.used_scans:
-            nii_file = basename(scan).split('.')[0] + '.nii.gz'
-            if nii_file not in listdir(pred_folder):
-                cases_missing = True
+        if exists(pred_folder):
+            for scan in self.data.val_ds.used_scans:
+                nii_file = basename(scan).split('.')[0] + '.nii.gz'
+                if nii_file not in listdir(pred_folder):
+                    cases_missing = True
+        else:
+            cases_missing = True
 
         if cases_missing:
             print('Not all validation cases were found in the prediction path '+pred_folder)

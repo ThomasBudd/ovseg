@@ -35,7 +35,8 @@ class SegmentationTraining(NetworkTraining):
 
         batch = batch.cuda()
         if self.augmentation is not None:
-            batch = self.augmentation(batch)
+            with torch.no_grad():
+                batch = self.augmentation(batch)
 
         xb, yb = batch[:, :-1], batch[:, -1:]
         yb = to_one_hot_encoding(yb, self.network.out_channels)

@@ -8,23 +8,23 @@ parser.add_argument("i")
 
 args = parser.parse_args()
 
-model_params = get_model_params_3d_nnUNet([56, 192, 160], 2)
+model_params = get_model_params_3d_nnUNet([32, 224, 224], 2)
 
 if int(args.i) == 0:
     folds = [0]
-    p_names = ['pod_half']
+    p_names = ['pod_full']
 elif int(args.i) == 1:
     folds = [1]
-    p_names = ['pod_half']
+    p_names = ['pod_full']
 elif int(args.i) == 2:
     folds = [2]
-    p_names = ['pod_half']
+    p_names = ['pod_full']
 elif int(args.i) == 3:
     folds = [3]
-    p_names = ['pod_half']
+    p_names = ['pod_full']
 elif int(args.i) == 4:
     folds = [4]
-    p_names = ['pod_half']
+    p_names = ['pod_full']
 elif int(args.i) == 5:
     folds = [0, 3]
     p_names = ['om_half', 'om_half']

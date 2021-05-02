@@ -16,11 +16,14 @@ def get_model_params_2d_segmentation(n_fg_classes=1,
                         'p_bright': 0.15,
                         'p_contr': 0.15,
                         'p_low_res': 0.125,
+                        'p_gamma': 0.15,
+                        'p_gamma_invert': 0.15,
                         'mm_var_noise': [0, 0.1],
                         'mm_sigma_blur': [0.5, 1.5],
                         'mm_bright': [0.7, 1.3],
                         'mm_contr': [0.65, 1.5],
                         'mm_low_res': [1, 2],
+                        'mm_gamma': [0.7, 1.5],
                         'n_im_channels': 1
                         }
     spatial_params = {'p_rot': 0.2,
@@ -175,6 +178,36 @@ def get_model_params_3d_nnUNet(patch_size,
 
     return model_params
 
+
+# %%
+def get_model_params_3d_cascade(pred_fps_folder_name,
+                                patch_size,
+                                n_2d_convs,
+                                use_prg_trn=False,
+                                n_fg_classes=1,
+                                fp32=False):
+    model_params = get_model_params_3d_nnUNet(patch_size=patch_size,
+                                              n_2d_convs=n_2d_convs,
+                                              use_prg_trn=use_prg_trn,
+                                              n_fg_classes=n_fg_classes,
+                                              fp32=fp32)
+    model_params['augmentation']['np_params'] = {'mask': {'p_morph': 0.4,
+                                                          'radius_mm': [1, 8],
+                                                          'p_removal': 0.2,
+                                                          'vol_percentage_removal': 0.15,
+                                                          'vol_threshold_removal': None,
+                                                          'threeD_morph_ops': False,
+                                                          'aug_channels': [1]}}
+    # account for additional inputs
+    model_params['network']['in_channels'] = n_fg_classes + 1
+    model_params['data']['keys'].append('pred_fps')
+    model_params['data']['folders'].append(pred_fps_folder_name)
+
+    for dl in ['trn_dl_params', 'val_dl_params']:
+        model_params['data'][dl]['pred_fps_key'] = 'pred_fps'
+        model_params['data'][dl]['n_fg_classes'] = n_fg_classes
+
+    return model_params
 
 # %%
 def get_model_params_3d_from_preprocessed_folder(data_name,
