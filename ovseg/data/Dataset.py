@@ -1,12 +1,13 @@
 import numpy as np
 from os.path import basename, join, exists, isdir, split
-from os import listdir
+from os import listdir, environ
 from ovseg.utils.io import read_data_tpl_from_nii, read_dcms
+import nibabel as nib
 
 
 class Dataset(object):
 
-    def __init__(self, scans, preprocessed_path, keys, folders, **kwargs):
+    def __init__(self, scans, preprocessed_path, keys, folders, ignore_missing_scans=False):
         '''
         scans - list of scans to all volumes contained in this Dataset
         preprocessed_path - path to the folder where the prerprocessed data
@@ -27,6 +28,7 @@ class Dataset(object):
         # these will carry all the pathes to data we need for training
         self.path_dicts = []
         self.used_scans = []
+        self.unused_scans = []
         for scan in self.scans:
             path_dict = {key: join(self.preprocessed_path, folder, scan)
                          for key, folder in zip(self.keys, self.folders)}
@@ -34,11 +36,11 @@ class Dataset(object):
                 self.path_dicts.append(path_dict)
                 self.used_scans.append(scan)
             else:
-                print('Warning some .npy files of scan {} missing'.format(scan))
-
-        for key in kwargs:
-            print('Got unexcpected keyword '+key+' with value' +
-                  str(kwargs[key]) + ' as input to dataset.')
+                self.unused_scans.append(scan)
+        if len(self.unused_scans) > 0:
+            print('Some .npy files were not found: ',*self.unused_scans)
+            if not ignore_missing_scans:
+                raise FileNotFoundError('Not all .npy files were found.')
 
     def __len__(self):
         return len(self.path_dicts)
@@ -75,7 +77,7 @@ class Dataset(object):
 class raw_Dataset(object):
 
     def __init__(self, raw_path, scans=None, image_folder=None, dcm_revers=True,
-                 dcm_names_dict=None):
+                 dcm_names_dict=None, prev_stage=None):
 
         assert image_folder in ['images', 'imagesTr', 'imagesTs', None]
 
@@ -83,6 +85,21 @@ class raw_Dataset(object):
         all_im_folders = [imf for imf in listdir(self.raw_path) if imf.startswith('images')]
         all_lb_folders = [lbf for lbf in listdir(self.raw_path) if lbf.startswith('labels')]
 
+        # prev_stage shold be a dict with the items 'preprocessed_name', 'model_name', 'data_name'
+        self.prev_stage = prev_stage
+        self.is_cascade = self.prev_stage is not None
+        if self.is_cascade:
+            assert 'preprocessed_name' in self.prev_stage
+            assert 'model_name' in self.prev_stage
+            self.path_to_previous_stage = join(environ['OV_DATA_BASE'],
+                                               'predictions',
+                                               self.prev_stage['data_name'],
+                                               self.prev_stage['preprocessed_name'],
+                                               self.prev_stage['model_name'],
+                                               basename(self.raw_path))
+            if not exists(self.path_to_previous_stage):
+                raise FileNotFoundError('Path with niftis from previous stage was not found at '
+                                        + str(self.path_to_previous_stage))
         self.is_nifti = len(all_im_folders) > 0
 
         if self.is_nifti:
@@ -175,6 +192,10 @@ class raw_Dataset(object):
                     scan = data_tpl['pat_name'] + '_' + data_tpl['date']
                 else:
                     scan = superfolder + '_' + folder
+
+        if self.is_cascade:
+            pred_fps = nib.load(join(self.path_to_previous_stage, scan+'.nii.gz')).get_fdata()
+            data_tpl['pred_fps'] = pred_fps
 
         data_tpl['scan'] = scan
 

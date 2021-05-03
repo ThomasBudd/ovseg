@@ -25,18 +25,6 @@ elif int(args.i) == 3:
 elif int(args.i) == 4:
     folds = [4]
     p_names = ['pod_full']
-elif int(args.i) == 5:
-    folds = [0, 3]
-    p_names = ['om_half', 'om_half']
-elif int(args.i) == 6:
-    folds = [1, 4]
-    p_names = ['om_half', 'om_half']
-elif int(args.i) == 7:
-    folds = [2, 5]
-    p_names = ['om_half', 'om_half']
-elif int(args.i) == 8:
-    folds = [5, 6, 6]
-    p_names = ['pod_half', 'pod_half', 'om_half']
 
 
 for fold, p_name in zip(folds, p_names):
@@ -50,7 +38,7 @@ for fold, p_name in zip(folds, p_names):
     model.preprocess_prediction_for_next_stage('pod_full')
     model.eval_training_set()
     if fold > 4:
-        model.eval_raw_dataset('BARTS', save_preds=False, save_plots=False)
+        model.eval_raw_dataset('BARTS', save_preds=True, save_plots=False)
 
     ens = SegmentationEnsemble(val_fold=list(range(5)),
                                data_name='OV04',
@@ -58,4 +46,4 @@ for fold, p_name in zip(folds, p_names):
                                model_name=p_name+'_benchmark')
 
     if ens.all_folds_complete():
-        ens.eval_raw_dataset('BARTS', save_preds=False, save_plots=False)
+        ens.eval_raw_dataset('BARTS', save_preds=True, save_plots=False)

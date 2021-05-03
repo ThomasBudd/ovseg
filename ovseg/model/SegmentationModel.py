@@ -43,6 +43,15 @@ class SegmentationModel(ModelBase):
         self.initialise_prediction()
         self.plot_n_random_slices = plot_n_random_slices
 
+        # cascade stuff!
+        self.is_cascade = 'prev_stage' in self.model_parameters
+        if self.is_cascade:
+            if 'data_name' not in self.model_parameters['prev_stage']:
+                self.model_parameters['prev_stage']['data_name'] = self.data_name
+                if self.parameters_match_saved_ones:
+                    self.save_model_parameters()
+            self.prev_stage = self.model_parameters['prev_stage']
+
     def initialise_preprocessing(self):
         if 'preprocessing' not in self.model_parameters:
             print('No preprocessing parameters found in model_parameters. '
@@ -245,15 +254,10 @@ class SegmentationModel(ModelBase):
 
         # find name of the file
         if filename is None:
-            if 'raw_label_file' in data_tpl:
-                filename = basename(data_tpl['raw_label_file'])
-            else:
-                filename = basename(data_tpl['raw_image_file'])
-                if filename.endswith('_0000.nii.gz'):
-                    filename = filename[:-12]
-
-        # remove fileextension e.g. .nii.gz
-        filename = filename.split('.')[0] + '.nii.gz'
+            filename = data_tpl['scan'] + '.nii.gz'
+        else:
+            # remove fileextension e.g. .nii.gz
+            filename = filename.split('.')[0] + '.nii.gz'
 
         # all predictions are stored in the designated 'predictions' folder in the OV_DATA_BASE
         pred_folder = join(environ['OV_DATA_BASE'], 'predictions', self.data_name,

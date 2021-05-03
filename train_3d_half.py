@@ -37,6 +37,15 @@ elif int(args.i) == 7:
 elif int(args.i) == 8:
     folds = [5, 6, 6]
     p_names = ['pod_half', 'pod_half', 'om_half']
+elif int(args.i) == 9:
+    folds = [6]
+    p_names = ['pod_half']
+elif int(args.i) == 10:
+    folds = [6]
+    p_names = ['om_half']
+elif int(args.i) == 11:
+    folds = [7]
+    p_names = ['om_half']
 
 
 for fold, p_name in zip(folds, p_names):
@@ -55,7 +64,7 @@ for fold, p_name in zip(folds, p_names):
     ens = SegmentationEnsemble(val_fold=list(range(5)),
                                data_name='OV04',
                                preprocessed_name=p_name,
-                               model_name=p_name+'_benchmark')
+                               model_name='nnUNet_benchmark')
 
     if ens.all_folds_complete():
-        ens.eval_raw_dataset('BARTS', save_preds=False, save_plots=False)
+        ens.eval_raw_dataset('BARTS', save_preds=True, save_plots=False)

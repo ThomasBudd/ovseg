@@ -438,6 +438,10 @@ class ModelBase(object):
                                               ds_name=ds_name+'_CV')
 
     def eval_validation_set(self, save_preds=True, save_plots=False, force_evaluation=False):
+        if not hasattr(self.data, 'val_ds'):
+            print('No validation data found! Skipping prediction...')
+            return
+
         self.eval_ds(self.data.val_ds, ds_name='validation',
                      save_preds=save_preds, save_plots=save_plots,
                      force_evaluation=force_evaluation,
@@ -455,6 +459,7 @@ class ModelBase(object):
                          scans=scans,
                          image_folder=image_folder,
                          dcm_revers=dcm_revers,
-                         dcm_names_dict=dcm_names_dict)
+                         dcm_names_dict=dcm_names_dict,
+                         prev_stage=self.prev_stage if hasattr(self, 'prev_stage') else None)
         self.eval_ds(ds, ds_name=data_name, save_preds=save_preds, save_plots=save_plots,
                      force_evaluation=force_evaluation)

@@ -180,7 +180,8 @@ def get_model_params_3d_nnUNet(patch_size,
 
 
 # %%
-def get_model_params_3d_cascade(pred_fps_folder_name,
+def get_model_params_3d_cascade(prev_stage_preprocessed_name,
+                                prev_stage_model_name,
                                 patch_size,
                                 n_2d_convs,
                                 use_prg_trn=False,
@@ -201,13 +202,17 @@ def get_model_params_3d_cascade(pred_fps_folder_name,
     # account for additional inputs
     model_params['network']['in_channels'] = n_fg_classes + 1
     model_params['data']['keys'].append('pred_fps')
-    model_params['data']['folders'].append(pred_fps_folder_name)
+    model_params['data']['folders'].append(prev_stage_preprocessed_name + '_' +
+                                           prev_stage_model_name)
 
     for dl in ['trn_dl_params', 'val_dl_params']:
         model_params['data'][dl]['pred_fps_key'] = 'pred_fps'
         model_params['data'][dl]['n_fg_classes'] = n_fg_classes
 
+    model_params['prev_stage'] = {'preprocessed_name': prev_stage_preprocessed_name,
+                                  'model_name': prev_stage_model_name}
     return model_params
+
 
 # %%
 def get_model_params_3d_from_preprocessed_folder(data_name,
