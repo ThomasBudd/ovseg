@@ -229,12 +229,14 @@ class UNet(nn.Module):
         for i in range(self.n_stages - 2, self.n_pyramid_scales-1, -1):
             xb = self.upconvs[i](xb)
             xb = torch.cat([xb, xb_list[i]], 1)
+            del xb_list[i]
             xb = self.blocks_up[i](xb)
 
         # expanding path with logits
         for i in range(self.n_pyramid_scales - 1, -1, -1):
             xb = self.upconvs[i](xb)
             xb = torch.cat([xb, xb_list[i]], 1)
+            del xb_list[i]
             xb = self.blocks_up[i](xb)
             logs = self.all_logits[i](xb)
             logs_list.append(logs)

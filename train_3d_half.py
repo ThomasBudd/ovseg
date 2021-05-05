@@ -35,8 +35,8 @@ elif int(args.i) == 7:
     folds = [2, 5]
     p_names = ['om_half', 'om_half']
 elif int(args.i) == 8:
-    folds = [5, 6, 6]
-    p_names = ['pod_half', 'pod_half', 'om_half']
+    folds = [5, 6]
+    p_names = ['om_half', 'om_half']
 elif int(args.i) == 9:
     folds = [6]
     p_names = ['pod_half']
@@ -55,10 +55,11 @@ for fold, p_name in zip(folds, p_names):
                               model_name='nnUNet_benchmark',
                               model_parameters=model_params)
     model.training.train()
-    model.eval_validation_set(save_preds=True)
-    model.preprocess_prediction_for_next_stage('pod_full')
-    model.eval_training_set()
-    if fold > 4:
+    if fold <= 4:
+        model.eval_validation_set(save_preds=True)
+        model.preprocess_prediction_for_next_stage('pod_full')
+        model.eval_training_set()
+    else:
         model.eval_raw_dataset('BARTS', save_preds=False, save_plots=False)
 
     ens = SegmentationEnsemble(val_fold=list(range(5)),

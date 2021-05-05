@@ -427,6 +427,11 @@ class SegmentationModel(ModelBase):
 
     def preprocess_prediction_for_next_stage(self, prep_name_next_stage):
 
+        if not hasattr(self.data, 'val_ds'):
+            print('Model has no validation data. There is nothing to preprocess for the next '
+                  'stage. Exeting!')
+            return
+
         print('Preprocessing cross validation predictions for the next stage...\n\n')
         # first check if all the prediction from this model are actually there
         pred_folder = join(environ['OV_DATA_BASE'], 'predictions', self.data_name,
