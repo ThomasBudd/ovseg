@@ -124,9 +124,9 @@ class SegmentationBatchDataset(object):
                 pred_fps = pred_fps[np.newaxis]
 
         if self.is_cascade:
-            return np.concatenate([im, pred_fps, seg])
+            return im, pred_fps, seg
         else:
-            return np.concatenate([im, seg])
+            return im, seg
 
     def __len__(self):
         return self.epoch_len * self.batch_size
@@ -141,8 +141,8 @@ class SegmentationBatchDataset(object):
             biased_sampling = np.random.rand() < self.p_bias_sampling
 
         ind = np.random.randint(self.n_volumes)
-        volume = self._get_volume_tuple(ind)
-        shape = np.array(volume.shape)[1:]
+        volumes = self._get_volume_tuple(ind)
+        shape = np.array(volumes[0].shape)[1:]
 
         if biased_sampling:
             # if we're not there let's choose a center coordinate
@@ -164,7 +164,11 @@ class SegmentationBatchDataset(object):
             coord = np.random.randint(np.maximum(shape - self.patch_size+1, 1))
         coord = np.minimum(np.maximum(coord, 0), shape - self.patch_size)
         # now get the cropped and padded sample
-        volume = crop_and_pad_image(volume, coord, self.patch_size, self.padded_patch_size)
+
+        volume = np.concatenate([crop_and_pad_image(vol,
+                                                    coord,
+                                                    self.patch_size,
+                                                    self.padded_patch_size) for vol in volumes])
 
         if self.twoD_patches:
             # remove z axis
