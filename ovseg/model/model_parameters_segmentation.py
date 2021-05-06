@@ -157,6 +157,7 @@ def get_model_params_3d_nnUNet(patch_size,
     else:
         prg_trn_sizes = None
 
+    model_params['training']['prg_trn_sizes'] = prg_trn_sizes
     model_params['network']['kernel_sizes'] = kernel_sizes
     model_params['network']['kernel_sizes_up'] = kernel_sizes_up
     model_params['network']['is_2d'] = False

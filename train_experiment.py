@@ -17,7 +17,7 @@ else:
     model_name = 'prg_trn_cubes'
 
 val_fold = 5
-p_name = 'pod_half' if args.i in [0, 2] else 'om_half'
+p_name = 'pod_half' if int(args.i) in [0, 2] else 'om_half'
 
 model = SegmentationModel(val_fold=val_fold,
                           data_name='OV04',
