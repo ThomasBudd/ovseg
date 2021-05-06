@@ -7,23 +7,16 @@ parser.add_argument("i")
 
 args = parser.parse_args()
 
-if int(args.i) < 2:
-    model_params = get_model_params_3d_nnUNet([56, 192, 160], 2,
-                                              use_prg_trn=True)
-    model_name = 'prg_trn'
-else:
-    model_params = get_model_params_3d_nnUNet([48, 192, 192], 2,
-                                              use_prg_trn=True)
-    model_name = 'prg_trn_cubes'
+model_params = get_model_params_3d_nnUNet([56, 192, 160], 2,
+                                          use_prg_trn=True)
+model_name = 'prg_trn'
+val_fold = int(args.i)
 
-val_fold = 5
-p_name = 'pod_half' if int(args.i) in [0, 2] else 'om_half'
-
-model = SegmentationModel(val_fold=val_fold,
-                          data_name='OV04',
-                          preprocessed_name=p_name,
-                          model_name=model_name,
-                          model_parameters=model_params)
-model.training.train()
-model.eval_raw_dataset('BARTS', save_preds=False, save_plots=False)
-
+for p_name in ['pod_half', 'om_half']:
+    model = SegmentationModel(val_fold=val_fold,
+                              data_name='OV04',
+                              preprocessed_name=p_name,
+                              model_name=model_name,
+                              model_parameters=model_params)
+    model.training.train()
+    model.eval_raw_dataset('BARTS', save_preds=False, save_plots=False)
