@@ -179,6 +179,25 @@ def get_model_params_3d_nnUNet(patch_size,
 
     return model_params
 
+def get_model_params_3d_nfUNet(patch_size,
+                               n_2d_convs,
+                               use_prg_trn=False,
+                               n_fg_classes=1,
+                               fp32=False):
+    model_params = get_model_params_3d_nnUNet(patch_size,
+                                              n_2d_convs,
+                                              use_prg_trn,
+                                              n_fg_classes,
+                                              fp32)
+    model_params['architecture'] = 'nfUNet'
+    del model_params['network']['norm']
+    del model_params['network']['norm_params']
+    del model_params['network']['kernel_sizes_up']
+    model_params['network']['use_attention_gates'] = False
+    model_params['network']['upsampling'] = 'conv'
+    model_params['network']['align_corners']=True
+    model_params['network']['factor_skip_conn']=1.0
+    return model_params
 
 # %%
 def get_model_params_3d_cascade(prev_stage_preprocessed_name,

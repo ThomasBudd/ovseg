@@ -193,10 +193,10 @@ class nfConvBlock(nn.Module):
             self.nonlin2 = scaledReLU(**self.nonlin_params)
 
     def forward(self, xb):
-        xb = self.nonlin1(xb)
         xb = self.conv1(xb)
-        xb = self.nonlin2(xb)
+        xb = self.nonlin1(xb)
         xb = self.conv2(xb)
+        xb = self.nonlin2(xb)
         return xb
 
 

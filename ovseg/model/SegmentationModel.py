@@ -7,6 +7,7 @@ from ovseg.augmentation.SegmentationAugmentation import \
 from ovseg.data.SegmentationData import SegmentationData
 from ovseg.prediction.SlidingWindowPrediction import SlidingWindowPrediction
 from ovseg.networks.UNet import UNet
+from ovseg.networks.nfUNet import nfUNet
 from ovseg.networks.iUNet import iUNet
 from ovseg.training.SegmentationTraining import SegmentationTraining
 from ovseg.model.ModelBase import ModelBase
@@ -123,8 +124,12 @@ class SegmentationModel(ModelBase):
         params = self.model_parameters['network'].copy()
         if self.model_parameters['architecture'].lower() in ['unet', 'u-net']:
             self.network = UNet(**params).to(self.dev)
-        elif self.model_parameters['architecture'].lower() in ['iunet', 'iu-net']:
+        elif self.model_parameters['architecture'].lower() in ['iunet', 'i-unet']:
             self.network = iUNet(**params).to(self.dev)
+        elif self.model_parameters['architecture'].lower() in ['nfunet', 'nf-unet']:
+            self.network = nfUNet(**params).to(self.dev)
+        else:
+            raise ValueError('Got unkown architecture '+self.model_parameters['architecture'])
 
     def initialise_prediction(self):
         # by default we take the same batch size as we used during training for inference
