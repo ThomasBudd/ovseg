@@ -1,5 +1,6 @@
 from ovseg.model.SegmentationModel import SegmentationModel
 from ovseg.model.model_parameters_segmentation import get_model_params_3d_nnUNet
+from ovseg.model.SegmentationEnsemble import SegmentationEnsemble
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -21,3 +22,11 @@ for p_name in ['pod_half', 'om_half']:
     model.training.train()
     model.eval_validation_set()
     #model.eval_raw_dataset('BARTS', save_preds=False, save_plots=False)
+    if val_fold == 0:
+        ens = SegmentationEnsemble(val_fold=list(range(5)),
+                                   data_name='OV04',
+                                   preprocessed_name=p_name,
+                                   model_name='nnUNet_benchmark')
+    
+        if ens.all_folds_complete():
+            ens.eval_raw_dataset('BARTS', save_preds=True, save_plots=False)
