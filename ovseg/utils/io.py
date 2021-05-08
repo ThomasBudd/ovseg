@@ -457,6 +457,34 @@ def save_nii_from_data_tpl(data_tpl, out_file, key):
         if not data_tpl['had_z_first']:
             arr = np.stack([arr[z] for z in range(arr.shape[0])], -1)
 
-    img = nib.load(data_tpl['raw_image_file'])
-    nii_img = nib.Nifti1Image(arr, img.affine, img.header)
+    raw_path = join(environ['OV_DATA_BASE'], 'raw_data', data_tpl['dataset'])
+    im_file = None
+    if data_tpl['raw_image_file'].endswith('.nii.gz'):
+        # if not the file was loaded from dcm
+        if exists(data_tpl['raw_image_file']):
+            im_file = data_tpl['raw_image_file']
+        elif exists(raw_path):
+            # ups! This happens when you've copied over the preprocessed data from one
+            # system to antoher. We have to find the raw image file, but luckily everything
+            # should be contained in the data_tpl to track the file
+            im_folders = [imf for imf in listdir(raw_path) if imf.startswith('images')]
+            im_file = []
+            for imf in im_folders:
+                if basename(data_tpl['raw_image_file']) in listdir(join(raw_path, imf)):
+                    im_file.append(join(raw_path, imf, basename(data_tpl['raw_image_file'])))
+
+    if im_file is not None:
+        # if we have found a raw_image_file, we will use it to build the prediction nifti
+        if isinstance(im_file, (list, tuple)):
+            im_file = im_file[0]
+        img = nib.load(im_file)
+        nii_img = nib.Nifti1Image(arr, img.affine, img.header)
+    else:
+        # if we couldn't find anything (e.g. if the image was given as a DICOM)
+        nii_img = nib.Nifti1Image(arr, np.eye(4))
+        if key.endswith('orig_shape') and 'orig_spacing' in data_tpl:
+            nii_img.header['pixdim'][1:4] = data_tpl['orig_spacing']
+        else:
+            nii_img.header['pixdim'][1:4] = data_tpl['spacing']
+
     nib.save(nii_img, out_file)

@@ -19,4 +19,5 @@ for p_name in ['pod_half', 'om_half']:
                               model_name=model_name,
                               model_parameters=model_params)
     model.training.train()
-    model.eval_raw_dataset('BARTS', save_preds=False, save_plots=False)
+    model.eval_validation_set()
+    #model.eval_raw_dataset('BARTS', save_preds=False, save_plots=False)
