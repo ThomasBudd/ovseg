@@ -19,11 +19,11 @@ elif int(args.i) == 3:
     model_name = 'prg_trn'
     p_name = 'om_half'
 
-    ens = SegmentationEnsemble(val_fold=list(range(5)),
-                               data_name='OV04',
-                               preprocessed_name=p_name,
-                               model_name=model_name)
-    
-    if ens.all_folds_complete():
-        ens.eval_raw_dataset('BARTS', save_preds=True, save_plots=False,
-                             force_evaluation=True)
+ens = SegmentationEnsemble(val_fold=list(range(5)),
+                           data_name='OV04',
+                           preprocessed_name=p_name,
+                           model_name=model_name)
+
+if ens.all_folds_complete():
+    ens.eval_raw_dataset('BARTS', save_preds=True, save_plots=False,
+                         force_evaluation=True)
