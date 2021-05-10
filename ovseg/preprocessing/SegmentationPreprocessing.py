@@ -200,6 +200,12 @@ class SegmentationPreprocessing(object):
         if len(xb.shape) == 3:
             xb = xb[np.newaxis]
 
+        if 'pred_fps' in data_tpl:
+            pred_fps = data_tpl['pred_fps']
+            if len(pred_fps.shape) == 3:
+                pred_fps = pred_fps[np.newaxis]
+            xb = np.concatenate([xb, pred_fps])
+
         if 'label' in data_tpl and not preprocess_only_im:
             lb = data_tpl['label']
 

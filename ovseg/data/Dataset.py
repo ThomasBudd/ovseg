@@ -1,7 +1,7 @@
 import numpy as np
 from os.path import basename, join, exists, isdir, split
 from os import listdir, environ
-from ovseg.utils.io import read_data_tpl_from_nii, read_dcms
+from ovseg.utils.io import read_data_tpl_from_nii, read_dcms, read_nii
 import nibabel as nib
 
 
@@ -194,7 +194,7 @@ class raw_Dataset(object):
                     scan = superfolder + '_' + folder
 
         if self.is_cascade:
-            pred_fps = nib.load(join(self.path_to_previous_stage, scan+'.nii.gz')).get_fdata()
+            pred_fps, _, _ = read_nii(join(self.path_to_previous_stage, scan+'.nii.gz'))
             data_tpl['pred_fps'] = pred_fps
 
         data_tpl['scan'] = scan
