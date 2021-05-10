@@ -20,7 +20,10 @@ import numpy as np
 from os import environ, makedirs, listdir, mkdir
 from os.path import join, basename, exists
 import matplotlib.pyplot as plt
-from tqdm import tqdm
+try:
+    from tqdm import tqdm
+except ModuleNotFoundError:
+    tqdm = lambda x: x
 from time import sleep
 
 

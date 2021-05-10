@@ -197,6 +197,7 @@ class raw_Dataset(object):
             pred_fps, _, _ = read_nii(join(self.path_to_previous_stage, scan+'.nii.gz'))
             data_tpl['pred_fps'] = pred_fps
 
+        data_tpl['dataset'] = basename(self.raw_path)
         data_tpl['scan'] = scan
 
         return data_tpl

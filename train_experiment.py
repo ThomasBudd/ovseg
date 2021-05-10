@@ -1,5 +1,5 @@
 from ovseg.model.SegmentationModel import SegmentationModel
-from ovseg.model.model_parameters_segmentation import get_model_params_3d_nfUNet
+from ovseg.model.model_parameters_segmentation import get_model_params_3d_nnUNet
 from ovseg.model.SegmentationEnsemble import SegmentationEnsemble
 import argparse
 
@@ -9,29 +9,25 @@ parser.add_argument("i")
 args = parser.parse_args()
 
 if int(args.i) == 0:
-    model_params = get_model_params_3d_nfUNet([56, 192, 160], 2,
-                                              use_prg_trn=True)
-    model_name = 'nf_UNet'
+    use_prg_trn = False
+    model_name = 'cubed_patches'
     p_name = 'pod_half'
 elif int(args.i) == 1:
-    model_params = get_model_params_3d_nfUNet([56, 192, 160], 2,
-                                              use_prg_trn=True)
-    model_params['network']['use_attention_gates'] = True
-    model_name = 'nf_UNet_att_gates'
+    use_prg_trn = True
+    model_name = 'cubed_patches_prg_trn'
     p_name = 'pod_half'
 elif int(args.i) == 2:
-    model_params = get_model_params_3d_nfUNet([56, 192, 160], 2,
-                                              use_prg_trn=False)
-    model_name = 'nf_UNet'
+    use_prg_trn = False
+    model_name = 'cubed_patches'
     p_name = 'om_half'
 elif int(args.i) == 3:
-    model_params = get_model_params_3d_nfUNet([56, 192, 160], 2,
-                                              use_prg_trn=False)
-    model_params['network']['use_attention_gates'] = True
-    model_name = 'nf_UNet_att_gates'
+    use_prg_trn = True
+    model_name = 'cubed_patches_prg_trn'
     p_name = 'om_half'
 
 
+model_params = get_model_params_3d_nnUNet([48, 192, 192], 2,
+                                          use_prg_trn=use_prg_trn)
 
 for val_fold in range(5):
     model = SegmentationModel(val_fold=val_fold,

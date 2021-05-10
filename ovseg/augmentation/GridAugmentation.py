@@ -93,7 +93,8 @@ class torch_inplane_grid_augmentations(nn.Module):
 
         for b, flp in enumerate(flp_list):
             dims = [i + 1 for i, f in enumerate(flp) if f]
-            xb[b] = torch.flip(xb[b], dims)
+            if len(dims) > 0:
+                xb[b] = torch.flip(xb[b], dims)
         return xb
 
     def forward(self, xb):

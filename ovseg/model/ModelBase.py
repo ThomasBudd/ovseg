@@ -366,6 +366,9 @@ class ModelBase(object):
                       '). Their content wasn\'t checked, but the evaluation will be skipped.\n'
                       'If you want to force the evaluation please delete the old files and folders '
                       'or pass force_evaluation=True.\n\n')
+                if merge_to_CV_results:
+                    print('Merging resuts to CV....')
+                    self._merge_results_to_CV(ds_name)
                 return
 
         self._init_global_metrics()
@@ -418,24 +421,24 @@ class ModelBase(object):
         self._save_results_to_pkl_and_txt(results, self.model_path, ds_name=ds_name)
 
         if merge_to_CV_results:
-            # we also store the results in the CV folder and merge them with
-            # possible other results from other folds
-            path_to_results = join(self.model_cv_path, ds_name+'_CV_results.pkl')
-            # to differentiate by name what comes from which fold we add fold_x to the names
-            results_fold = {key+self.val_fold_str: results[key] for key in results}
-            if exists(path_to_results):
-                print('Found exsiting results of other folds in CV path. Merge and save!\n')
-                merged_results = io.load_pkl(path_to_results)
-                merged_results.update(results_fold)
-            else:
-                print('Found no existing results of other folds in CV path. Saving only '
-                      'these results.\n')
-                merged_results = results_fold
+            print('Merging resuts to CV....')
+            self._merge_results_to_CV(ds_name)
 
-            # the merged results are kept in the model_cv_path
-            self._save_results_to_pkl_and_txt(merged_results,
-                                              self.model_cv_path,
-                                              ds_name=ds_name+'_CV')
+    def _merge_results_to_CV(self, ds_name):
+        # we also store the results in the CV folder and merge them with
+        # possible other results from other folds
+        # to differentiate by name what comes from which fold we add fold_x to the names
+        merged_results = {}
+        all_folds = [fold for fold in os.listdir(self.model_cv_path) if fold.startswith('fold')]
+        for fold in all_folds:
+            if ds_name+'_results.pkl' in os.listdir(os.path.join(self.model_cv_path, fold)):
+                fold_results = io.load_pkl(os.path.join(self.model_cv_path, fold,
+                                                        ds_name+'_results.pkl'))
+                merged_results.update({key+'_'+fold: fold_results[key] for key in fold_results})
+        # the merged results are kept in the model_cv_path
+        self._save_results_to_pkl_and_txt(merged_results,
+                                          self.model_cv_path,
+                                          ds_name=ds_name+'_CV')
 
     def eval_validation_set(self, save_preds=True, save_plots=False, force_evaluation=False):
         if not hasattr(self.data, 'val_ds'):
