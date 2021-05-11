@@ -1,0 +1,5 @@
+from ovseg.model.model_parameters_segmentation import get_model_params_3d_nfUNet
+from ovseg.model.SegmentationModel import SegmentationModel
+import argparse
+
+parser = argparse.ArgumentParser()

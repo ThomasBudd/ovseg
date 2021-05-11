@@ -12,22 +12,22 @@ im = np.moveaxis(im, -1, 0)[:, np.newaxis]
 mu = 0.0192
 # %% detmine n_angles
 plt.close()
-n_angles = 384
-det_count = 736
+n_angles = 192
+det_count = 724
 source_distance = 595 * 1.4
 det_distance = (1085.6-595) * 1.4
 det_spacing = 1.4
 
-radon = RadonFanbeam(resolution=512,
-                      angles=np.linspace(0, 2 * np.pi, n_angles, endpoint=False),
-                      source_distance=source_distance,
-                      det_distance=det_distance,
-                      det_count=det_count,
-                      det_spacing=det_spacing)
-# radon = Radon(resolution=512,
-#               angles=np.linspace(0, np.pi, n_angles, endpoint=False),
-#               clip_to_circle=False,
-#               det_count=det_count)
+# radon = RadonFanbeam(resolution=512,
+#                       angles=np.linspace(0, 2 * np.pi, n_angles, endpoint=False),
+#                       source_distance=source_distance,
+#                       det_distance=det_distance,
+#                       det_count=det_count,
+#                       det_spacing=det_spacing)
+radon = Radon(resolution=512,
+              angles=np.linspace(0, np.pi, n_angles, endpoint=False),
+              clip_to_circle=False,
+              det_count=det_count)
 
 def sim_sinogram(im_HU, num_photons=None):
     im_att = im_HU / 1000 * mu + mu
@@ -65,7 +65,7 @@ for i, z in enumerate(z_list):
 
 # %%
 plt.close()
-n_photons = 10 ** 7
+n_photons = 2 * 10 ** 6
 y = sim_sinogram(torch.from_numpy(im.copy()).cuda().type(torch.float), n_photons)
 im_fbp = to_HU(fbp(y).cpu().numpy())
 

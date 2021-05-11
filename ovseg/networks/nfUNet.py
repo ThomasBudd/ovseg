@@ -82,13 +82,12 @@ class Logits(nn.Module):
     def __init__(self, in_channels, out_channels, is_2d=False, dropout_rate=0):
         super().__init__()
         if is_2d:
-            self.logits = nn.Conv2d(in_channels, out_channels, 1)
+            self.logits = nn.Conv2d(in_channels, out_channels, 1, bias=False)
             self.dropout = nn.Dropout2d(dropout_rate)
         else:
-            self.logits = nn.Conv3d(in_channels, out_channels, 1)
+            self.logits = nn.Conv3d(in_channels, out_channels, 1, bias=False)
             self.dropout = nn.Dropout3d(dropout_rate)
         nn.init.kaiming_normal_(self.logits.weight, nonlinearity='relu')
-        nn.init.zeros_(self.logits.bias)
 
     def forward(self, xb):
         return self.dropout(self.logits(xb))

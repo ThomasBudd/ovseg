@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from ovseg.networks.UNet import ConvNormNonlinBlock, UpConv
+from ovseg.networks.UNet import UpConv
 try:
     from torch_radon import Radon
 except ModuleNotFoundError:
@@ -166,21 +166,48 @@ class learned_primal_dual(nn.Module):
         return f[:, :1]
 
 
-class post_processing_U_Net(nn.Module):
-    def __init__(self):
+# %%
+class ConvNormNonlinBlock(nn.Module):
+    def __init__(self, in_ch, out_ch, downsample=False):
         super().__init__()
+        self.conv1 = nn.Conv2d(in_channels=in_ch,
+                               out_channels=out_ch,
+                               kernel_size=3,
+                               padding=(1, 1),
+                               stride=2 if downsample else 1,
+                               bias=False)
+        self.norm1 = nn.InstanceNorm2d(out_ch)
+        self.nonlin1 = nn.LeakyReLU()
+        self.conv2 = nn.Conv2d(in_channels=out_ch,
+                               out_channels=out_ch,
+                               kernel_size=3,
+                               padding=(1, 1),
+                               stride=1,
+                               bias=False)
+        self.norm2 = nn.InstanceNorm2d(out_ch)
+        self.nonlin2 = nn.LeakyReLU()
+
+    def forward(self, xb):
+        return self.nonlin2(self.norm2(self.conv2(self.nonlin1(self.norm1(self.conv1(xb))))))
+
+class post_processing_U_Net(nn.Module):
+    def __init__(self, radon, tau0=50):
+        super().__init__()
+        # for the fbp
+        self.radon = radon
+        self.tau = nn.Parameter(tau0 * torch.ones(1))
         # downsampling
-        self.block1 = ConvNormNonlinBlock(1, 32, True)
-        self.block2 = ConvNormNonlinBlock(32, 32, True, downsample=True)
-        self.block3 = ConvNormNonlinBlock(32, 64, True, downsample=True)
-        self.block4 = ConvNormNonlinBlock(64, 64, True, downsample=True)
-        self.block5 = ConvNormNonlinBlock(64, 128, True, downsample=True)
+        self.block1 = ConvNormNonlinBlock(1, 32)
+        self.block2 = ConvNormNonlinBlock(32, 32, downsample=True)
+        self.block3 = ConvNormNonlinBlock(32, 64, downsample=True)
+        self.block4 = ConvNormNonlinBlock(64, 64, downsample=True)
+        self.block5 = ConvNormNonlinBlock(64, 128, downsample=True)
 
         # upsampling
-        self.block6 = ConvNormNonlinBlock(64 + 64, 64, True)
-        self.block7 = ConvNormNonlinBlock(64 + 64, 64, True)
-        self.block8 = ConvNormNonlinBlock(32 + 32, 32, True)
-        self.block9 = ConvNormNonlinBlock(32 + 32, 32, True)
+        self.block6 = ConvNormNonlinBlock(64 + 64, 64)
+        self.block7 = ConvNormNonlinBlock(64 + 64, 64)
+        self.block8 = ConvNormNonlinBlock(32 + 32, 32)
+        self.block9 = ConvNormNonlinBlock(32 + 32, 32)
 
         # transposed convs
         self.up1 = UpConv(128, 64, True)
@@ -190,7 +217,10 @@ class post_processing_U_Net(nn.Module):
 
         self.logits = nn.Conv2d(32, 1, 1)
 
-    def forward(self, xb0):
+    def forward(self, yb):
+        
+        filtered_sinogram = self.radon.filter_sinogram(yb)
+        xb0 = self.radon.backprojection(filtered_sinogram) * self.tau
         xb1 = self.block1(xb0)
         xb2 = self.block2(xb1)
         xb3 = self.block3(xb2)

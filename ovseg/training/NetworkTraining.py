@@ -243,11 +243,13 @@ class NetworkTraining(TrainingBase):
             self.scaler.step(self.opt)
             self.scaler.update()
 
-        if self.trn_loss is None:
-            self.trn_loss = loss.detach().item()
-        else:
-            self.trn_loss = self.nu_ema_trn * self.trn_loss + \
-                (1 - self.nu_ema_trn) * loss.detach().item()
+        l = loss.detach().item()
+        if not np.isnan(l):
+            if self.trn_loss is None:
+                self.trn_loss = loss.detach().item()
+            else:
+                self.trn_loss = self.nu_ema_trn * self.trn_loss + \
+                    (1 - self.nu_ema_trn) * loss.detach().item()
 
     def on_epoch_start(self):
         self.total_epoch_time = -1*perf_counter()
@@ -262,8 +264,13 @@ class NetworkTraining(TrainingBase):
         else:
             self.print_and_log('Warning: computed NaN for trn loss, continuing EMA with previous '
                                'value.')
-            self.trn_losses.append(self.trn_losses[-1])
-            self.trn_loss = self.trn_losses[-1]
+            if len(self.trn_losses) > 0:
+                self.trn_losses.append(self.trn_losses[-1])
+                self.trn_loss = self.trn_losses[-1]
+            else:
+                self.trn_losses.append(None)
+                self.trn_loss = None
+                
         self.print_and_log('Traning loss: {:.4e}'.format(self.trn_loss))
 
         # evaluate network on val_dl if given
