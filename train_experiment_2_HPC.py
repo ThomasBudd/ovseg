@@ -24,7 +24,8 @@ elif int(args.i) == 3:
 
 
 model_params = get_model_params_3d_nnUNet([48, 192, 192], 2,
-                                          use_prg_trn=False)
+                                          use_prg_trn=False,
+                                          fp32=True)
 
 model = SegmentationModel(val_fold=val_fold,
                           data_name='OV04',
