@@ -14,12 +14,13 @@ p_name_list = ['pod_half', 'om_half']
 
 model_params = get_model_params_3d_nnUNet([48, 192, 192], 2,
                                           use_prg_trn=True)
-
+model_params['training']['num_epochs'] = 1200
 for p_name in p_name_list:
     model = SegmentationModel(val_fold=val_fold,
                               data_name='OV04',
                               preprocessed_name=p_name,
-                              model_name=model_name)
+                              model_name=model_name,
+                              model_parameters=model_params)
     model.training.train()
     model.eval_validation_set()
     del model.network
