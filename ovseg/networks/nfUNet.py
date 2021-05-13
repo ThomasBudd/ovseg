@@ -5,7 +5,6 @@ import numpy as np
 from time import perf_counter
 from ovseg.networks.blocks import nfConvResStage, nfConvBlock, get_stride, WSConv2d, WSConv3d
 
-
 # %% transposed convolutions
 class UpConv(nn.Module):
 
