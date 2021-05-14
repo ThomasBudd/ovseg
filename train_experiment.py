@@ -10,7 +10,6 @@ parser.add_argument("gpu", type=int)
 args = parser.parse_args()
 p_name = 'pod_half'
 
-<<<<<<< HEAD
 if args.gpu == 0:
     val_fold_list = [0, 4, 3, 2, 1]
     exp_list = [0, 0, 1, 2, 3]
@@ -77,16 +76,6 @@ def get_model_params(exp):
 
 for val_fold, exp in zip(val_fold_list, exp_list):
     model_params, model_name = get_model_params(exp)
-=======
-model_name = 'prg_trn_1200'
-val_fold = int(args.i)
-p_name_list = ['pod_half', 'om_half']
-
-model_params = get_model_params_3d_nnUNet([48, 192, 192], 2,
-                                          use_prg_trn=True)
-model_params['training']['num_epochs'] = 1200
-for p_name in p_name_list:
->>>>>>> cf777fb89fe5f0c75d3d4675ae3eb977eb8eb7ed
     model = SegmentationModel(val_fold=val_fold,
                               data_name='OV04',
                               preprocessed_name=p_name,
@@ -99,19 +88,9 @@ for p_name in p_name_list:
         for arr in tpl:
             del arr
         del tpl
-<<<<<<< HEAD
-
-=======
-    
->>>>>>> cf777fb89fe5f0c75d3d4675ae3eb977eb8eb7ed
     ens = SegmentationEnsemble(val_fold=list(range(5)),
                                data_name='OV04',
                                preprocessed_name=p_name,
                                model_name=model_name)
-<<<<<<< HEAD
-
-=======
-    
->>>>>>> cf777fb89fe5f0c75d3d4675ae3eb977eb8eb7ed
     if ens.all_folds_complete():
         ens.eval_raw_dataset('BARTS', save_preds=True, save_plots=False)
