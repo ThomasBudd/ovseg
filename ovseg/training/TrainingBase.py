@@ -65,6 +65,11 @@ class TrainingBase():
         Basic training function where everything is happening
         '''
 
+        if self.epochs_done >= self.num_epochs:
+            # do nothing if the traing was already finished
+            print('Training was already completed. Doing nothing here.')
+            return
+
         self.on_training_start()
 
         while self.epochs_done < self.num_epochs:

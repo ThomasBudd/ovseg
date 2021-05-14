@@ -87,6 +87,15 @@ class NetworkTraining(TrainingBase):
         # setup optimizer
         self.initialise_opt()
 
+        # now we try to load the last checkpoint
+        loaded = False
+        if self.load_last_checkpoint():
+            self.print_and_log('Loaded checkpoint from previous training!')
+            loaded = True
+        if not loaded:
+            self.print_and_log('No previous checkpoint found,'
+                               ' start from scrtach.')
+
     def initialise_loss(self):
         raise NotImplementedError('initialise_loss must be implemented.')
 
@@ -177,16 +186,8 @@ class NetworkTraining(TrainingBase):
                       'fp32 to fp16.')
         return True
 
-    def train(self, try_continue=True):
+    def train(self):
         self.network = self.network.to(self.dev)
-        loaded = False
-        if try_continue:
-            if self.load_last_checkpoint():
-                self.print_and_log('Loaded checkpoint from previous training!')
-                loaded = True
-        if not loaded:
-            self.print_and_log('No previous checkpoint found,'
-                               ' start from scrtach.')
         self.enable_autotune()
         super().train()
 

@@ -43,7 +43,7 @@ model_params['data']['trn_dl_params']['store_data_in_ram'] = True
 model_params['data']['trn_dl_params']['batch_size'] = batch_size
 model_params['data']['val_dl_params']['batch_size'] = batch_size
 model_params['training']['num_epochs'] = num_epochs
-model = Reconstruction2dSimModel(val_fold=1, data_name='OV04', model_name='post_processing_UNet_1000',
+model = Reconstruction2dSimModel(val_fold=1, data_name='OV04', model_name=model_name,
                                  model_parameters=model_params, preprocessed_name='pod_full')
 
 model.training.train()
