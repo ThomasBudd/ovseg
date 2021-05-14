@@ -57,8 +57,12 @@ def get_model_params(exp):
     for key in params:
         if key.startswith('p'):
             prg_trn_aug_params[key] = [params[key]/2, params[key]]
-        elif key.startswith('mm'):
-            prg_trn_aug_params[key] = [np.array(params[key])/2, np.array(params[key])]
+    prg_trn_aug_params['mm_var_noise'] = [np.array([0, 0.05]), np.array([0, 0.1])]
+    prg_trn_aug_params['mm_sigma_blur'] = [np.array([0.75, 1.25]), np.array([0.5, 1.5])]
+    prg_trn_aug_params['mm_bright'] = [np.array([0.85, 1.15]), np.array([0.7, 1.3])]
+    prg_trn_aug_params['mm_contr'] = [np.array([0.825, 1.25]), np.array([0.65, 1.5])]
+    prg_trn_aug_params['mm_low_res'] = [np.array([1, 1.5]), np.array([1, 2])]
+    prg_trn_aug_params['mm_gamma'] = [np.array([0.85, 1.25]), np.array([0.7, 1.5])]
     params = model_params['augmentation']['torch_params']['grid_inplane']
     for key in params:
         if key.startswith('p'):
