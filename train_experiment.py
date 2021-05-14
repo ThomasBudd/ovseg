@@ -63,7 +63,7 @@ def get_model_params(exp):
     for key in params:
         if key.startswith('p'):
             prg_trn_aug_params[key] = [params[key]/2, params[key]]
-
+    model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
     # in experiement 1 and 2 we will use 5 stages
     if exp == 1:
         model_params['training']['prg_trn_sizes'] = [[48, 64, 64], [48, 96, 96], [48, 128, 128],

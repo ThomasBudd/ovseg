@@ -77,6 +77,7 @@ class SegmentationTraining(NetworkTraining):
             # here we update augmentation parameters. The idea is we augment more towards the
             # end of the training
             h = self.prg_trn_stage / (self.prg_trn_n_stages - 1)
+            self.print_and_log('changing augmentation paramters with h={:.4f}'.format(h))
             if self.augmentation is not None:
                 self.augmentation.update_prg_trn(self.prg_trn_aug_params, h)
             if self.trn_dl.dataset.augmentation is not None:
