@@ -45,7 +45,7 @@ def get_model_params(exp):
         patch_size = [32, 160, 160]
 
     model_params = get_model_params_3d_nnUNet(patch_size, 2,
-                                              use_prg_trn=True)
+                                              use_prg_trn=exp > 0)
 
     # this time we change the amount of augmentation during training
     prg_trn_aug_params = {}
@@ -54,18 +54,19 @@ def get_model_params(exp):
     #     if key.startswith('p'):
     #         prg_trn_aug_params[key] = [params[key]/2, params[key]]
     # factor we use for reducing the magnitude of the gray value augmentations
-    c = 3
-    prg_trn_aug_params['mm_var_noise'] = np.array([[0, 0.1/c], [0, 0.1]])
-    prg_trn_aug_params['mm_sigma_blur'] = np.array([[1 - 0.5/c, 1 + 0.5/c], [0.5, 1.5]])
-    prg_trn_aug_params['mm_bright'] = np.array([[1 - 0.3/c, 1 + 0.3/c], [0.7, 1.3]])
-    prg_trn_aug_params['mm_contr'] = np.array([[1 - 0.45/c, 1 + 0.5/c], [0.65, 1.5]])
-    prg_trn_aug_params['mm_low_res'] = np.array([[1, 2/c], [1, 2]])
-    prg_trn_aug_params['mm_gamma'] = np.array([[1 - 0.3/c, 1 + 0.5/c], [0.7, 1.5]])
-    # params = model_params['augmentation']['torch_params']['grid_inplane']
-    # for key in params:
-    #     if key.startswith('p'):
-    #         prg_trn_aug_params[key] = [params[key]/2, params[key]]
-    model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
+    if exp > 0:
+        c = 3
+        prg_trn_aug_params['mm_var_noise'] = np.array([[0, 0.1/c], [0, 0.1]])
+        prg_trn_aug_params['mm_sigma_blur'] = np.array([[1 - 0.5/c, 1 + 0.5/c], [0.5, 1.5]])
+        prg_trn_aug_params['mm_bright'] = np.array([[1 - 0.3/c, 1 + 0.3/c], [0.7, 1.3]])
+        prg_trn_aug_params['mm_contr'] = np.array([[1 - 0.45/c, 1 + 0.5/c], [0.65, 1.5]])
+        prg_trn_aug_params['mm_low_res'] = np.array([[1, 2/c], [1, 2]])
+        prg_trn_aug_params['mm_gamma'] = np.array([[1 - 0.3/c, 1 + 0.5/c], [0.7, 1.5]])
+        # params = model_params['augmentation']['torch_params']['grid_inplane']
+        # for key in params:
+        #     if key.startswith('p'):
+        #         prg_trn_aug_params[key] = [params[key]/2, params[key]]
+        model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
 
     return model_params, model_name
 
