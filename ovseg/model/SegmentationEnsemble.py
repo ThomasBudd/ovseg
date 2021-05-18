@@ -32,7 +32,11 @@ class SegmentationEnsemble(ModelBase):
 
         # create all models
         self.models = []
+        not_finished_folds = self._find_incomplete_folds()
         for fold in self.val_fold:
+            if fold in not_finished_folds:
+                print('Skipping fold {}. Training was not finished.'.format(fold))
+                continue
             print('Creating model from fold: '+str(fold))
             model = SegmentationModel(val_fold=fold,
                                       data_name=self.data_name,
@@ -56,7 +60,7 @@ class SegmentationEnsemble(ModelBase):
 
         self.n_fg_classes = self.models[0].n_fg_classes
 
-    def all_folds_complete(self):
+    def _find_incomplete_folds(self):
         num_epochs = self.model_parameters['training']['num_epochs']
         not_finished_folds = []
         for fold in self.val_fold:
@@ -72,7 +76,10 @@ class SegmentationEnsemble(ModelBase):
 
             if attr['epochs_done'] != num_epochs:
                 not_finished_folds.append(fold)
+        return not_finished_folds
 
+    def all_folds_complete(self):
+        not_finished_folds = self._find_incomplete_folds()
         if len(not_finished_folds) == 0:
             return True
 
@@ -100,6 +107,8 @@ class SegmentationEnsemble(ModelBase):
         return
 
     def __call__(self, data_tpl):
+        if not self.all_folds_complete():
+            print('WARNING: Ensemble is used without all training folds being completed!!')
         im = data_tpl['image']
         is_np,  _ = check_type(im)
         if is_np:

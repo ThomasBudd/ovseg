@@ -85,7 +85,7 @@ for val_fold, exp in zip(val_fold_list, exp_list):
         for arr in tpl:
             del arr
         del tpl
-    ens = SegmentationEnsemble(val_fold=list(range(5)),
+    ens = SegmentationEnsemble(val_fold=list(range(5, 8)),
                                data_name='OV04',
                                preprocessed_name=p_name,
                                model_name=model_name)
