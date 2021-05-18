@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from ovseg.networks.nfUNet import concat_attention, concat
 
 
 def get_padding(kernel_size):
@@ -121,7 +122,7 @@ class UNet(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_sizes,
                  is_2d, filters=32, filters_max=384, n_pyramid_scales=None,
                  conv_params=None, norm=None, norm_params=None, nonlin_params=None,
-                 kernel_sizes_up=None):
+                 kernel_sizes_up=None, use_attention_gates=False):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -135,6 +136,7 @@ class UNet(nn.Module):
         self.norm_params = norm_params
         self.nonlin_params = nonlin_params
         self.kernel_sizes_up = kernel_sizes_up if kernel_sizes_up is not None else kernel_sizes[:-1]
+        self.use_attention_gates = use_attention_gates
         # we double the amount of channels every downsampling step
         # up to a max of filters_max
         self.filters_list = [min([self.filters*2**i, self.filters_max])
@@ -202,6 +204,14 @@ class UNet(nn.Module):
                                        out_channels=out_channels,
                                        is_2d=self.is_2d,
                                        kernel_size=get_stride(kernel_size)))
+        # now the concats:
+        self.concats = []
+        for in_ch in self.up_conv_out_list:
+            if self.use_attention_gates:
+                self.concats.append(concat_attention(in_channels=in_ch,
+                                                     is_2d=self.is_2d))
+            else:
+                self.concats.append(concat())
 
         # logits
         self.all_logits = []
@@ -228,14 +238,14 @@ class UNet(nn.Module):
         # expanding path without logits
         for i in range(self.n_stages - 2, self.n_pyramid_scales-1, -1):
             xb = self.upconvs[i](xb)
-            xb = torch.cat([xb, xb_list[i]], 1)
+            xb = self.concats[i](xb, xb_list[i])
             del xb_list[i]
             xb = self.blocks_up[i](xb)
 
         # expanding path with logits
         for i in range(self.n_pyramid_scales - 1, -1, -1):
             xb = self.upconvs[i](xb)
-            xb = torch.cat([xb, xb_list[i]], 1)
+            xb = self.concats[i](xb, xb_list[i])
             del xb_list[i]
             xb = self.blocks_up[i](xb)
             logs = self.all_logits[i](xb)

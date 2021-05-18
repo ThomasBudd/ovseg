@@ -70,7 +70,8 @@ class SegmentationEnsemble(ModelBase):
             if not exists(path_to_attr):
                 print('Trying to check if the training is done for all folds,'
                       ' but not checkpoint was found for fold '+str(fold)+'.')
-                return False
+                not_finished_folds.append(fold)
+                continue
 
             attr = load_pkl(path_to_attr)
 

@@ -53,11 +53,10 @@ class concat_attention(nn.Module):
     def __init__(self, in_channels, is_2d=False):
         super().__init__()
         if is_2d:
-            self.logits = nn.Conv2d(in_channels, 1, 1)
+            self.logits = nn.Conv2d(in_channels, 1, 1, bias=False)
         else:
-            self.logits = nn.Conv3d(in_channels, 1, 1)
+            self.logits = nn.Conv3d(in_channels, 1, 1, bias=False)
 
-        nn.init.zeros_(self.logits.bias)
         nn.init.zeros_(self.logits.weight)
         self.nonlin = torch.sigmoid
 
