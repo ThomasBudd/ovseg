@@ -365,7 +365,7 @@ class torch_gray_value_augmentation(torch.nn.Module):
                 xb[b:b+1, :c] = op(xb[b:b+1, :c])
         return xb
 
-    def update_prg_trn(self, param_dict, h):
+    def update_prg_trn(self, param_dict, h, indx=None):
 
         attr_list = ['p_noise', 'p_blur', 'p_bright', 'p_contr', 'p_low_res', 'mm_var_noise',
                      'mm_sigma_blur', 'mm_bright', 'mm_contr', 'mm_low_res']
@@ -503,7 +503,7 @@ class np_gray_value_augmentation():
                 xb[b:b+1, :c] = op(xb[b:b+1, :c])
         return xb
 
-    def update_prg_trn(self, param_dict, h):
+    def update_prg_trn(self, param_dict, h, indx=None):
 
         attr_list = ['p_noise', 'p_blur', 'p_bright', 'p_contr', 'p_low_res', 'p_gamma',
                      'p_gamma_invert', 'mm_var_noise', 'mm_sigma_blur', 'mm_bright', 'mm_contr',

@@ -34,13 +34,16 @@ class SegmentationTraining(NetworkTraining):
     def compute_batch_loss(self, batch):
 
         batch = batch.cuda()
+        xb, yb = batch[:, :-1], batch[:, -1:]
+        xb, yb = self.prg_trn_process_batch(xb, yb)
+        
         if self.augmentation is not None:
+            batch = torch.cat([xb, yb], 1)
             with torch.no_grad():
                 batch = self.augmentation(batch)
+            xb, yb = batch[:, :-1], batch[:, -1:]
 
-        xb, yb = batch[:, :-1], batch[:, -1:]
         yb = to_one_hot_encoding(yb, self.network.out_channels)
-        xb, yb = self.prg_trn_process_batch(xb, yb)
         out = self.network(xb)
         loss = self.loss_fctn(out, yb)
         return loss
@@ -53,9 +56,19 @@ class SegmentationTraining(NetworkTraining):
         # compute which stage we are in atm
         self.prg_trn_stage = self.epochs_done // self.prg_trn_epochs_per_stage
 
+        # this is just getting the input patch size for the current stage
+        # if we use grid augmentations the out shape of the augmentation is the input size
+        # for the network. Else we can take the sampled size
+        if self.prg_trn_aug_params is not None:
+            if 'out_shape' in self.prg_trn_aug_params:
+                print_shape = self.prg_trn_aug_params['out_shape'][self.prg_trn_stage]
+            else:
+                print_shape = self.prg_trn_sizes[self.prg_trn_stage]
+        else:
+            print_shape = self.prg_trn_sizes[self.prg_trn_stage]
+                
         self.print_and_log('\nProgressive Training: '
-                           'Stage {}, size {}'.format(self.prg_trn_stage,
-                                                      self.prg_trn_sizes[self.prg_trn_stage]),
+                           'Stage {}, size {}'.format(self.prg_trn_stage, print_shape),
                            2)
         if self.prg_trn_stage < self.prg_trn_n_stages - 1:
             # the most imporant part of progressive training: we update the resizing function
@@ -79,12 +92,14 @@ class SegmentationTraining(NetworkTraining):
             h = self.prg_trn_stage / (self.prg_trn_n_stages - 1)
             self.print_and_log('changing augmentation paramters with h={:.4f}'.format(h))
             if self.augmentation is not None:
-                self.augmentation.update_prg_trn(self.prg_trn_aug_params, h)
+                self.augmentation.update_prg_trn(self.prg_trn_aug_params, h, self.prg_trn_stage)
             if self.trn_dl.dataset.augmentation is not None:
-                self.trn_dl.dataset.augmentation.update_prg_trn(self.prg_trn_aug_params, h)
+                self.trn_dl.dataset.augmentation.update_prg_trn(self.prg_trn_aug_params, h,
+                                                                self.prg_trn_stage)
             if self.val_dl is not None:
                 if self.val_dl.dataset.augmentation is not None:
-                    self.val_dl.dataset.augmentation.update_prg_trn(self.prg_trn_aug_params, h)
+                    self.val_dl.dataset.augmentation.update_prg_trn(self.prg_trn_aug_params, h,
+                                                                    self.prg_trn_stage)
 
     def on_epoch_end(self):
         super().on_epoch_end()
@@ -111,7 +126,6 @@ class resize(nn.Module):
         self.mode = 'bilinear' if self.is_2d else 'trilinear'
 
     def forward(self, xb, yb):
-        xb_ch = xb.shape[1]
-        batch = torch.cat([xb, yb], 1)
-        batch = F.interpolate(batch, size=self.size, mode=self.mode)
-        return batch[:, :xb_ch], batch[:, xb_ch:]
+        xb = F.interpolate(xb, size=self.size, mode=self.mode)
+        yb = F.interpolate(yb, size=self.size)
+        return xb, yb

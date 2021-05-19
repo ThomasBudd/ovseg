@@ -12,41 +12,58 @@ p_name = 'pod_half'
 
 if args.gpu == 0:
     val_fold_list = [5, 5]
-    exp_list = [0, 3]
+    exp_list = [0, 2]
 elif args.gpu == 1:
     val_fold_list = [6, 6]
-    exp_list = [0, 3]
+    exp_list = [0, 2]
 elif args.gpu == 2:
     val_fold_list = [7, 7]
-    exp_list = [0, 3]
+    exp_list = [0, 2]
 elif args.gpu == 3:
-    val_fold_list = [5, 6, 7]
-    exp_list = [1, 1, 1]
+    val_fold_list = [5, 6]
+    exp_list = [1, 1]
 elif args.gpu == 4:
-    val_fold_list = [5, 6, 7]
-    exp_list = [2, 2, 2]
+    val_fold_list = [7]
+    exp_list = [1]
 
 
 def get_model_params(exp):
     if exp == 0:
-        model_name = 'cubed_patched_3fCV'
-    elif exp == 1:
-        model_name = 'add_prg_lrn_48_192'
-    elif exp == 2:
-        model_name = 'add_prg_lrn_40_160'
-    elif exp == 3:
-        model_name = 'add_prg_lrn_32_160'
-
-    if exp <= 1:
+        model_name = '3d_prg_lrn_48_192'
         patch_size = [48, 192, 192]
-    elif exp <= 2:
+        prg_trn_sizes = [[12, 192, 192],
+                         [32, 256, 256],
+                         [40, 320, 320],
+                         [48, 384, 384]]
+        out_shape = [[24, 96, 96],
+                     [32, 128, 128],
+                     [40, 160, 160],
+                     [48, 192, 192]]
+        
+    elif exp == 1:
+        model_name = '3d_prg_lrn_40_160'
         patch_size = [40, 160, 160]
-    elif exp == 3:
-        patch_size = [32, 160, 160]
+        prg_trn_sizes = [[16, 128, 128],
+                         [24, 192, 192],
+                         [32, 256, 256],
+                         [40, 320, 320]]
+        out_shape = [[16, 64, 64],
+                     [24, 96, 96],
+                     [32, 128, 128],
+                     [40, 160, 160]]
+    elif exp == 2:
+        model_name = '3d_prg_lrn_32_128'
+        patch_size = [32, 128, 128]
+        prg_trn_sizes = [[16, 128, 128],
+                         [24, 192, 192],
+                         [32, 256, 256]]
+        out_shape = [[16, 64, 64],
+                     [24, 96, 96],
+                     [32, 128, 128]]
 
     model_params = get_model_params_3d_nnUNet(patch_size, 2,
-                                              use_prg_trn=exp > 0)
-
+                                              use_prg_trn=True)
+    model_params['training']['prg_trn_sizes'] = prg_trn_sizes
     # this time we change the amount of augmentation during training
     prg_trn_aug_params = {}
     # params = model_params['augmentation']['torch_params']['grayvalue']
@@ -54,19 +71,19 @@ def get_model_params(exp):
     #     if key.startswith('p'):
     #         prg_trn_aug_params[key] = [params[key]/2, params[key]]
     # factor we use for reducing the magnitude of the gray value augmentations
-    if exp > 0:
-        c = 3
-        prg_trn_aug_params['mm_var_noise'] = np.array([[0, 0.1/c], [0, 0.1]])
-        prg_trn_aug_params['mm_sigma_blur'] = np.array([[1 - 0.5/c, 1 + 0.5/c], [0.5, 1.5]])
-        prg_trn_aug_params['mm_bright'] = np.array([[1 - 0.3/c, 1 + 0.3/c], [0.7, 1.3]])
-        prg_trn_aug_params['mm_contr'] = np.array([[1 - 0.45/c, 1 + 0.5/c], [0.65, 1.5]])
-        prg_trn_aug_params['mm_low_res'] = np.array([[1, 2/c], [1, 2]])
-        prg_trn_aug_params['mm_gamma'] = np.array([[1 - 0.3/c, 1 + 0.5/c], [0.7, 1.5]])
-        # params = model_params['augmentation']['torch_params']['grid_inplane']
-        # for key in params:
-        #     if key.startswith('p'):
-        #         prg_trn_aug_params[key] = [params[key]/2, params[key]]
-        model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
+    c = 4
+    prg_trn_aug_params['mm_var_noise'] = np.array([[0, 0.1/c], [0, 0.1]])
+    prg_trn_aug_params['mm_sigma_blur'] = np.array([[1 - 0.5/c, 1 + 0.5/c], [0.5, 1.5]])
+    prg_trn_aug_params['mm_bright'] = np.array([[1 - 0.3/c, 1 + 0.3/c], [0.7, 1.3]])
+    prg_trn_aug_params['mm_contr'] = np.array([[1 - 0.45/c, 1 + 0.5/c], [0.65, 1.5]])
+    prg_trn_aug_params['mm_low_res'] = np.array([[1, 1 + 1/c], [1, 2]])
+    prg_trn_aug_params['mm_gamma'] = np.array([[1 - 0.3/c, 1 + 0.5/c], [0.7, 1.5]])
+    # params = model_params['augmentation']['torch_params']['grid_inplane']
+    # for key in params:
+    #     if key.startswith('p'):
+    #         prg_trn_aug_params[key] = [params[key]/2, params[key]]
+    model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
+    prg_trn_aug_params['out_shape'] = out_shape
 
     return model_params, model_name
 
