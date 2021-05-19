@@ -224,6 +224,7 @@ class UNet(nn.Module):
         self.blocks_down = nn.ModuleList(self.blocks_down)
         self.blocks_up = nn.ModuleList(self.blocks_up)
         self.upconvs = nn.ModuleList(self.upconvs)
+        self.concats = nn.ModuleList(self.concats)
         self.all_logits = nn.ModuleList(self.all_logits)
 
     def forward(self, xb):
