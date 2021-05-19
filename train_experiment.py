@@ -31,7 +31,7 @@ def get_model_params(exp):
     if exp == 0:
         model_name = '3d_prg_lrn_48_192'
         patch_size = [48, 192, 192]
-        prg_trn_sizes = [[12, 192, 192],
+        prg_trn_sizes = [[24, 192, 192],
                          [32, 256, 256],
                          [40, 320, 320],
                          [48, 384, 384]]
