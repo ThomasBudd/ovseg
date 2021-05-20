@@ -41,7 +41,7 @@ class Dataset(object):
             else:
                 self.unused_scans.append(scan)
         if len(self.unused_scans) > 0:
-            print('Some .npy files were not found: ',*self.unused_scans)
+            print('Some .npy files were not found: ', *self.unused_scans)
             if not self.ignore_missing_scans:
                 raise FileNotFoundError('Not all .npy files were found.')
 
@@ -76,7 +76,7 @@ class Dataset(object):
 
         return data_dict
 
-    def change_folders(self, new_folders):
+    def change_folders_and_keys(self, new_folders, new_keys):
         # this is handy for progressive training if we're not resizing on the fly!
         for folder in new_folders:
             if not exists(join(self.preprocessed_path, folder)):
@@ -85,7 +85,9 @@ class Dataset(object):
                                         'folders ' + str(self.folders) + '. '
                                         + folder + ' was not found.')
         self.folders = new_folders
+        self.keys = new_keys
         self._set_path_dics_and_scans()
+
 
 class raw_Dataset(object):
 

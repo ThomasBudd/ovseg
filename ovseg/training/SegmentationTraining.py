@@ -24,6 +24,9 @@ class SegmentationTraining(NetworkTraining):
         # now have fun with progressive training!
         self.do_prg_trn = self.prg_trn_sizes is not None
         if self.do_prg_trn:
+            if not self.prg_trn_resize_on_the_fly:
+                # if we're not resizing on the fly we have to store rescaled data
+                self.prg_trn_store_rescaled_data()
             self.prg_trn_n_stages = len(self.prg_trn_sizes)
             assert self.prg_trn_n_stages > 1, "please use progressive training only if you have "\
                 "more then one stage."
@@ -40,7 +43,7 @@ class SegmentationTraining(NetworkTraining):
         batch = batch.cuda()
         xb, yb = batch[:, :-1], batch[:, -1:]
         xb, yb = self.prg_trn_process_batch(xb, yb)
-        
+
         if self.augmentation is not None:
             batch = torch.cat([xb, yb], 1)
             with torch.no_grad():
@@ -71,20 +74,29 @@ class SegmentationTraining(NetworkTraining):
                 print_shape = self.prg_trn_sizes[self.prg_trn_stage]
         else:
             print_shape = self.prg_trn_sizes[self.prg_trn_stage]
-                
+
         self.print_and_log('\nProgressive Training: '
                            'Stage {}, size {}'.format(self.prg_trn_stage, print_shape),
                            2)
-        if self.prg_trn_stage < self.prg_trn_n_stages - 1:
-            # the most imporant part of progressive training: we update the resizing function
-            # that should make the batches smaller
-            self.prg_trn_process_batch = resize(self.prg_trn_sizes[self.prg_trn_stage],
-                                                self.network.is_2d)
-        else:
-            # here we assume that the last stage of the progressive training has the desired size
-            # i.e. the size that the augmentation/the dataloader returns
-            self.prg_trn_process_batch = identity()
 
+        # now set the new patch size
+        if self.prg_trn_resize_on_the_fly:
+
+            if self.prg_trn_stage < self.prg_trn_n_stages - 1:
+                # the most imporant part of progressive training: we update the resizing function
+                # that should make the batches smaller
+                self.prg_trn_process_batch = resize(self.prg_trn_sizes[self.prg_trn_stage],
+                                                    self.network.is_2d)
+            else:
+                # here we assume that the last stage of the progressive training has the desired
+                # size i.e. the size that the augmentation/the dataloader returns
+                self.prg_trn_process_batch = identity()
+        else:
+            # we need to change the folder the dataloader loads from
+            new_folders = self.prg_trn_new_folders_list[self.prg_trn_stage]
+            self.trn_dl.dataset.change_folders_and_keys(new_folders, self.prg_trn_new_keys)
+
+        # now alter the regularization
         if self.prg_trn_arch_params is not None:
             # here we update architectural paramters, this should be dropout and stochastic depth
             # rate
@@ -105,8 +117,8 @@ class SegmentationTraining(NetworkTraining):
                 if self.val_dl.dataset.augmentation is not None:
                     self.val_dl.dataset.augmentation.update_prg_trn(self.prg_trn_aug_params, h,
                                                                     self.prg_trn_stage)
-    
-    def prg_trn_store_resied_data(self):
+
+    def prg_trn_store_rescaled_data(self):
 
         # if we don't want to resize on the fly, e.g. because the CPU loading time is the
         # bottleneck, we will resize the full volumes and save them in .npy files
@@ -114,7 +126,7 @@ class SegmentationTraining(NetworkTraining):
         str_fs = '_'.join([str(p) for p in self.prg_trn_sizes[-1]])
         extensions = []
         for ps in self.prg_trn_sizes[:-1]:
-            extensions.append(str_fs + '->' +'_'.join([str(p) for p in ps]))
+            extensions.append(str_fs + '->' + '_'.join([str(p) for p in ps]))
         # the scaling factors we will use for resizing
         scales = []
         for ps in self.prg_trn_sizes[:-1]:
@@ -138,8 +150,8 @@ class SegmentationTraining(NetworkTraining):
                 if not os.path.exists(path_to_fol):
                     os.mkdir(path_to_fol)
 
-        self.print_and_log('resize on the fly was disabled. Instead all resized volumes will be saved '
-              'at '+prepp+ ' in the following folders:')
+        self.print_and_log('resize on the fly was disabled. Instead all resized volumes will be '
+                           'saved at ' + prepp + ' in the following folders:')
         self.print_and_log(*all_fols)
         self.print_and_log('Checking and converting now')
         # let's look at each dl
@@ -147,7 +159,7 @@ class SegmentationTraining(NetworkTraining):
 
             # now we cycle through the dataset to see if there are scans we still need to resize
             for ind, scan in enumerate(ds.vol_ds.used_scans):
-                convert_scan = np.any([not os.path.exists(os.path.join(fol, scan)) 
+                convert_scan = np.any([not os.path.exists(os.path.join(fol, scan))
                                        for fol in all_fols])
                 if convert_scan:
                     # at least one .npy file is missing, convert...
@@ -175,7 +187,7 @@ class SegmentationTraining(NetworkTraining):
                         np.save(os.path.join(prepp, lb_folder+'_'+ext, scan), lb_rsz)
 
                     if len(tpl) == 3:
-                        # in this case we're in the second stage and also resize the 
+                        # in this case we're in the second stage and also resize the
                         # prediction from the previous stage
                         prd = tpl[1]
                         prd_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)]
@@ -185,7 +197,18 @@ class SegmentationTraining(NetworkTraining):
                             prd_rsz = F.interpolate(prd, scale_factor=scale)
                             prd_rsz = prd_rsz.cpu().numpy().astype(dtype)
                             np.save(os.path.join(prepp, prd_folder+'_'+ext, scan), prd_rsz)
-                        
+
+        # now we need the new_keys and new_folders for each stage to update the datasets
+        self.prg_trn_new_keys = [ds.image_key, ds.label_key]
+        folders = [ds.vol_ds.folders[ds.vol_ds.keys.index(ds.image_key)],
+                   ds.vol_ds.folders[ds.vol_ds.keys.index(ds.label_key)]]
+        if ds.pred_fps_key is not None:
+            self.prg_trn_new_keys.append(ds.pred_fps_key)
+            folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)])
+        self.prg_trn_new_folders_list = []
+        for ext in extensions:
+            self.prg_trn_new_folders_list.append([fol+'_'+ext] for fol in folders)
+        self.prg_trn_new_folders_list.append(folders)
         self.print_and_log('Done!', 1)
 
     def on_epoch_end(self):

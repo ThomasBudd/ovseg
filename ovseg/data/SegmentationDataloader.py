@@ -55,6 +55,10 @@ class SegmentationBatchDataset(object):
         if self.is_cascade:
             assert isinstance(self.n_fg_classes, int), 'n_fg_classes must be an integer'
 
+    def _maybe_store_data_in_ram(self):
+        # maybe cleaning first, just to be sure
+        self._maybe_clean_stored_data()
+
         if self.store_data_in_ram:
             print('Store data in RAM.\n')
             self.data = []
@@ -85,6 +89,8 @@ class SegmentationBatchDataset(object):
                 self.coords_list.append(coords)
             print('Done')
         else:
+            # if we don't store them in ram we will compute them and store them as .npy files
+            # in the preprocessed path
             self.bias_coords_fol = os.path.join(self.vol_ds.preprocessed_path, 'bias_coordinates')
             if not os.path.exists(self.bias_coords_fol):
                 os.mkdir(self.bias_coords_fol)
@@ -97,6 +103,28 @@ class SegmentationBatchDataset(object):
                     lb = np.load(d[self.label_key])
                     coords = np.array(np.where(lb > 0)).astype(np.int16)
                     np.save(os.path.join(self.bias_coords_fol, case), coords)
+
+    def _maybe_clean_stored_data(self):
+        # delte stuff we stored in RAM
+        # first for the full volumes
+        if hasattr(self, 'data'):
+            for tpl in self.data:
+                for arr in tpl:
+                    del arr
+                del tpl
+            del self.data
+
+        # now for the bias coordinates
+        if hasattr(self, 'coords_list'):
+            for coord in self.coords_list:
+                del coord
+            del self.coords_list
+
+    def change_folders_and_keys(self, new_folders, new_keys):
+        # for progressive training, we might change the folder of image and label data during
+        # training if we've stored the rescaled volumes on the hard drive.
+        self.vol_ds.change_folders_and_keys(new_folders, new_keys)
+        self._maybe_store_data_in_ram()
 
     def _get_volume_tuple(self, ind=None):
 
