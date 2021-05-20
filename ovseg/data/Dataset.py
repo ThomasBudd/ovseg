@@ -17,6 +17,7 @@ class Dataset(object):
         self.preprocessed_path = preprocessed_path
         self.keys = keys
         self.folders = folders
+        self.ignore_missing_scans = ignore_missing_scans
 
         for folder in self.folders:
             if not exists(join(self.preprocessed_path, folder)):
@@ -24,7 +25,9 @@ class Dataset(object):
                                         'data must have the '
                                         'folders ' + str(self.folders) + '. '
                                         + folder + ' was not found.')
+        self._set_path_dics_and_scans()
 
+    def _set_path_dics_and_scans(self):
         # these will carry all the pathes to data we need for training
         self.path_dicts = []
         self.used_scans = []
@@ -39,7 +42,7 @@ class Dataset(object):
                 self.unused_scans.append(scan)
         if len(self.unused_scans) > 0:
             print('Some .npy files were not found: ',*self.unused_scans)
-            if not ignore_missing_scans:
+            if not self.ignore_missing_scans:
                 raise FileNotFoundError('Not all .npy files were found.')
 
     def __len__(self):
@@ -73,6 +76,16 @@ class Dataset(object):
 
         return data_dict
 
+    def change_folders(self, new_folders):
+        # this is handy for progressive training if we're not resizing on the fly!
+        for folder in new_folders:
+            if not exists(join(self.preprocessed_path, folder)):
+                raise FileNotFoundError('The preprocessed path to the '
+                                        'data must have the '
+                                        'folders ' + str(self.folders) + '. '
+                                        + folder + ' was not found.')
+        self.folders = new_folders
+        self._set_path_dics_and_scans()
 
 class raw_Dataset(object):
 

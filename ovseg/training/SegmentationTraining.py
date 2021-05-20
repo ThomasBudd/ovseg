@@ -3,6 +3,8 @@ from ovseg.training.loss_functions import CE_dice_pyramid_loss, to_one_hot_encod
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import os
+import numpy as np
 
 
 class SegmentationTraining(NetworkTraining):
@@ -11,11 +13,13 @@ class SegmentationTraining(NetworkTraining):
                  prg_trn_sizes=None,
                  prg_trn_arch_params=None,
                  prg_trn_aug_params=None,
+                 prg_trn_resize_on_the_fly=True,
                  **kwargs):
         super().__init__(*args, **kwargs)
         self.prg_trn_sizes = prg_trn_sizes
         self.prg_trn_arch_params = prg_trn_arch_params
         self.prg_trn_aug_params = prg_trn_aug_params
+        self.prg_trn_resize_on_the_fly = prg_trn_resize_on_the_fly
 
         # now have fun with progressive training!
         self.do_prg_trn = self.prg_trn_sizes is not None
@@ -101,6 +105,88 @@ class SegmentationTraining(NetworkTraining):
                 if self.val_dl.dataset.augmentation is not None:
                     self.val_dl.dataset.augmentation.update_prg_trn(self.prg_trn_aug_params, h,
                                                                     self.prg_trn_stage)
+    
+    def prg_trn_store_resied_data(self):
+
+        # if we don't want to resize on the fly, e.g. because the CPU loading time is the
+        # bottleneck, we will resize the full volumes and save them in .npy files
+        # extensions for all folders
+        str_fs = '_'.join([str(p) for p in self.prg_trn_sizes[-1]])
+        extensions = []
+        for ps in self.prg_trn_sizes[:-1]:
+            extensions.append(str_fs + '->' +'_'.join([str(p) for p in ps]))
+        # the scaling factors we will use for resizing
+        scales = []
+        for ps in self.prg_trn_sizes[:-1]:
+            scales.append(np.array(self.prg_trn_sizes[-1]) / np.array(ps))
+
+        # let's get all the dataloaders we have for this training
+        dl_list = [self.trn_dl]
+        if self.val_dl is not None:
+            dl_list.append(self.val_dl)
+
+        # first let's get all the folder pathes of where we want to store the resized volumes
+        ds = dl_list[0].dataset
+
+        # maybe create the folders
+        prepp = ds.vol_ds.preprocessed_path
+        all_fols = []
+        for fol in ds.vol_ds.folders:
+            for ext in extensions:
+                path_to_fol = os.path.join(prepp, fol+'_'+ext)
+                all_fols.append(path_to_fol)
+                if not os.path.exists(path_to_fol):
+                    os.mkdir(path_to_fol)
+
+        self.print_and_log('resize on the fly was disabled. Instead all resized volumes will be saved '
+              'at '+prepp+ ' in the following folders:')
+        self.print_and_log(*all_fols)
+        self.print_and_log('Checking and converting now')
+        # let's look at each dl
+        for dl in dl_list:
+
+            # now we cycle through the dataset to see if there are scans we still need to resize
+            for ind, scan in enumerate(ds.vol_ds.used_scans):
+                convert_scan = np.any([not os.path.exists(os.path.join(fol, scan)) 
+                                       for fol in all_fols])
+                if convert_scan:
+                    # at least one .npy file is missing, convert...
+                    self.print_and_log('convert scan '+scan)
+                    tpl = ds._get_volume_tuple(ind)
+                    # let's convert only the image
+                    im = tpl[0]
+                    # name of the image folder, should be \'images\' most of the time
+                    im_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.image_key)]
+                    dtype = im.dtype
+                    im = torch.from_numpy(im).type(torch.float).to(self.dev)
+                    for scale, ext in zip(scales, extensions):
+                        im_rsz = F.interpolate(im, scale_factor=scale, mode='trilinear')
+                        im_rsz = im_rsz.cpu().numpy().astype(dtype)
+                        np.save(os.path.join(prepp, im_folder+'_'+ext, scan), im_rsz)
+
+                    # now the label
+                    lb = tpl[-1]
+                    lb_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.label_key)]
+                    dtype = lb.dtype
+                    lb = torch.from_numpy(lb).type(torch.float).to(self.dev)
+                    for scale, ext in zip(scales, extensions):
+                        lb_rsz = F.interpolate(lb, scale_factor=scale)
+                        lb_rsz = lb_rsz.cpu().numpy().astype(dtype)
+                        np.save(os.path.join(prepp, lb_folder+'_'+ext, scan), lb_rsz)
+
+                    if len(tpl) == 3:
+                        # in this case we're in the second stage and also resize the 
+                        # prediction from the previous stage
+                        prd = tpl[1]
+                        prd_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)]
+                        dtype = prd.dtype
+                        prd = torch.from_numpy(prd).type(torch.float).to(self.dev)
+                        for scale, ext in zip(scales, extensions):
+                            prd_rsz = F.interpolate(prd, scale_factor=scale)
+                            prd_rsz = prd_rsz.cpu().numpy().astype(dtype)
+                            np.save(os.path.join(prepp, prd_folder+'_'+ext, scan), prd_rsz)
+                        
+        self.print_and_log('Done!', 1)
 
     def on_epoch_end(self):
         super().on_epoch_end()

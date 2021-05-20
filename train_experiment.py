@@ -78,12 +78,13 @@ def get_model_params(exp):
     prg_trn_aug_params['mm_contr'] = np.array([[1 - 0.45/c, 1 + 0.5/c], [0.65, 1.5]])
     prg_trn_aug_params['mm_low_res'] = np.array([[1, 1 + 1/c], [1, 2]])
     prg_trn_aug_params['mm_gamma'] = np.array([[1 - 0.3/c, 1 + 0.5/c], [0.7, 1.5]])
+    prg_trn_aug_params['out_shape'] = out_shape
     # params = model_params['augmentation']['torch_params']['grid_inplane']
     # for key in params:
     #     if key.startswith('p'):
     #         prg_trn_aug_params[key] = [params[key]/2, params[key]]
     model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
-    prg_trn_aug_params['out_shape'] = out_shape
+    model_params['data']['trn_dl_params']['store_data_in_ram'] = True
 
     return model_params, model_name
 
