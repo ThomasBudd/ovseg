@@ -54,7 +54,8 @@ class SegmentationTraining(NetworkTraining):
             return
 
         # compute which stage we are in atm
-        self.prg_trn_stage = self.epochs_done // self.prg_trn_epochs_per_stage
+        self.prg_trn_stage = min([self.epochs_done // self.prg_trn_epochs_per_stage,
+                                  self.prg_trn_n_stages - 1])
 
         # this is just getting the input patch size for the current stage
         # if we use grid augmentations the out shape of the augmentation is the input size
