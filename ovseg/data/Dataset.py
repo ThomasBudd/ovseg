@@ -43,7 +43,8 @@ class Dataset(object):
         if len(self.unused_scans) > 0:
             print('Some .npy files were not found: ', *self.unused_scans)
             if not self.ignore_missing_scans:
-                raise FileNotFoundError('Not all .npy files were found.')
+                raise FileNotFoundError('Not all .npy files were found, missing',
+                                        *self.unused_scans)
 
     def __len__(self):
         return len(self.path_dicts)

@@ -54,6 +54,7 @@ class SegmentationBatchDataset(object):
         self.is_cascade = self.pred_fps_key is not None
         if self.is_cascade:
             assert isinstance(self.n_fg_classes, int), 'n_fg_classes must be an integer'
+        self._maybe_store_data_in_ram()
 
     def _maybe_store_data_in_ram(self):
         # maybe cleaning first, just to be sure
@@ -85,6 +86,10 @@ class SegmentationBatchDataset(object):
                     seg = self.data[ind][-1]
                 else:
                     seg = np.load(self.vol_ds.path_dicts[ind][self.label_key])
+                if len(seg.shape) == 4:
+                    seg = seg[0]
+                elif not len(seg.shape) == 3:
+                    raise ValueError('Got segmentation mask that is neither 3d nor 4d.')
                 coords = np.stack(np.where(seg > 0)).astype(np.int16)
                 self.coords_list.append(coords)
             print('Done')
@@ -123,6 +128,10 @@ class SegmentationBatchDataset(object):
     def change_folders_and_keys(self, new_folders, new_keys):
         # for progressive training, we might change the folder of image and label data during
         # training if we've stored the rescaled volumes on the hard drive.
+        print('Dataloader: chaning keys and folders')
+        print('new keys: ', *new_keys)
+        print('new folders: ', *new_folders)
+        print()
         self.vol_ds.change_folders_and_keys(new_folders, new_keys)
         self._maybe_store_data_in_ram()
 

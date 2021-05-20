@@ -95,6 +95,9 @@ class SegmentationTraining(NetworkTraining):
             # we need to change the folder the dataloader loads from
             new_folders = self.prg_trn_new_folders_list[self.prg_trn_stage]
             self.trn_dl.dataset.change_folders_and_keys(new_folders, self.prg_trn_new_keys)
+            if self.val_dl is not None:
+                self.val_dl.dataset.change_folders_and_keys(new_folders, self.prg_trn_new_keys)
+            self.prg_trn_process_batch = identity()
 
         # now alter the regularization
         if self.prg_trn_arch_params is not None:
@@ -130,7 +133,7 @@ class SegmentationTraining(NetworkTraining):
         # the scaling factors we will use for resizing
         scales = []
         for ps in self.prg_trn_sizes[:-1]:
-            scales.append(np.array(self.prg_trn_sizes[-1]) / np.array(ps))
+            scales.append((np.array(ps) / np.array(self.prg_trn_sizes[-1])).tolist())
 
         # let's get all the dataloaders we have for this training
         dl_list = [self.trn_dl]
@@ -152,11 +155,11 @@ class SegmentationTraining(NetworkTraining):
 
         self.print_and_log('resize on the fly was disabled. Instead all resized volumes will be '
                            'saved at ' + prepp + ' in the following folders:')
-        self.print_and_log(*all_fols)
+        self.print_and_log(str(all_fols))
         self.print_and_log('Checking and converting now')
         # let's look at each dl
         for dl in dl_list:
-
+            ds = dl.dataset
             # now we cycle through the dataset to see if there are scans we still need to resize
             for ind, scan in enumerate(ds.vol_ds.used_scans):
                 convert_scan = np.any([not os.path.exists(os.path.join(fol, scan))
@@ -169,34 +172,23 @@ class SegmentationTraining(NetworkTraining):
                     im = tpl[0]
                     # name of the image folder, should be \'images\' most of the time
                     im_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.image_key)]
-                    dtype = im.dtype
-                    im = torch.from_numpy(im).type(torch.float).to(self.dev)
-                    for scale, ext in zip(scales, extensions):
-                        im_rsz = F.interpolate(im, scale_factor=scale, mode='trilinear')
-                        im_rsz = im_rsz.cpu().numpy().astype(dtype)
-                        np.save(os.path.join(prepp, im_folder+'_'+ext, scan), im_rsz)
+                    self._rescale_and_save_arr(im, scales, extensions, prepp,
+                                               im_folder, scan, is_lb=False)
 
                     # now the label
                     lb = tpl[-1]
                     lb_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.label_key)]
-                    dtype = lb.dtype
-                    lb = torch.from_numpy(lb).type(torch.float).to(self.dev)
-                    for scale, ext in zip(scales, extensions):
-                        lb_rsz = F.interpolate(lb, scale_factor=scale)
-                        lb_rsz = lb_rsz.cpu().numpy().astype(dtype)
-                        np.save(os.path.join(prepp, lb_folder+'_'+ext, scan), lb_rsz)
+                    self._rescale_and_save_arr(lb, scales, extensions, prepp,
+                                               lb_folder, scan, is_lb=True)
 
                     if len(tpl) == 3:
                         # in this case we're in the second stage and also resize the
                         # prediction from the previous stage
                         prd = tpl[1]
                         prd_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)]
-                        dtype = prd.dtype
-                        prd = torch.from_numpy(prd).type(torch.float).to(self.dev)
-                        for scale, ext in zip(scales, extensions):
-                            prd_rsz = F.interpolate(prd, scale_factor=scale)
-                            prd_rsz = prd_rsz.cpu().numpy().astype(dtype)
-                            np.save(os.path.join(prepp, prd_folder+'_'+ext, scan), prd_rsz)
+                        
+                        self._rescale_and_save_arr(prd, scales, extensions, prepp,
+                                                   prd_folder, scan, is_lb=True)
 
         # now we need the new_keys and new_folders for each stage to update the datasets
         self.prg_trn_new_keys = [ds.image_key, ds.label_key]
@@ -207,9 +199,33 @@ class SegmentationTraining(NetworkTraining):
             folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)])
         self.prg_trn_new_folders_list = []
         for ext in extensions:
-            self.prg_trn_new_folders_list.append([fol+'_'+ext] for fol in folders)
+            self.prg_trn_new_folders_list.append([fol+'_'+ext for fol in folders])
         self.prg_trn_new_folders_list.append(folders)
         self.print_and_log('Done!', 1)
+
+    def _rescale_and_save_arr(self, im, scales, extensions, path, folder, scan, is_lb):
+        dtype = im.dtype
+        n_dims = len(im.shape)
+        # add additional axes for the interpolation. Torch wants that!
+        if n_dims == 3:
+            im = im[np.newaxis, np.newaxis]
+        elif n_dims == 4:
+            im = im[np.newaxis]
+        else:
+            raise ValueError('Got loaded image that is not 3d or 4d?')
+
+        # interpolation modu
+        mode = 'nearest' if is_lb else 'trilinear'
+        im = torch.from_numpy(im).type(torch.float).to(self.dev)
+        for scale, ext in zip(scales, extensions):
+            im_rsz = F.interpolate(im, scale_factor=scale, mode=mode)
+            im_rsz = im_rsz.cpu().numpy().astype(dtype)
+            if n_dims == 3:
+                im_rsz = im_rsz[0, 0]
+            else:
+                im_rsz = im_rsz[0]
+            np.save(os.path.join(path, folder+'_'+ext, scan), im_rsz)
+          
 
     def on_epoch_end(self):
         super().on_epoch_end()
