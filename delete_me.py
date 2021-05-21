@@ -1,18 +1,24 @@
 import os
-import pickle
-from ovseg.data.utils import split_scans_by_patient_id
-import numpy as np
+import numpy as  np
+import matplotlib.pyplot as plt
 
-splitp = os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', 'OV04', 'pod_half', 'splits.pkl')
-fpp = os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', 'OV04', 'pod_half', 'fingerprints')
-splits = pickle.load(open(splitp, 'rb'))
+pp = os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', 'OV04', 'pod_half')
 
-scans = splits[-1]['train']
-patient_ids = {}
-for scan in scans:
-    fp = np.load(os.path.join(fpp, scan), allow_pickle=True).item()
-    patient_ids[scan] = fp['pat_id']
-split_3CV = split_scans_by_patient_id(scans, patient_ids, n_folds=3)
+im_folders = [f for f in os.listdir(pp) if f.startswith('image')]
+lb_folders = [f for f in os.listdir(pp) if f.startswith('label')]
 
-splits_new = splits[:5] + split_3CV + splits[-1:]
-pickle.dump(splits_new, open(splitp, 'wb'))
+# %%
+scan = np.random.choice(os.listdir(os.path.join(pp, 'images')))
+
+ims = [np.load(os.path.join(pp, imf, scan)) for imf in im_folders]
+lbs = [np.load(os.path.join(pp, lbf, scan)) for lbf in lb_folders]
+
+for i, (im, lb, fol) in enumerate(zip(ims, lbs, im_folders)):
+    plt.subplot(1, 3, 1+i)
+    if len(im.shape) == 4:
+        im = im[0]
+        lb = lb[0]
+    z = np.argmax(np.sum(lb, (1, 2)))    
+    plt.imshow(im[z].astype(float), cmap='gray')
+    plt.contour(lb[z] > 0)
+    plt.title(fol)

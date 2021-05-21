@@ -76,9 +76,9 @@ def get_model_params_2d_segmentation(n_fg_classes=1,
                      'return_fp16': not fp32,
                      'n_max_volumes': None}
     val_dl_params = trn_dl_params.copy()
-    val_dl_params['epoch_len'] = 25
+    val_dl_params['epoch_len'] = 8
     val_dl_params['store_data_in_ram'] = True
-    val_dl_params['n_max_volumes'] = 50
+    val_dl_params['n_max_volumes'] = 16
     keys = ['image', 'label']
     folders = ['images', 'labels']
     data_params = {'n_folds': 5,
@@ -111,7 +111,7 @@ def get_model_params_2d_segmentation(n_fg_classes=1,
     training_params = {'loss_params': loss_params,
                        'num_epochs': 1000, 'opt_params': opt_params,
                        'lr_params': lr_params, 'nu_ema_trn': 0.99,
-                       'nu_ema_val': 0.7, 'fp32': fp32,
+                       'nu_ema_val': 0.9, 'fp32': fp32,
                        'p_plot_list': [1, 0.5, 0.2], 'opt_name': 'SGD'}
     model_parameters['training'] = training_params
     model_parameters['prediction_key'] = 'learned_segmentation'

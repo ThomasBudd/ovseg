@@ -1,5 +1,5 @@
 import warnings
-warnings.simplefilter("ignore", UserWarning)
+warnings.simplefilter("ignore")
 from ovseg.preprocessing.SegmentationPreprocessing import \
     SegmentationPreprocessing
 from ovseg.augmentation.SegmentationAugmentation import \
