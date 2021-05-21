@@ -139,7 +139,12 @@ class SegmentationBatchDataset(object):
 
         if ind is None:
             ind = np.random.randint(self.n_volumes)
-        if self.store_data_in_ram:
+
+        load_from_ram = hasattr(self, 'data')
+        if load_from_ram:
+            load_from_ram = ind < len(self.data)
+
+        if load_from_ram:
             if self.is_cascade:
                 im, pred_fps, seg = self.data[ind]
             else:
