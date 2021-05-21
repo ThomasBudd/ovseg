@@ -115,6 +115,24 @@ class Logits(nn.Module):
     def forward(self, xb):
         return self.logits(xb)
 
+# %%
+class res_skip(nn.Module):
+
+    def forward(self, xb1, xb2):
+        return xb1 + xb2
+
+class param_res_skip(nn.Module):
+
+    def __init__(self, in_channels, is_2d):
+        super().__init__()
+
+        if is_2d:
+            self.a = nn.Parameter(torch.zeros((1, in_channels, 1, 1)))
+        else:
+            self.a = nn.Parameter(torch.zeros((1, in_channels, 1, 1, 1)))
+
+    def forward(self, xb_up, xb_skip):
+        return xb_up + self.a * xb_skip
 
 # %%
 class UNet(nn.Module):
@@ -122,7 +140,7 @@ class UNet(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_sizes,
                  is_2d, filters=32, filters_max=384, n_pyramid_scales=None,
                  conv_params=None, norm=None, norm_params=None, nonlin_params=None,
-                 kernel_sizes_up=None, use_attention_gates=False):
+                 kernel_sizes_up=None, skip_type='skip'):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -136,7 +154,8 @@ class UNet(nn.Module):
         self.norm_params = norm_params
         self.nonlin_params = nonlin_params
         self.kernel_sizes_up = kernel_sizes_up if kernel_sizes_up is not None else kernel_sizes[:-1]
-        self.use_attention_gates = use_attention_gates
+        self.skip_type = skip_type
+        assert skip_type in ['skip', 'self_attention', 'res_skip', 'param_res_skip']
         # we double the amount of channels every downsampling step
         # up to a max of filters_max
         self.filters_list = [min([self.filters*2**i, self.filters_max])
@@ -146,7 +165,10 @@ class UNet(nn.Module):
         self.in_channels_down_list = [self.in_channels] + self.filters_list[:-1]
         self.out_channels_down_list = self.filters_list
         self.first_stride_list = [1] + [get_stride(ks) for ks in self.kernel_sizes[:-1]]
-        self.in_channels_up_list = [2 * n_ch for n_ch in self.out_channels_down_list[:-1]]
+        if self.skip_type in ['skip', 'self_attention']:
+            self.in_channels_up_list = [2 * n_ch for n_ch in self.out_channels_down_list[:-1]]
+        else:
+            self.in_channels_up_list = [n_ch for n_ch in self.out_channels_down_list[:-1]]
         self.out_channels_up_list = self.out_channels_down_list[:-1]
 
         # now the upconvolutions
@@ -206,12 +228,17 @@ class UNet(nn.Module):
                                        kernel_size=get_stride(kernel_size)))
         # now the concats:
         self.concats = []
+        if self.skip_type == 'self_attention':
+            skip_fctn = lambda ch: concat_attention(ch, self.is_2d)
+        elif self.skip_type == 'res_skip':
+            skip_fctn = lambda ch: res_skip()
+        elif self.skip_type == 'param_res_skip':
+            skip_fctn = lambda ch: param_res_skip(ch, self.is_2d)
+        else:
+            skip_fctn = lambda ch: concat()
+            
         for in_ch in self.up_conv_out_list:
-            if self.use_attention_gates:
-                self.concats.append(concat_attention(in_channels=in_ch,
-                                                     is_2d=self.is_2d))
-            else:
-                self.concats.append(concat())
+            self.concats.append(skip_fctn(in_ch))
 
         # logits
         self.all_logits = []

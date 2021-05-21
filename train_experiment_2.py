@@ -15,8 +15,14 @@ exp_list = 3 * [args.gpu]
 
 
 def get_model_params(exp):
-    assert exp in [0, 1], "experiment must be 0 or 1"
-    model_name = 'repeat_3d_{}_prg_lrn_32_128'.format(exp)
+    assert exp in [0, 1, 2], "experiment must be 0 or 1"
+    if exp == 0:
+        skip_type='self_attention'
+    elif exp == 1:
+        skip_type='res_skip'
+    else:
+        skip_type='param_res_skip'
+    model_name = 'skip_type_{}_32_128'.format(skip_type)
     patch_size = [32, 128, 128]
     prg_trn_sizes = [[16, 128, 128],
                      [24, 192, 192],
@@ -35,7 +41,7 @@ def get_model_params(exp):
     #     if key.startswith('p'):
     #         prg_trn_aug_params[key] = [params[key]/2, params[key]]
     # factor we use for reducing the magnitude of the gray value augmentations
-    c = 5 + exp
+    c = 5
     prg_trn_aug_params['mm_var_noise'] = np.array([[0, 0.1/c], [0, 0.1]])
     prg_trn_aug_params['mm_sigma_blur'] = np.array([[1 - 0.5/c, 1 + 0.5/c], [0.5, 1.5]])
     prg_trn_aug_params['mm_bright'] = np.array([[1 - 0.3/c, 1 + 0.3/c], [0.7, 1.3]])
@@ -49,6 +55,7 @@ def get_model_params(exp):
     #         prg_trn_aug_params[key] = [params[key]/2, params[key]]
     model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
     model_params['training']['prg_trn_resize_on_the_fly'] = False
+    model_params['network']['skip_type'] = skip_type
     return model_params, model_name
 
 
