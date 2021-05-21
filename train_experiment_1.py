@@ -38,9 +38,10 @@ def get_model_params(exp):
 
     model_params = get_model_params_3d_nnUNet(patch_size, 2, use_prg_trn=True)
     # first change the UNet in the way we want to have it
-    model_params['n_pyramid_scales'] = 4
-    model_params['kernel_sizes'] = [(1, 3, 3), (1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
-    model_params['kernel_sizes_up'] = [(1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
+    model_params['network']['n_pyramid_scales'] = 4
+    model_params['network']['kernel_sizes'] = [(1, 3, 3), (1, 3, 3), (3, 3, 3), (3, 3, 3),
+                                               (3, 3, 3)]
+    model_params['network']['kernel_sizes_up'] = [(1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
     model_params['training']['prg_trn_sizes'] = prg_trn_sizes
     # this time we change the amount of augmentation during training
     prg_trn_aug_params = {}
