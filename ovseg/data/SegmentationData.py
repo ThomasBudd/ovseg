@@ -19,3 +19,8 @@ class SegmentationData(DataBase):
             except (AttributeError, TypeError):
                 print('No validatation dataloader initialised')
                 self.val_dl = None
+
+    def clean(self):
+        self.trn_dl.dataset._maybe_clean_stored_data()
+        if self.val_dl is not None:
+            self.val_dl.dataset._maybe_clean_stored_data()

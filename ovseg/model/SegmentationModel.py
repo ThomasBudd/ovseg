@@ -500,3 +500,9 @@ class SegmentationModel(ModelBase):
 
         print('Done!')
         return
+
+    def clean(self):
+        if hasattr(self, 'data'):
+            self.data.clean()
+        del self.network
+        torch.cuda.empty_cache()

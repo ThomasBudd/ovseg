@@ -134,6 +134,15 @@ class param_res_skip(nn.Module):
     def forward(self, xb_up, xb_skip):
         return xb_up + self.a * xb_skip
 
+class scaled_res_skip(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+
+        self.a = nn.Parameter(torch.zeros(()))
+    def forward(self, xb_up, xb_skip):
+        return xb_up + self.a * xb_skip
+
 # %%
 class UNet(nn.Module):
 
@@ -155,7 +164,8 @@ class UNet(nn.Module):
         self.nonlin_params = nonlin_params
         self.kernel_sizes_up = kernel_sizes_up if kernel_sizes_up is not None else kernel_sizes[:-1]
         self.skip_type = skip_type
-        assert skip_type in ['skip', 'self_attention', 'res_skip', 'param_res_skip']
+        assert skip_type in ['skip', 'self_attention', 'res_skip', 'param_res_skip', 
+                             'scaled_res_skip']
         # we double the amount of channels every downsampling step
         # up to a max of filters_max
         self.filters_list = [min([self.filters*2**i, self.filters_max])
@@ -234,8 +244,10 @@ class UNet(nn.Module):
             skip_fctn = lambda ch: res_skip()
         elif self.skip_type == 'param_res_skip':
             skip_fctn = lambda ch: param_res_skip(ch, self.is_2d)
-        else:
+        elif self.skip_type == 'skip':
             skip_fctn = lambda ch: concat()
+        elif self.skip_type == 'scaled_res_skip':
+            skip_fctn = lambda ch: scaled_res_skip()
             
         for in_ch in self.up_conv_out_list:
             self.concats.append(skip_fctn(in_ch))

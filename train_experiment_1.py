@@ -6,6 +6,7 @@ import numpy as np
 
 parser = argparse.ArgumentParser()
 parser.add_argument("gpu", type=int)
+parser.add_argument("server", type=int)
 
 args = parser.parse_args()
 p_name = 'pod_half'
@@ -15,33 +16,20 @@ exp_list = 3 * [args.gpu]
 
 
 def get_model_params(exp):
-    assert exp in [0, 1, 2], "experiment must be 0, 1 or 2"
-    prg_trn_sizes = [[16, 64*2, 64*2],
-                     [20, 80*2, 80*2],
-                     [24, 96*2, 96*2],
-                     [28, 112*2, 112*2],
-                     [32, 128*2, 128*2]]
+    assert exp in [0, 1, 2, 4], "experiment must be 0 or 1"
+    
+    skip_type = ['skip', 'res_skip', 'param_res_skip', 'scaled_res_skip'][exp]
+    model_name = 'skip_conn_{}_{}'.format(skip_type, args.server)
+    patch_size = [32, 128, 128]
+    prg_trn_sizes = [[16, 128, 128],
+                     [24, 192, 192],
+                     [32, 256, 256]]
     out_shape = [[16, 64, 64],
-                 [20, 80, 80],
                  [24, 96, 96],
-                 [28, 112, 112],
                  [32, 128, 128]]
-    if exp == 1:
-        out_shape = out_shape[:-1]
-        prg_trn_sizes = prg_trn_sizes[:-1]
-    elif exp == 2:
-        out_shape = out_shape[:-2]
-        prg_trn_sizes = prg_trn_sizes[:-2]
 
-    patch_size = out_shape[-1]
-    model_name = '5_stages_UNet_{}_{}'.format(patch_size[0], patch_size[1])
-
-    model_params = get_model_params_3d_nnUNet(patch_size, 2, use_prg_trn=True)
-    # first change the UNet in the way we want to have it
-    model_params['network']['n_pyramid_scales'] = 4
-    model_params['network']['kernel_sizes'] = [(1, 3, 3), (1, 3, 3), (3, 3, 3), (3, 3, 3),
-                                               (3, 3, 3)]
-    model_params['network']['kernel_sizes_up'] = [(1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
+    model_params = get_model_params_3d_nnUNet(patch_size, 2,
+                                              use_prg_trn=True)
     model_params['training']['prg_trn_sizes'] = prg_trn_sizes
     # this time we change the amount of augmentation during training
     prg_trn_aug_params = {}
@@ -50,7 +38,7 @@ def get_model_params(exp):
     #     if key.startswith('p'):
     #         prg_trn_aug_params[key] = [params[key]/2, params[key]]
     # factor we use for reducing the magnitude of the gray value augmentations
-    c = 5
+    c = 4
     prg_trn_aug_params['mm_var_noise'] = np.array([[0, 0.1/c], [0, 0.1]])
     prg_trn_aug_params['mm_sigma_blur'] = np.array([[1 - 0.5/c, 1 + 0.5/c], [0.5, 1.5]])
     prg_trn_aug_params['mm_bright'] = np.array([[1 - 0.3/c, 1 + 0.3/c], [0.7, 1.3]])
@@ -64,6 +52,7 @@ def get_model_params(exp):
     #         prg_trn_aug_params[key] = [params[key]/2, params[key]]
     model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
     model_params['training']['prg_trn_resize_on_the_fly'] = False
+    model_params['network']['skip_type'] = skip_type
     return model_params, model_name
 
 
@@ -77,10 +66,7 @@ for val_fold, exp in zip(val_fold_list, exp_list):
     model.training.train()
     model.eval_validation_set()
     del model.network
-    for tpl in model.data.val_dl.dataset.data:
-        for arr in tpl:
-            del arr
-        del tpl
+    model.data.clean()
 
 ens = SegmentationEnsemble(val_fold=list(range(5, 8)),
                            data_name='OV04',
