@@ -16,7 +16,7 @@ exp_list = 3 * [args.gpu]
 
 
 def get_model_params(exp):
-    assert exp in [0, 1, 2, 4], "experiment must be 0 or 1"
+    assert exp in [0, 1, 2, 3], "experiment must be 0 or 1"
     
     skip_type = ['skip', 'res_skip', 'param_res_skip', 'scaled_res_skip'][exp]
     model_name = 'skip_conn_{}_{}'.format(skip_type, args.server)
@@ -65,8 +65,7 @@ for val_fold, exp in zip(val_fold_list, exp_list):
                               model_parameters=model_params)
     model.training.train()
     model.eval_validation_set()
-    del model.network
-    model.data.clean()
+    model.clean()
 
 ens = SegmentationEnsemble(val_fold=list(range(5, 8)),
                            data_name='OV04',

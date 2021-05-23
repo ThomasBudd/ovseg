@@ -24,9 +24,10 @@ class ConvNormNonlinBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, is_2d, kernel_size=3,
                  first_stride=1, conv_params=None, norm=None, norm_params=None,
-                 nonlin_params=None):
+                 nonlin_params=None, hid_channels=None):
         super().__init__()
         self.in_channels = in_channels
+        self.hid_channels = hid_channels if hid_channels is not None else out_channels
         self.out_channels = out_channels
         self.kernel_size = kernel_size
         self.padding = get_padding(self.kernel_size)
@@ -58,13 +59,13 @@ class ConvNormNonlinBlock(nn.Module):
                 norm_fctn = nn.BatchNorm3d
             elif norm.lower().startswith('inst'):
                 norm_fctn = nn.InstanceNorm3d
-        self.conv1 = conv_fctn(self.in_channels, self.out_channels,
+        self.conv1 = conv_fctn(self.in_channels, self.hid_channels,
                                self.kernel_size, padding=self.padding,
                                stride=self.first_stride, **self.conv_params)
-        self.conv2 = conv_fctn(self.out_channels, self.out_channels,
+        self.conv2 = conv_fctn(self.hid_channels, self.out_channels,
                                self.kernel_size, padding=self.padding,
                                **self.conv_params)
-        self.norm1 = norm_fctn(self.out_channels, **self.norm_params)
+        self.norm1 = norm_fctn(self.hid_channels, **self.norm_params)
         self.norm2 = norm_fctn(self.out_channels, **self.norm_params)
 
         nn.init.kaiming_normal_(self.conv1.weight)
@@ -100,6 +101,19 @@ class UpConv(nn.Module):
     def forward(self, xb):
         return self.conv(xb)
 
+
+class UpLinear(nn.Module):
+
+    def __init__(self, kernel_size, is_2d):
+        
+        if is_2d:
+            self.up = nn.Upsample(scale_factor=kernel_size, mode='bilinear',
+                                  align_corners=True)
+        else:
+            self.up = nn.Upsample(scale_factor=kernel_size, mode='trilinear',
+                                  align_corners=True)
+    def forward(self, xb):
+        return self.up(xb)
 
 # %% now simply the logits
 class Logits(nn.Module):
@@ -149,7 +163,8 @@ class UNet(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_sizes,
                  is_2d, filters=32, filters_max=384, n_pyramid_scales=None,
                  conv_params=None, norm=None, norm_params=None, nonlin_params=None,
-                 kernel_sizes_up=None, skip_type='skip'):
+                 kernel_sizes_up=None, skip_type='skip', use_trilinear_upsampling=False,
+                 use_less_hid_channels_in_decoder=False, fac_skip_channels=1):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -163,27 +178,46 @@ class UNet(nn.Module):
         self.norm_params = norm_params
         self.nonlin_params = nonlin_params
         self.kernel_sizes_up = kernel_sizes_up if kernel_sizes_up is not None else kernel_sizes[:-1]
-        self.skip_type = skip_type
         assert skip_type in ['skip', 'self_attention', 'res_skip', 'param_res_skip', 
                              'scaled_res_skip']
+        self.skip_type = skip_type
+        self.use_trilinear_upsampling = use_trilinear_upsampling
+        self.use_less_hid_channels_in_decoder = use_less_hid_channels_in_decoder
+        assert fac_skip_channels <= 1 and fac_skip_channels > 0
+        self.fac_skip_channels = fac_skip_channels
         # we double the amount of channels every downsampling step
         # up to a max of filters_max
         self.filters_list = [min([self.filters*2**i, self.filters_max])
                              for i in range(self.n_stages)]
 
         # first let's make the lists for the blocks on both pathes
+        # number of input and output channels of the blocks on the contracting path
         self.in_channels_down_list = [self.in_channels] + self.filters_list[:-1]
         self.out_channels_down_list = self.filters_list
         self.first_stride_list = [1] + [get_stride(ks) for ks in self.kernel_sizes[:-1]]
-        if self.skip_type in ['skip', 'self_attention']:
-            self.in_channels_up_list = [2 * n_ch for n_ch in self.out_channels_down_list[:-1]]
-        else:
-            self.in_channels_up_list = [n_ch for n_ch in self.out_channels_down_list[:-1]]
-        self.out_channels_up_list = self.out_channels_down_list[:-1]
 
-        # now the upconvolutions
-        self.up_conv_in_list = self.out_channels_down_list[1:]
-        self.up_conv_out_list = self.out_channels_down_list[:-1]
+        # the number of channels we will feed forward
+        self.skip_channels = [int(self.fac_skip_channels * ch)
+                              for ch in self.out_channels_down_list[:-1]]
+
+        # for the decoder this is more difficult and depend on other settings
+        if self.skip_type in ['skip', 'self_attention']:
+            self.in_channels_up_list = [2 * n_ch for n_ch in self.skip_channels]
+        else:
+            self.in_channels_up_list = [n_ch for n_ch in self.skip_channels]
+        # if we do trilinear upsampling we have to make sure that the right number of channels is
+        # outputed from the block below
+        if self.use_trilinear_upsampling:
+            self.out_channels_up_list = [self.filters // 2] + self.skip_channels[:-1]
+            self.out_channels_down_list[-1] = self.out_channels_down_list[-1]//2
+        else:
+            self.out_channels_up_list = self.filters_list
+
+        if self.use_less_hid_channels_in_decoder and self.use_trilinear_upsampling:
+            self.hid_channels_up_list = [(in_ch + out_ch) // 2 for in_ch, out_ch in
+                                         zip(self.in_channels_up_list, self.out_channels_up_list)]
+        else:
+            self.hid_channels_up_list = self.filters_list[:-1]
 
         # determine how many scales on the upwars path with be connected to
         # a loss function
@@ -214,9 +248,10 @@ class UNet(nn.Module):
 
         # blocks on the upsampling path
         self.blocks_up = []
-        for in_channels, out_channels, kernel_size in zip(self.in_channels_up_list,
-                                                          self.out_channels_up_list,
-                                                          self.kernel_sizes_up):
+        for in_channels, out_channels, hid_channels, kernel_size in zip(self.in_channels_up_list,
+                                                                        self.out_channels_up_list,
+                                                                        self.hid_channels_up_list,
+                                                                        self.kernel_sizes_up):
             block = ConvNormNonlinBlock(in_channels=in_channels,
                                         out_channels=out_channels,
                                         is_2d=self.is_2d,
@@ -224,18 +259,27 @@ class UNet(nn.Module):
                                         conv_params=self.conv_params,
                                         norm=self.norm,
                                         norm_params=self.norm_params,
-                                        nonlin_params=self.nonlin_params)
+                                        nonlin_params=self.nonlin_params,
+                                        hid_channels=hid_channels)
             self.blocks_up.append(block)
 
         # upsaplings
-        self.upconvs = []
-        for in_channels, out_channels, kernel_size in zip(self.up_conv_in_list,
-                                                          self.up_conv_out_list,
-                                                          self.kernel_sizes):
-            self.upconvs.append(UpConv(in_channels=in_channels,
-                                       out_channels=out_channels,
-                                       is_2d=self.is_2d,
-                                       kernel_size=get_stride(kernel_size)))
+        self.upsamplings = []
+        if self.use_trilinear_upsampling:
+            mode = 'bilinear' if self.is_2d else 'trilinear'
+            for kernel_size in self.kernel_sizes[:-1]:         
+                scaled_factor = tuple([(k+1)//2 for k in kernel_size])
+                self.upsamplings.append(nn.Upsample(scale_factor=scaled_factor,
+                                                    mode=mode,
+                                                    align_corners=True))
+        else:
+            for in_channels, out_channels, kernel_size in zip(self.out_channels_up_list[1:],
+                                                              self.skip_channels,
+                                                              self.kernel_sizes):
+                self.upsamplings.append(UpConv(in_channels=in_channels,
+                                           out_channels=out_channels,
+                                           is_2d=self.is_2d,
+                                           kernel_size=get_stride(kernel_size)))
         # now the concats:
         self.concats = []
         if self.skip_type == 'self_attention':
@@ -249,7 +293,7 @@ class UNet(nn.Module):
         elif self.skip_type == 'scaled_res_skip':
             skip_fctn = lambda ch: scaled_res_skip()
             
-        for in_ch in self.up_conv_out_list:
+        for in_ch in self.skip_channels:
             self.concats.append(skip_fctn(in_ch))
 
         # logits
@@ -262,7 +306,7 @@ class UNet(nn.Module):
         # now important let's turn everything into a module list
         self.blocks_down = nn.ModuleList(self.blocks_down)
         self.blocks_up = nn.ModuleList(self.blocks_up)
-        self.upconvs = nn.ModuleList(self.upconvs)
+        self.upsamplings = nn.ModuleList(self.upsamplings)
         self.concats = nn.ModuleList(self.concats)
         self.all_logits = nn.ModuleList(self.all_logits)
 
@@ -271,20 +315,23 @@ class UNet(nn.Module):
         xb_list = []
         logs_list = []
         # contracting path
-        for block in self.blocks_down:
+        for block, skip_ch in zip(self.blocks_down, self.skip_channels):
             xb = block(xb)
-            xb_list.append(xb)
+            xb_list.append(xb[:, :skip_ch])
+
+        # bottom block
+        xb = self.blocks_down[-1](xb)
 
         # expanding path without logits
         for i in range(self.n_stages - 2, self.n_pyramid_scales-1, -1):
-            xb = self.upconvs[i](xb)
+            xb = self.upsamplings[i](xb)
             xb = self.concats[i](xb, xb_list[i])
             del xb_list[i]
             xb = self.blocks_up[i](xb)
 
         # expanding path with logits
         for i in range(self.n_pyramid_scales - 1, -1, -1):
-            xb = self.upconvs[i](xb)
+            xb = self.upsamplings[i](xb)
             xb = self.concats[i](xb, xb_list[i])
             del xb_list[i]
             xb = self.blocks_up[i](xb)

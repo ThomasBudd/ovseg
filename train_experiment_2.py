@@ -6,23 +6,42 @@ import numpy as np
 
 parser = argparse.ArgumentParser()
 parser.add_argument("gpu", type=int)
-
+parser.add_argument("rep", type=int)
 args = parser.parse_args()
 p_name = 'pod_half'
 
+# skip_type = "res_skip"
 val_fold_list = list(range(5, 8))
 exp_list = 3 * [args.gpu]
 
 
 def get_model_params(exp):
-    assert exp in [0, 1, 2], "experiment must be 0 or 1"
+    assert exp in [0, 1, 2, 3], "experiment must be 0 or 1"
     if exp == 0:
-        skip_type='self_attention'
+        use_trilinear_upsampling=True
+        use_less_hid_channels_in_decoder=False
+        fac_skip_channels=1
     elif exp == 1:
-        skip_type='res_skip'
+        use_trilinear_upsampling=False
+        use_less_hid_channels_in_decoder=False
+        fac_skip_channels=0.5
+    elif exp == 2:
+        use_trilinear_upsampling=True
+        use_less_hid_channels_in_decoder=True
+        fac_skip_channels=0.5
     else:
-        skip_type='param_res_skip'
-    model_name = 'skip_type_{}_32_128'.format(skip_type)
+        use_trilinear_upsampling=True
+        use_less_hid_channels_in_decoder=False
+        fac_skip_channels=0.5
+
+    model_name = 'decoder'
+    if use_trilinear_upsampling:
+        model_name += '_tril'
+    if use_less_hid_channels_in_decoder:
+        model_name += '_<hidch'
+    if fac_skip_channels == 0.5:
+        model_name += 'skip_1/2'
+    model_name += '_{}'.format(args.rep)
     patch_size = [32, 128, 128]
     prg_trn_sizes = [[16, 128, 128],
                      [24, 192, 192],
@@ -41,7 +60,7 @@ def get_model_params(exp):
     #     if key.startswith('p'):
     #         prg_trn_aug_params[key] = [params[key]/2, params[key]]
     # factor we use for reducing the magnitude of the gray value augmentations
-    c = 5
+    c = 4
     prg_trn_aug_params['mm_var_noise'] = np.array([[0, 0.1/c], [0, 0.1]])
     prg_trn_aug_params['mm_sigma_blur'] = np.array([[1 - 0.5/c, 1 + 0.5/c], [0.5, 1.5]])
     prg_trn_aug_params['mm_bright'] = np.array([[1 - 0.3/c, 1 + 0.3/c], [0.7, 1.3]])
@@ -55,7 +74,9 @@ def get_model_params(exp):
     #         prg_trn_aug_params[key] = [params[key]/2, params[key]]
     model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
     model_params['training']['prg_trn_resize_on_the_fly'] = False
-    model_params['network']['skip_type'] = skip_type
+    model_params['network']['use_trilinear_upsampling'] = use_trilinear_upsampling
+    model_params['network']['use_less_hid_channels_in_decoder'] = use_less_hid_channels_in_decoder
+    model_params['network']['fac_skip_channels'] = fac_skip_channels
     return model_params, model_name
 
 
@@ -68,11 +89,7 @@ for val_fold, exp in zip(val_fold_list, exp_list):
                               model_parameters=model_params)
     model.training.train()
     model.eval_validation_set()
-    del model.network
-    for tpl in model.data.val_dl.dataset.data:
-        for arr in tpl:
-            del arr
-        del tpl
+    model.clean()
 
 ens = SegmentationEnsemble(val_fold=list(range(5, 8)),
                            data_name='OV04',
@@ -80,3 +97,11 @@ ens = SegmentationEnsemble(val_fold=list(range(5, 8)),
                            model_name=model_name)
 if ens.all_folds_complete():
     ens.eval_raw_dataset('BARTS', save_preds=True, save_plots=False)
+
+# %%
+import torch
+for batch in model.data.trn_dl:
+    break
+
+xb = batch.cuda().type(torch.float)[:, :1, :, :128, :128]
+self = model.network
