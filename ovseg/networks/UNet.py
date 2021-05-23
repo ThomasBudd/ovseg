@@ -209,7 +209,7 @@ class UNet(nn.Module):
         # outputed from the block below
         if self.use_trilinear_upsampling:
             self.out_channels_up_list = [self.filters // 2] + self.skip_channels[:-1]
-            self.out_channels_down_list[-1] = self.out_channels_down_list[-1]//2
+            self.out_channels_down_list[-1] = self.skip_channels[-1]
         else:
             self.out_channels_up_list = self.filters_list
 
