@@ -40,7 +40,7 @@ def get_model_params(exp):
     if use_less_hid_channels_in_decoder:
         model_name += '_<hidch'
     if fac_skip_channels == 0.5:
-        model_name += 'skip_1/2'
+        model_name += '_skip_1/2'
     model_name += '_{}'.format(args.rep)
     patch_size = [32, 128, 128]
     prg_trn_sizes = [[16, 128, 128],
