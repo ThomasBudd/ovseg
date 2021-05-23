@@ -76,9 +76,9 @@ class TrainingBase():
 
             self.on_epoch_start()
 
-            for batch in self.trn_dl:
+            for step, batch in enumerate(self.trn_dl):
 
-                self.do_trn_step(batch)
+                self.do_trn_step(batch, step)
 
             self.on_epoch_end()
             # we save the checkpoint after calling on_epoch_end so that

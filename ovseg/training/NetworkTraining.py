@@ -10,7 +10,10 @@ from torch.optim import SGD, Adam
 default_SGD_params = {'momentum': 0.99, 'weight_decay': 3e-5, 'nesterov': True,
                       'lr': 10**-2}
 default_ADAM_params = {'lr': 10**-4}
-default_lr_params = {'beta': 0.9, 'lr_min': 0}
+default_lr_params_almost_linear = {'beta': 0.9, 'lr_min': 0}
+default_lr_params_lin_ascent_cos_decay = {'n_warmup_epochs': 50, 'lr_max': 0.1}
+default_lr_params = {'lin_ascent_cos_decay': default_lr_params_lin_ascent_cos_decay,
+                     'almost_linear': default_lr_params_almost_linear}
 
 
 class NetworkTraining(TrainingBase):
@@ -38,6 +41,7 @@ class NetworkTraining(TrainingBase):
         self.p_plot_list = p_plot_list
         self.opt_name = opt_name
         self.lr_schedule = lr_schedule
+        assert self.lr_schedule in ['almost_linear', 'lin_ascent_cos_decay']
 
         self.checkpoint_attributes.extend(['nu_ema_trn', 'network_name',
                                            'opt_params', 'fp32', 'lr_params',
@@ -77,7 +81,7 @@ class NetworkTraining(TrainingBase):
         if self.lr_params is None:
             self.print_and_log('No modifications from standard lr parameters'
                                ' found, load default.')
-            self.lr_params = default_lr_params
+            self.lr_params = default_lr_params[self.lr_schedule]
             for key in self.lr_params.keys():
                 self.print_and_log(key+': '+str(self.lr_params[key]))
 
@@ -117,13 +121,31 @@ class NetworkTraining(TrainingBase):
                              'have a recognised implementation.')
         self.lr_init = self.opt_params['lr']
 
-    def update_lr(self):
+    def update_lr(self, step=0):
         if self.lr_schedule == 'almost_linear':
+            if step != -1:
+                return
             lr = (1-self.epochs_done/self.num_epochs)**self.lr_params['beta'] * \
                 (self.lr_init - self.lr_params['lr_min']) + \
                 self.lr_params['lr_min']
             self.opt.param_groups[0]['lr'] = lr
             self.print_and_log('Learning rate now: {:.4e}'.format(lr))
+        elif self.lr_schedule == 'lin_ascent_cos_decay':
+            n_warm = self.lr_params['n_warmup_epochs']
+            lr_max = self.lr_params['lr_max']
+            if self.epochs_done < n_warm:
+                
+                lr = lr_max * (step + 1 + self.epochs_done * len(self.trn_dl)) \
+                    / len(self.trn_dl) / n_warm
+                self.opt.param_groups[0]['lr'] = lr
+                print(lr)
+            else:
+                if step != -1:
+                    return
+                lr = lr_max * np.cos(np.pi/2*(self.epochs_done - n_warm) / (self.num_epochs - n_warm))
+                self.opt.param_groups[0]['lr'] = lr
+                self.print_and_log('Learning rate now: {:.4e}'.format(lr))
+                
 
     def save_checkpoint(self, path=None):
         if path is None:
@@ -195,42 +217,10 @@ class NetworkTraining(TrainingBase):
         for param in self.network.parameters():
             param.grad = None
 
-    # def _prepare_data(self, data_tpl):
-    #     data_tpl = data_tpl[0].to(self.dev)
-    #     if self.fp32:
-    #         data_tpl = data_tpl.type(torch.float32)
-    #     else:
-    #         data_tpl = data_tpl.type(torch.float16)
-    #     if self.augmentation is not None:
-    #         data_tpl = self.augmentation.augment_batch(data_tpl)
-    #     xb, yb = data_tpl[:, :-1], data_tpl[:, -1:]
-    #     return xb, yb
-
-    # def _trn_step_fp32(self, xb, yb):
-    #     # classical fp32 training
-    #     self.zero_grad()
-    #     out = self.network(xb)
-    #     loss = self.loss_fctn(out, yb)
-    #     loss.backward()
-    #     self.opt.step()
-    #     return loss
-
-    # def _trn_step_fp16(self, xb, yb):
-    #     # fancy new mixed precision training of pytorch
-    #     self.zero_grad()
-    #     with amp.autocast():
-    #         out = self.network(xb)
-    #         loss = self.loss_fctn(out, yb)
-    #     self.scaler.scale(loss).backward()
-    #     self.scaler.unscale_(self.opt)
-    #     torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
-    #     self.scaler.step(self.opt)
-    #     self.scaler.update()
-    #     return loss
-
-    def do_trn_step(self, batch):
+    def do_trn_step(self, batch, step):
 
         self.zero_grad()
+        self.update_lr(step)
         if self.fp32:
             loss = self.compute_batch_loss(batch)
             loss.backward()
@@ -279,7 +269,7 @@ class NetworkTraining(TrainingBase):
 
         # now make some nice plots and we're happy!
         self.plot_training_progess()
-        self.update_lr()
+        self.update_lr(-1)
         self.total_epoch_time += perf_counter()
         self.print_and_log('The total epoch time was {:.2f} seconds'.format(self.total_epoch_time))
 

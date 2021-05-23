@@ -6,20 +6,24 @@ import numpy as np
 
 parser = argparse.ArgumentParser()
 parser.add_argument("gpu", type=int)
-parser.add_argument("server", type=int)
-
+parser.add_argument("rep", type=int)
 args = parser.parse_args()
 p_name = 'pod_half'
 
+use_trilinear_upsampling=False
+use_less_hid_channels_in_decoder=False
+fac_skip_channels=1
+
+# skip_type = "res_skip"
 val_fold_list = list(range(5, 8))
 exp_list = 3 * [args.gpu]
 
 
 def get_model_params(exp):
-    assert exp in [0, 1, 2, 3], "experiment must be 0 or 1"
-    
-    skip_type = ['skip', 'res_skip', 'param_res_skip', 'scaled_res_skip'][exp]
-    model_name = 'skip_conn_{}_{}'.format(skip_type, args.server)
+    assert exp in [0, 1, 2, 3, 4, 5], "experiment must be 0 or 1"
+    lr_max = [0.05, 0.1, 0.2, 0.4, 0.8, 1.2][exp]
+
+    model_name = 'lr_schedule_{}'.format(lr_max)
     patch_size = [32, 128, 128]
     prg_trn_sizes = [[16, 128, 128],
                      [24, 192, 192],
@@ -52,7 +56,12 @@ def get_model_params(exp):
     #         prg_trn_aug_params[key] = [params[key]/2, params[key]]
     model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
     model_params['training']['prg_trn_resize_on_the_fly'] = False
-    model_params['network']['skip_type'] = skip_type
+    model_params['network']['use_trilinear_upsampling'] = use_trilinear_upsampling
+    model_params['network']['use_less_hid_channels_in_decoder'] = use_less_hid_channels_in_decoder
+    model_params['network']['fac_skip_channels'] = fac_skip_channels
+    model_params['training']['lr_schedule'] = 'lin_ascent_cos_decay'
+    model_params['training']['lr_params'] = {'n_warmup_epochs': 50, 'lr_max': lr_max}
+    
     return model_params, model_name
 
 
