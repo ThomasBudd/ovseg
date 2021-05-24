@@ -25,7 +25,8 @@ class NetworkTraining(TrainingBase):
                  num_epochs=1000, opt_params=None, lr_params=None,
                  augmentation=None, val_dl=None, dev='cuda', nu_ema_trn=0.99,
                  nu_ema_val=0.7, network_name='network', fp32=False,
-                 p_plot_list=[1, 0.5, 0.2], opt_name='SGD', lr_schedule='almost_linear'):
+                 p_plot_list=[1, 0.5, 0.2], opt_name='SGD', lr_schedule='almost_linear',
+                 no_bias_weight_decay=False):
         super().__init__(trn_dl, num_epochs, model_path)
 
         self.network = network
@@ -41,6 +42,7 @@ class NetworkTraining(TrainingBase):
         self.p_plot_list = p_plot_list
         self.opt_name = opt_name
         self.lr_schedule = lr_schedule
+        self.no_bias_weight_decay = no_bias_weight_decay
         assert self.lr_schedule in ['almost_linear', 'lin_ascent_cos_decay']
 
         self.checkpoint_attributes.extend(['nu_ema_trn', 'network_name',
@@ -107,15 +109,36 @@ class NetworkTraining(TrainingBase):
         raise NotImplementedError('compute_batch_loss must be implemented.')
 
     def initialise_opt(self):
+
+        opt_params = self.opt_params.copy()
+        if self.no_bias_weight_decay and 'weight_decay' in self.opt_params:
+            # implementation of no bias weight decay
+            # from https://raberrytv.wordpress.com/2017/10/29/pytorch-weight-decay-made-easy/
+            l2_value = self.opt_params['weight_decay']
+            del opt_params['weight_decay']      
+            decay, no_decay = [], []
+            for name, param in self.network.named_parameters():
+                if not param.requires_grad:
+                    continue # frozen weights		            
+                if len(param.shape) == 1 or name.endswith(".bias"):
+                    no_decay.append(param)
+                else:
+                    decay.append(param)
+            params = [{'params': no_decay, 'weight_decay': 0.0},
+                      {'params': decay, 'weight_decay': l2_value}]
+        else:
+            # we don't need to do anything
+            params = self.network.parameters()
+
         if self.opt_name is None:
             print('No specific optimiser was initialised. Taking SGD.')
             self.opt_name = 'sgd'
         if self.opt_name.lower() == 'sgd':
             print('initialise SGD')
-            self.opt = SGD(self.network.parameters(), **self.opt_params)
+            self.opt = SGD(params, **opt_params)
         elif self.opt_name.lower() == 'adam':
             print('initialise Adam')
-            self.opt = Adam(self.network.parameters(), **self.opt_params)
+            self.opt = Adam(params, **opt_params)
         else:
             raise ValueError('Optimiser '+self.opt_name+' was not does not '
                              'have a recognised implementation.')
@@ -138,7 +161,6 @@ class NetworkTraining(TrainingBase):
                 lr = lr_max * (step + 1 + self.epochs_done * len(self.trn_dl)) \
                     / len(self.trn_dl) / n_warm
                 self.opt.param_groups[0]['lr'] = lr
-                print(lr)
             else:
                 if step != -1:
                     return

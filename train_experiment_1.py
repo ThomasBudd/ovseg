@@ -6,7 +6,7 @@ import numpy as np
 
 parser = argparse.ArgumentParser()
 parser.add_argument("gpu", type=int)
-parser.add_argument("rep", type=int)
+# parser.add_argument("rep", type=int)
 args = parser.parse_args()
 p_name = 'pod_half'
 

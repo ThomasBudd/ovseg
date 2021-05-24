@@ -31,7 +31,8 @@ model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
 model_params['training']['prg_trn_resize_on_the_fly'] = True
 model_params['training']['lr_schedule'] = 'lin_ascent_cos_decay'
 model_params['training']['lr_params'] = None
-model_name = 'debug_lr_new_v2'
+model_params['training']['no_bias_weight_decay'] = True
+model_name = 'debug_no_bias_weight_decay_v2'
 val_fold = 0
 p_name = 'pod_half'
 model = SegmentationModel(val_fold=val_fold,
