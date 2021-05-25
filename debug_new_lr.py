@@ -2,8 +2,12 @@ from ovseg.model.SegmentationModel import SegmentationModel
 from ovseg.model.model_parameters_segmentation import get_model_params_3d_nnUNet
 import numpy as np
 
+N = 2
+M = 10
 model_params = get_model_params_3d_nnUNet([32, 128, 128], 2,
                                           use_prg_trn=True)
+del model_params['augmentation']['torch_params']['grayvalue']
+model_params['augmentation']['torch_params']['myRandAugment'] = {'n': 1, 'm': 10}
 model_params['network']['filters'] = 8
 model_params['training']['num_epochs'] = 100
 model_params['data']['trn_dl_params']['epoch_len'] = 25
@@ -16,23 +20,15 @@ out_shape = [[16, 64, 64],
 model_params['training']['prg_trn_sizes'] = prg_trn_sizes
 prg_trn_aug_params = {}
 c = 4
-prg_trn_aug_params['mm_var_noise'] = np.array([[0, 0.1/c], [0, 0.1]])
-prg_trn_aug_params['mm_sigma_blur'] = np.array([[1 - 0.5/c, 1 + 0.5/c], [0.5, 1.5]])
-prg_trn_aug_params['mm_bright'] = np.array([[1 - 0.3/c, 1 + 0.3/c], [0.7, 1.3]])
-prg_trn_aug_params['mm_contr'] = np.array([[1 - 0.45/c, 1 + 0.5/c], [0.65, 1.5]])
-prg_trn_aug_params['mm_low_res'] = np.array([[1, 1 + 1/c], [1, 2]])
-prg_trn_aug_params['mm_gamma'] = np.array([[1 - 0.3/c, 1 + 0.5/c], [0.7, 1.5]])
+prg_trn_aug_params['m'] = np.array([M/4, M])
 prg_trn_aug_params['out_shape'] = out_shape
-# params = model_params['augmentation']['torch_params']['grid_inplane']
-# for key in params:
-#     if key.startswith('p'):
-#         prg_trn_aug_params[key] = [params[key]/2, params[key]]
 model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
 model_params['training']['prg_trn_resize_on_the_fly'] = True
 model_params['training']['lr_schedule'] = 'lin_ascent_cos_decay'
-model_params['training']['lr_params'] = None
+model_params['training']['lr_params'] = {'n_warmup_epochs': 50, 'lr_max': 0.02}
+
 model_params['training']['no_bias_weight_decay'] = True
-model_name = 'debug_no_bias_weight_decay_v2'
+model_name = 'debug_myRandAugment_{}_{}'.format(N, M)
 val_fold = 0
 p_name = 'pod_half'
 model = SegmentationModel(val_fold=val_fold,

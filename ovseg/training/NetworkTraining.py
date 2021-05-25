@@ -11,7 +11,7 @@ default_SGD_params = {'momentum': 0.99, 'weight_decay': 3e-5, 'nesterov': True,
                       'lr': 10**-2}
 default_ADAM_params = {'lr': 10**-4}
 default_lr_params_almost_linear = {'beta': 0.9, 'lr_min': 0}
-default_lr_params_lin_ascent_cos_decay = {'n_warmup_epochs': 50, 'lr_max': 0.1}
+default_lr_params_lin_ascent_cos_decay = {'n_warmup_epochs': 50, 'lr_max': 0.02}
 default_lr_params = {'lin_ascent_cos_decay': default_lr_params_lin_ascent_cos_decay,
                      'almost_linear': default_lr_params_almost_linear}
 

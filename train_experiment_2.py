@@ -50,7 +50,7 @@ def get_model_params(exp):
     model_params['training']['opt_params'] = {'momentum': 0.99, 'weight_decay': weight_decay,
                                               'nesterov': True,
                                               'lr': 10**-2}
-    model_params['training']['use_no_bias_weight_decay'] = True
+    model_params['training']['no_bias_weight_decay'] = True
     
     return model_params, model_name
 

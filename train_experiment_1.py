@@ -10,9 +10,7 @@ parser.add_argument("gpu", type=int)
 args = parser.parse_args()
 p_name = 'pod_half'
 
-use_trilinear_upsampling=False
-use_less_hid_channels_in_decoder=False
-fac_skip_channels=1
+weight_decay = 3e-4
 
 # skip_type = "res_skip"
 val_fold_list = list(range(5, 8))
@@ -21,9 +19,12 @@ exp_list = 3 * [args.gpu]
 
 def get_model_params(exp):
     assert exp in [0, 1, 2, 3, 4, 5], "experiment must be 0 or 1"
-    lr_max = [0.05, 0.1, 0.2, 0.4, 0.8, 1.2][exp]
+    N = [1, 1, 1, 2, 2, 2][exp]
+    M = [5, 10, 15, 5, 10, 15][exp]
+    #weight_decay = [0, 1e-7, 1e-6, 1e-5, 3e-5, 1e-4][exp]
 
-    model_name = 'lr_schedule_{}'.format(lr_max)
+    # model_name = 'weight_decay_{:.1e}'.format(weight_decay)
+    model_name = 'myRandAugment_{}_{}'.format(N, M)
     patch_size = [32, 128, 128]
     prg_trn_sizes = [[16, 128, 128],
                      [24, 192, 192],
@@ -34,33 +35,23 @@ def get_model_params(exp):
 
     model_params = get_model_params_3d_nnUNet(patch_size, 2,
                                               use_prg_trn=True)
+    del model_params['augmentation']['torch_params']['grayvalue']
+    model_params['augmentation']['torch_params']['myRandAugment'] = {'n': N, 'm': M}
     model_params['training']['prg_trn_sizes'] = prg_trn_sizes
+    
     # this time we change the amount of augmentation during training
     prg_trn_aug_params = {}
-    # params = model_params['augmentation']['torch_params']['grayvalue']
-    # for key in params:
-    #     if key.startswith('p'):
-    #         prg_trn_aug_params[key] = [params[key]/2, params[key]]
-    # factor we use for reducing the magnitude of the gray value augmentations
     c = 4
-    prg_trn_aug_params['mm_var_noise'] = np.array([[0, 0.1/c], [0, 0.1]])
-    prg_trn_aug_params['mm_sigma_blur'] = np.array([[1 - 0.5/c, 1 + 0.5/c], [0.5, 1.5]])
-    prg_trn_aug_params['mm_bright'] = np.array([[1 - 0.3/c, 1 + 0.3/c], [0.7, 1.3]])
-    prg_trn_aug_params['mm_contr'] = np.array([[1 - 0.45/c, 1 + 0.5/c], [0.65, 1.5]])
-    prg_trn_aug_params['mm_low_res'] = np.array([[1, 1 + 1/c], [1, 2]])
-    prg_trn_aug_params['mm_gamma'] = np.array([[1 - 0.3/c, 1 + 0.5/c], [0.7, 1.5]])
+    prg_trn_aug_params['m'] = np.array([M/c, M])
     prg_trn_aug_params['out_shape'] = out_shape
-    # params = model_params['augmentation']['torch_params']['grid_inplane']
-    # for key in params:
-    #     if key.startswith('p'):
-    #         prg_trn_aug_params[key] = [params[key]/2, params[key]]
     model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
     model_params['training']['prg_trn_resize_on_the_fly'] = False
-    model_params['network']['use_trilinear_upsampling'] = use_trilinear_upsampling
-    model_params['network']['use_less_hid_channels_in_decoder'] = use_less_hid_channels_in_decoder
-    model_params['network']['fac_skip_channels'] = fac_skip_channels
     model_params['training']['lr_schedule'] = 'lin_ascent_cos_decay'
-    model_params['training']['lr_params'] = {'n_warmup_epochs': 50, 'lr_max': lr_max}
+    model_params['training']['lr_params'] = {'n_warmup_epochs': 50, 'lr_max': 0.02}
+    model_params['training']['opt_params'] = {'momentum': 0.99, 'weight_decay': weight_decay,
+                                              'nesterov': True,
+                                              'lr': 0.02}
+    model_params['training']['no_bias_weight_decay'] = True
     
     return model_params, model_name
 

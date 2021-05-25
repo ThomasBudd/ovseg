@@ -1,5 +1,6 @@
 from ovseg.augmentation.SpatialAugmentation import SpatialAugmentation
 from ovseg.augmentation.GrayValueAugmentation import GrayValueAugmentation
+from ovseg.augmentation.myRandAugment import torch_myRandAugment
 from ovseg.augmentation.MaskAugmentation import MaskAugmentation
 from ovseg.augmentation.GridAugmentation import torch_inplane_grid_augmentations
 from ovseg.augmentation.GrayValueAugmentation import torch_gray_value_augmentation
@@ -25,7 +26,8 @@ class ConcatenatedAugmentation(object):
 
             if key.lower() not in ['grayvalue', 'grayvalueaugmentation',
                                    'spatial', 'spatialaugmentation',
-                                   'mask', 'maskaugmentation']:
+                                   'mask', 'maskaugmentation',
+                                   'medrandaugment', 'medrandaug']:
                 raise ValueError('key '+str(key)+' of augmentation params'
                                  'did not match implemented augmentation '
                                  'methods.')
@@ -88,7 +90,8 @@ class torch_concatenated_augmentation(nn.Module):
         super().__init__()
 
         for key in torch_params:
-            assert key in ['grid_inplane', 'grayvalue'], 'got unrecognised augmentation ' + key
+            assert key in ['grid_inplane', 'grayvalue', 'myRandAugment'], \
+            'got unrecognised augmentation ' + key
 
         self.aug_list = []
         if 'grid_inplane' in torch_params:
@@ -96,6 +99,9 @@ class torch_concatenated_augmentation(nn.Module):
 
         if 'grayvalue' in torch_params:
             self.aug_list.append(torch_gray_value_augmentation(**torch_params['grayvalue']))
+
+        if 'myRandAugment' in torch_params:
+            self.aug_list.append(torch_myRandAugment(**torch_params['myRandAugment']))
 
         if len(self.aug_list) > 0:
             self.module = nn.Sequential(*self.aug_list)
