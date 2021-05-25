@@ -10,7 +10,7 @@ parser.add_argument("gpu", type=int)
 args = parser.parse_args()
 p_name = 'pod_half'
 
-lr_max = 0.01
+lr_max = 0.02
 
 # skip_type = "res_skip"
 val_fold_list = list(range(5, 8))
