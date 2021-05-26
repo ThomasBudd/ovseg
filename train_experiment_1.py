@@ -21,6 +21,7 @@ def get_model_params(exp):
     assert exp in [0, 1, 2, 3, 4, 5], "experiment must be 0 or 1"
     N = [1, 1, 1, 2, 2, 2][exp]
     M = [5, 10, 15, 5, 10, 15][exp]
+    # M = [3, 4, 6, 3, 4, 6][exp]
     #weight_decay = [0, 1e-7, 1e-6, 1e-5, 3e-5, 1e-4][exp]
 
     # model_name = 'weight_decay_{:.1e}'.format(weight_decay)
