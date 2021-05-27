@@ -3,7 +3,7 @@ import torch
 from torch.nn.functional import interpolate
 from ovseg.utils.label_utils import remove_small_connected_components_from_batch, reduce_classes, \
     remove_small_connected_components
-from ovseg.utils.dict_equal import dict_equal
+from ovseg.utils.dict_equal import dict_equal, print_dict_diff
 from ovseg.utils.io import read_data_tpl_from_nii, load_pkl, save_pkl, save_txt
 from ovseg.utils.path_utils import my_listdir, maybe_create_path
 from ovseg.data.Dataset import raw_Dataset
@@ -144,6 +144,7 @@ class SegmentationPreprocessing(object):
             if dict_equal(data_pkl, data):
                 return
             else:
+                print_dict_diff(data_pkl, data, 'pkl paramters', 'given paramters')
                 raise RuntimeError('Found not matching prerpocessing parameters in '+outfolder+'.')
         else:
             save_pkl(data, outfile)

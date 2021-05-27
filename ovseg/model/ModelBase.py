@@ -1,6 +1,6 @@
 from os.path import join, exists
 from ovseg.utils import io, path_utils
-from ovseg.utils.dict_equal import dict_equal
+from ovseg.utils.dict_equal import dict_equal, print_dict_diff
 from ovseg.data.Dataset import raw_Dataset
 import os
 import torch
@@ -119,8 +119,11 @@ class ModelBase(object):
                 print('Input model parameters match pickled ones.\n')
                 self.parameters_match_saved_ones = True
             else:
-                print('Found conflict between saved and inputed model parameters. '
-                      'New paramters added will not be stored in the .pkl file automatically. '
+                print('Found conflict between saved and inputed model parameters. ')
+                print_dict_diff(self.model_parameters, model_params_from_pkl, 'input paramters'
+                                'pkl paramters')
+                print()
+                print('The inputed paramters will are NOT overwriting the pkl parameter. \n '
                       'If you want to overwrite, call model.save_model_parameters(). '
                       'Make sure you want to alter the parameters stored at '+self.path_to_params)
 
