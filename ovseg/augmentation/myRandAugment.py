@@ -154,10 +154,27 @@ if __name__ == '__main__':
     volume = np.stack([im, lb]).astype(np.float32)
     xb = torch.from_numpy(volume[np.newaxis, :, 37:69, 64:192, 64:192]).cuda()
     img = xb[:1]
-    aug = medRandAugment(n=2, m=10)
+    aug = torch_myRandAugment(n=1, m=5)
     # %%
     vmin, vmax = img[0, 0].min(), img[0, 0].max()
     img_aug = aug(torch.clone(img))
+    plt.subplot(1, 3, 1)
+    plt.imshow(img[0, 0, -1].cpu().numpy(), cmap='gray')
+    plt.contour(img[0, 1, -1].cpu().numpy(), colors='red')
+    plt.subplot(1, 3, 2)
+    plt.imshow(img_aug[0, 0, -1].cpu().numpy(), cmap='gray', vmin=vmin, vmax=vmax)
+    plt.contour(img_aug[0, 1, -1].cpu().numpy(), colors='red')
+    plt.subplot(1, 3, 3)
+    plt.imshow((img[0, 0, -1] - img_aug[0, 0, -1]).cpu().numpy(), cmap='gray', vmin=vmin, vmax=vmax)
+    plt.contour(img_aug[0, 1, -1].cpu().numpy(), colors='red')
+
+    # %%
+    m = 5
+    vmin, vmax = img[0, 0].min(), img[0, 0].max()
+    op, mn, mx = aug.all_ops[9]
+    print(op)
+    val = mn * (1 - m/30) + m/30 * mx
+    img_aug = op(torch.clone(img), val)
     plt.subplot(1, 3, 1)
     plt.imshow(img[0, 0, -1].cpu().numpy(), cmap='gray')
     plt.contour(img[0, 1, -1].cpu().numpy(), colors='red')
