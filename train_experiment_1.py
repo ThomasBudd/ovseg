@@ -10,8 +10,6 @@ parser.add_argument("gpu", type=int)
 args = parser.parse_args()
 p_name = 'pod_half'
 
-weight_decay = 3e-4
-
 # skip_type = "res_skip"
 val_fold_list = list(range(5, 8))
 exp_list = 3 * [args.gpu]
@@ -20,7 +18,7 @@ exp_list = 3 * [args.gpu]
 def get_model_params(exp):
     assert exp in [0, 1, 2, 3, 4, 5], "experiment must be 0 or 1"
     N = [1, 1, 1, 2, 2, 2][exp]
-    M = [5, 10, 15, 5, 10, 15][exp]
+    M = [3, 4, 6, 3, 4, 6][exp]
     # M = [3, 4, 6, 3, 4, 6][exp]
     #weight_decay = [0, 1e-7, 1e-6, 1e-5, 3e-5, 1e-4][exp]
 
@@ -49,10 +47,6 @@ def get_model_params(exp):
     model_params['training']['prg_trn_resize_on_the_fly'] = False
     model_params['training']['lr_schedule'] = 'lin_ascent_cos_decay'
     model_params['training']['lr_params'] = {'n_warmup_epochs': 50, 'lr_max': 0.02}
-    model_params['training']['opt_params'] = {'momentum': 0.99, 'weight_decay': weight_decay,
-                                              'nesterov': True,
-                                              'lr': 0.02}
-    model_params['training']['no_bias_weight_decay'] = True
     
     return model_params, model_name
 
