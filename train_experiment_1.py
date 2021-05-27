@@ -49,6 +49,7 @@ def get_model_params(exp):
     model_params['training']['prg_trn_resize_on_the_fly'] = False
     model_params['training']['lr_schedule'] = 'lin_ascent_cos_decay'
     model_params['training']['lr_params'] = {'n_warmup_epochs': 50, 'lr_max': 0.02}
+    model_params['data']['trn_dl_params']['num_workers'] = 16
     return model_params, model_name
 
 
