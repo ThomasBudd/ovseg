@@ -16,14 +16,10 @@ exp_list = 3 * [args.gpu]
 
 
 def get_model_params(exp):
-    assert exp in [0, 1, 2, 3, 4, 5], "experiment must be 0 or 1"
-    N = [1, 1, 1, 2, 2, 2][exp]
-    M = [3, 4, 6, 3, 4, 6][exp]
-    # M = [3, 4, 6, 3, 4, 6][exp]
-    #weight_decay = [0, 1e-7, 1e-6, 1e-5, 3e-5, 1e-4][exp]
-
+    assert exp in [0, 1, 2], "experiment must be 0 or 1"
+    fac_p = [0.5, 1, 2][exp]
     # model_name = 'weight_decay_{:.1e}'.format(weight_decay)
-    model_name = 'myRandAugment_{}_{}'.format(N, M)
+    model_name = 'p_gv_aug_{}'.format(fac_p)
     patch_size = [32, 128, 128]
     prg_trn_sizes = [[16, 128, 128],
                      [24, 192, 192],
@@ -34,20 +30,25 @@ def get_model_params(exp):
 
     model_params = get_model_params_3d_nnUNet(patch_size, 2,
                                               use_prg_trn=True)
-    del model_params['augmentation']['torch_params']['grayvalue']
-    model_params['augmentation']['torch_params']['myRandAugment'] = {'n': N, 'm': M}
     model_params['training']['prg_trn_sizes'] = prg_trn_sizes
     
     # this time we change the amount of augmentation during training
     prg_trn_aug_params = {}
     c = 4
-    prg_trn_aug_params['m'] = np.array([M/c, M])
+    for key in model_params['augmentation']['torch_augmentation']['grayvalue']:
+        if key.startswith('p_'):
+            model_params['augmentation']['torch_augmentation']['grayvalue'][key] *= fac_p
+    prg_trn_aug_params['mm_var_noise'] = np.array([[0, 0.1/c], [0, 0.1]])
+    prg_trn_aug_params['mm_sigma_blur'] = np.array([[1 - 0.5/c, 1 + 0.5/c], [0.5, 1.5]])
+    prg_trn_aug_params['mm_bright'] = np.array([[1 - 0.3/c, 1 + 0.3/c], [0.7, 1.3]])
+    prg_trn_aug_params['mm_contr'] = np.array([[1 - 0.35/c, 1 + 0.5/c], [0.65, 1.5]])
+    prg_trn_aug_params['mm_low_res'] = np.array([[1, 1 + 1/c], [1, 2]])
+    prg_trn_aug_params['mm_gamma'] = np.array([[1 - 0.3/c, 1 + 0.5/c], [0.7, 1.5]])
     prg_trn_aug_params['out_shape'] = out_shape
     model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
     model_params['training']['prg_trn_resize_on_the_fly'] = False
     model_params['training']['lr_schedule'] = 'lin_ascent_cos_decay'
     model_params['training']['lr_params'] = {'n_warmup_epochs': 50, 'lr_max': 0.02}
-    
     return model_params, model_name
 
 

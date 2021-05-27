@@ -10,7 +10,7 @@ lw = 0.2
 
 prepp = join(environ['OV_DATA_BASE'], 'preprocessed', 'OV04', 'pod_half')
 plotp = 'D:\\PhD\\ICM\\Segmentation\\eval_effUNet\\example_images'
-plotp = 'D:\\PhD\\ICM\\Latex\\Presentation 2021 05 28 CIA talk'
+# plotp = 'D:\\PhD\\ICM\\Latex\\Presentation 2021 05 28 CIA talk'
 case = 'case_015.npy'
 
 im_full = np.load(join(prepp, 'images', case))
@@ -27,7 +27,7 @@ plt.imshow(im, cmap='gray')
 plt.contour(lb, colors='red', linwidths=0.5)
 plt.plot([16, 16, 176, 176, 16], [16, 176, 176, 16, 16], 'b')
 plt.plot([32, 32, 160, 160, 32], [32, 160, 160, 32, 32], 'g')
-plt.savefig(join(plotp, 'patch_sizes.png'))
+plt.savefig(join(plotp, 'patch_sizes.png'), bbox_inches='tight')
 
 # %%
 x, y = 56, 56
@@ -51,7 +51,7 @@ for i, size in enumerate(sizes):
     plt.contour(lb_rsz[size[0] // 2], colors='red', linwidths=lw)
     plt.title('{}x{}x{}'.format(size[1], size[2], size[0]))
 
-plt.savefig(join(plotp, 'progressize_resizing.png'))
+plt.savefig(join(plotp, 'progressize_resizing.png'), bbox_inches='tight')
 
 # %%
 m = 10
@@ -69,7 +69,7 @@ for i, size in enumerate(sizes):
     plt.contour(lb_rsz[size[0] // 2], colors='red', linwidths=lw)
     plt.title('{}x{}x{}'.format(size[1], size[2], size[0]))
 
-plt.savefig(join(plotp, 'progressize_resizing_aug.png'))
+plt.savefig(join(plotp, 'progressize_resizing_aug.png'), bbox_inches='tight')
 # %%
 m = 10
 plt.figure()
@@ -86,7 +86,7 @@ for i, size in enumerate(sizes):
     plt.contour(lb_rsz[size[0] // 2], colors='red', linwidths=lw)
     plt.title('{}x{}x{}'.format(size[1], size[2], size[0]))
 
-plt.savefig(join(plotp, 'progressize_learning.png'))
+plt.savefig(join(plotp, 'progressize_learning.png'), bbox_inches='tight')
 
 # %% plot network outcome
 model = SegmentationModel(5, model_name='lr_schedule_0.02', preprocessed_name='pod_half',
@@ -103,7 +103,7 @@ for i in range(4):
     p = p[p.shape[0] // 2]
     plt.imshow(p, cmap='gray')
     plt.axis('off')
-    plt.savefig(join(plotp, 'pred_scale_{}.png'.format(i)))
+    plt.savefig(join(plotp, 'pred_scale_{}.png'.format(i)), bbox_inches='tight')
 
 
 im = im_full[z, x:x+128, y:y+128].astype(float)
@@ -116,9 +116,9 @@ plt.axis('off')
 plt.subplot(2, 1, 2)
 plt.imshow(lb, cmap='gray')
 plt.axis('off')
-plt.savefig(join(plotp, 'target.png'))
+plt.savefig(join(plotp, 'target.png'), bbox_inches='tight')
 
 plt.figure()
 plt.imshow(im, cmap='gray')
 plt.axis('off')
-plt.savefig(join(plotp, 'input.png'))
+plt.savefig(join(plotp, 'input.png'), bbox_inches='tight')
