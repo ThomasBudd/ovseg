@@ -35,9 +35,9 @@ def get_model_params(exp):
     # this time we change the amount of augmentation during training
     prg_trn_aug_params = {}
     c = 4
-    for key in model_params['augmentation']['torch_augmentation']['grayvalue']:
+    for key in model_params['augmentation']['torch_params']['grayvalue']:
         if key.startswith('p_'):
-            model_params['augmentation']['torch_augmentation']['grayvalue'][key] *= fac_p
+            model_params['augmentation']['torch_params']['grayvalue'][key] *= fac_p
     prg_trn_aug_params['mm_var_noise'] = np.array([[0, 0.1/c], [0, 0.1]])
     prg_trn_aug_params['mm_sigma_blur'] = np.array([[1 - 0.5/c, 1 + 0.5/c], [0.5, 1.5]])
     prg_trn_aug_params['mm_bright'] = np.array([[1 - 0.3/c, 1 + 0.3/c], [0.7, 1.3]])
