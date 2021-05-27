@@ -12,7 +12,7 @@ p_name = 'pod_half'
 
 # skip_type = "res_skip"
 val_fold_list = [[5], [6], [7], [5], [6], [7]][args.gpu]
-exp_list = [0, 0, 0, 1, 1, 1][args.gpu]
+exp_list = [[0], [0], [0], [1], [1], [1]][args.gpu]
 
 
 def get_model_params(exp):
