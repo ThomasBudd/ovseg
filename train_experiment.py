@@ -11,8 +11,8 @@ args = parser.parse_args()
 p_name = 'pod_half'
 
 # skip_type = "res_skip"
-val_fold_list = [[5], [6], [7], [5], [6], [7]][args.gpu]
-exp_list = [[0], [0], [0], [1], [1], [1]][args.gpu]
+val_fold_list = list(range(5))
+exp_list = 5*[args.gpu]
 
 
 def get_model_params(exp):
@@ -33,10 +33,10 @@ def get_model_params(exp):
     model_params['training']['prg_trn_sizes'] = prg_trn_sizes
     
     # this time we change the amount of augmentation during training
-    prg_trn_aug_params = {}
+    prg_trn_aug_params = {} 
     c = 4
     prg_trn_aug_params['mm_var_noise'] = np.array([[0, 0.1/c], [0, 0.1]])
-    prg_trn_aug_params['mm_sigma_blur'] = np.array([[1 - 0.5/c, 1 + 0.5/c], [0.5, 1.5]])
+    prg_trn_aug_params['mm_sigma_blur'] = np.array([[0.5/c, 0.5 + 1/c], [0.5, 1.5]])
     prg_trn_aug_params['mm_bright'] = np.array([[1 - 0.3/c, 1 + 0.3/c], [0.7, 1.3]])
     prg_trn_aug_params['mm_contr'] = np.array([[1 - 0.35/c, 1 + 0.5/c], [0.65, 1.5]])
     prg_trn_aug_params['mm_low_res'] = np.array([[1, 1 + 1/c], [1, 2]])
@@ -64,7 +64,7 @@ for val_fold, exp in zip(val_fold_list, exp_list):
     model.eval_validation_set()
     model.clean()
 
-ens = SegmentationEnsemble(val_fold=list(range(5, 8)),
+ens = SegmentationEnsemble(val_fold=list(range(5)),
                            data_name='OV04',
                            preprocessed_name=p_name,
                            model_name=model_name)
