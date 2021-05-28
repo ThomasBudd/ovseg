@@ -27,6 +27,7 @@ plt.imshow(im, cmap='gray')
 plt.contour(lb, colors='red', linwidths=0.5)
 plt.plot([16, 16, 176, 176, 16], [16, 176, 176, 16, 16], 'b')
 plt.plot([32, 32, 160, 160, 32], [32, 160, 160, 32, 32], 'g')
+plt.axis('off')
 plt.savefig(join(plotp, 'patch_sizes.png'), bbox_inches='tight')
 
 # %%
@@ -41,6 +42,7 @@ plt.figure()
 plt.subplot(1, 3, 1)
 plt.imshow(im[16], cmap='gray')
 plt.contour(lb[16], colors='red', linwidths=lw)
+plt.axis('off')
 plt.title('{}x{}x{}'.format(128, 128, 32))
 
 for i, size in enumerate(sizes):
@@ -49,6 +51,7 @@ for i, size in enumerate(sizes):
     plt.subplot(1, 3, 2 + i)
     plt.imshow(im_rsz[size[0] // 2], cmap='gray')
     plt.contour(lb_rsz[size[0] // 2], colors='red', linwidths=lw)
+    plt.axis('off')
     plt.title('{}x{}x{}'.format(size[1], size[2], size[0]))
 
 plt.savefig(join(plotp, 'progressize_resizing.png'), bbox_inches='tight')
@@ -59,6 +62,7 @@ plt.figure()
 plt.subplot(1, 3, 1)
 plt.imshow(im[16] + m/30 * np.random.randn(128, 128), cmap='gray')
 plt.contour(lb[16], colors='red', linwidths=lw)
+plt.axis('off')
 plt.title('{}x{}x{}'.format(128, 128, 32))
 
 for i, size in enumerate(sizes):
@@ -67,6 +71,7 @@ for i, size in enumerate(sizes):
     plt.subplot(1, 3, 2 + i)
     plt.imshow(im_rsz[size[0] // 2] + m/30 * np.random.randn(*size[1:]), cmap='gray')
     plt.contour(lb_rsz[size[0] // 2], colors='red', linwidths=lw)
+    plt.axis('off')
     plt.title('{}x{}x{}'.format(size[1], size[2], size[0]))
 
 plt.savefig(join(plotp, 'progressize_resizing_aug.png'), bbox_inches='tight')
@@ -76,6 +81,7 @@ plt.figure()
 plt.subplot(1, 3, 1)
 plt.imshow(im[16] + m/30 * np.random.randn(128, 128), cmap='gray')
 plt.contour(lb[16], colors='red', linwidths=0.5)
+plt.axis('off')
 plt.title('{}x{}x{}'.format(128, 128, 32))
 
 for i, size in enumerate(sizes):
@@ -84,6 +90,7 @@ for i, size in enumerate(sizes):
     plt.subplot(1, 3, 2 + i)
     plt.imshow(im_rsz[size[0] // 2] + m/2**(i+1)/30 * np.random.randn(*size[1:]), cmap='gray')
     plt.contour(lb_rsz[size[0] // 2], colors='red', linwidths=lw)
+    plt.axis('off')
     plt.title('{}x{}x{}'.format(size[1], size[2], size[0]))
 
 plt.savefig(join(plotp, 'progressize_learning.png'), bbox_inches='tight')
