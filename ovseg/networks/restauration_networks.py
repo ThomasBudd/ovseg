@@ -108,9 +108,11 @@ class UpConv(nn.Module):
                                   mode='bilinear' if is_2d else 'trilinear',
                                   align_corners=True)
         if is_2d:
-            self.conv = nn.Conv2d(in_channels, out_channels, kernel_size)
+            self.conv = nn.Conv2d(in_channels, out_channels, kernel_size,
+                                  padding=get_padding(kernel_size))
         else:
-            self.conv = nn.Conv3d(in_channels, out_channels, kernel_size)
+            self.conv = nn.Conv3d(in_channels, out_channels, kernel_size,
+                                  padding=get_padding(kernel_size))
         nn.init.kaiming_normal_(self.conv.weight)
 
     def forward(self, xb):
@@ -143,11 +145,14 @@ class ResUNet2d(nn.Module):
             self.filters_list = [min([self.filters * 2 ** i, self.filters_max])
                                  for i in range(self.n_stages)]
 
+        self.first_strides_list = [1] + (self.n_stages-1)*[2]
         # blocks for the contracting path
         blocks_contr = []
-        for in_ch, out_ch in zip([self.in_channels] + self.filters_list, self.filters_list):
+        for in_ch, out_ch, first_stride in zip([self.in_channels] + self.filters_list,
+                                               self.filters_list,
+                                               self.first_strides_list):
             block = ResBlock(in_ch, out_ch, conv_params=self.conv_params, norm=self.norm,
-                             nonlin_params=self.nonlin_params)
+                             nonlin_params=self.nonlin_params, first_stride=first_stride)
             blocks_contr.append(block)
         self.blocks_contr = nn.ModuleList(blocks_contr)
 
@@ -175,7 +180,7 @@ class ResUNet2d(nn.Module):
             xb = block(xb)
             skip_list.append(xb)
 
-        for i in range(self.n_stages-1,-1,-1):
+        for i in range(self.n_stages-2,-1,-1):
             xb = self.upsamplings[i](xb)
             xb = torch.cat([xb, skip_list[i]], 1)
             xb = self.blocks_exp[i](xb)
