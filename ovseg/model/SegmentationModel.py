@@ -77,8 +77,12 @@ class SegmentationModel(ModelBase):
                 else:
                     print('Loaded preprocessing parameters without saving them to the model '
                           'parameters as current model parameters don\'t match saved ones.')
+
+        # create the preprocessing object
         params = self.model_parameters['preprocessing'].copy()
         self.preprocessing = SegmentationPreprocessing(**params)
+
+        # now for the computation of loss metrics we need the number of prevalent fg classes
         if self.preprocessing.lb_classes is not None:
             self.n_fg_classes = len(self.preprocessing.lb_classes)
         elif self.model_parameters['network']['out_channels'] is not None:
@@ -89,6 +93,11 @@ class SegmentationModel(ModelBase):
         else:
             raise AttributeError('Something seems to be wrong. Could not figure out the number '
                                  'of foreground classes in the problem...')
+        if self.preprocessing.lb_classes is None and hasattr(self.preprocessing, 'dataset_properties'):
+            if self.n_fg_classes != self.preprocessing.dataset_properties['n_fg_classes']:
+                raise ValueError('There seems to be a missmatch between the number of forground '
+                                 'classes in the preprocessed data and the number of network '
+                                 'output channels.')
 
         # now we check if we perform a cascasde:
         if self.is_cascade():

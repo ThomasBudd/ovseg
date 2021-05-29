@@ -10,6 +10,7 @@ class torch_inplane_grid_augmentations(nn.Module):
     def __init__(self,
                  p_rot=0.2,
                  p_zoom=0.2,
+                 p_scale_if_zoom=0,
                  p_transl=0,
                  p_shear=0,
                  mm_zoom=[0.7, 1.4],
@@ -23,6 +24,7 @@ class torch_inplane_grid_augmentations(nn.Module):
         super().__init__()
         self.p_rot = p_rot
         self.p_zoom = p_zoom
+        self.p_scale_if_zoom = p_scale_if_zoom
         self.p_transl = p_transl
         self.p_shear = p_shear
         self.mm_zoom = mm_zoom
@@ -50,9 +52,15 @@ class torch_inplane_grid_augmentations(nn.Module):
         return torch.mm(rot_m, theta)
 
     def _zoom(self, theta):
-        fac = np.random.uniform(*self.mm_zoom)
-        theta[:2, :2] = fac * theta[:2, :2]
-        theta[:, -1] = fac * theta[:, -1]
+        fac1 = np.random.uniform(*self.mm_zoom)
+        if np.random.rand() < self.p_scale_if_zoom:
+            fac2 = np.random.uniform(*self.mm_zoom)
+        else:
+            fac2 = fac1
+        theta[0, 0] *= fac1
+        theta[1, 1] *= fac2
+        theta[0, -1] *= fac1
+        theta[1, -1] *= fac2
         return theta
 
     def _translate(self, theta):
@@ -152,8 +160,8 @@ if __name__ == '__main__':
     lbt = torch.from_numpy(lb_crop).cuda().unsqueeze(0).unsqueeze(0).type(torch.float)
     xb = torch.cat([imt, lbt], 1).cuda()
     xb = torch.cat([xb, xb], 0)
-    aug = torch_inplane_grid_augmentations(p_rot=1.0, p_zoom=1.0,
-                                           p_transl=1.0, p_shear=1.0,
+    aug = torch_inplane_grid_augmentations(p_rot=1.0, p_zoom=1.0, p_scale_if_zoom=1.0,
+                                           p_transl=0.0, p_shear=1.0,
                                            apply_flipping=False)
 
     # %%

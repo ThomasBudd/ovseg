@@ -62,19 +62,17 @@ class ModelBase(object):
                                              'preprocessed',
                                              self.data_name)
             if not exists(path_to_preprocessed_data):
-                raise FileNotFoundError('No input \'preprocessed_name\' was given and it could '
-                                        'not be identified automatically. Please make sure to '
-                                        'set this argument unless there is only one preprocessed '
-                                        'folder for the given data_name.')
+                raise FileNotFoundError('Path to preprocessed data doesn\'t exsist. Make sure '
+                                        'to preprocess your raw data before using models.')
 
             preprocessed_folders = os.listdir(path_to_preprocessed_data)
 
             if not len(preprocessed_folders) == 1:
                 raise FileNotFoundError('No input \'preprocessed_name\' was given and it could '
-                                        'not be identified automatically. Please make sure to '
-                                        'set this argument unless there is only one preprocessed '
-                                        'folder for the given data_name.')
+                                        'not be identified automatically. Available preprocessed '
+                                        'data folders are {}'.format(preprocessed_folders))
             else:
+                print('No preprocessed_name given, chose {}.'.format(preprocessed_folders[0]))
                 self.preprocessed_name = preprocessed_folders[0]
 
         # set the path to the preprocessed data
@@ -119,10 +117,10 @@ class ModelBase(object):
                 print('Input model parameters match pickled ones.\n')
                 self.parameters_match_saved_ones = True
             else:
-                print('Found conflict between saved and inputed model parameters. ')
+                print('-------Found conflict between saved and inputed model parameters-------')
                 print_dict_diff(self.model_parameters, model_params_from_pkl, 'input paramters'
                                 'pkl paramters')
-                print()
+                print('-----------------------------------------------------------------------')
                 print('The inputed paramters will are NOT overwriting the pkl parameter. \n '
                       'If you want to overwrite, call model.save_model_parameters(). '
                       'Make sure you want to alter the parameters stored at '+self.path_to_params)
