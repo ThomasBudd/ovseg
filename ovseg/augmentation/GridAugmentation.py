@@ -160,8 +160,9 @@ if __name__ == '__main__':
     lbt = torch.from_numpy(lb_crop).cuda().unsqueeze(0).unsqueeze(0).type(torch.float)
     xb = torch.cat([imt, lbt], 1).cuda()
     xb = torch.cat([xb, xb], 0)
-    aug = torch_inplane_grid_augmentations(p_rot=1.0, p_zoom=1.0, p_scale_if_zoom=1.0,
-                                           p_transl=0.0, p_shear=1.0,
+    aug = torch_inplane_grid_augmentations(p_rot=0.5, p_zoom=0.5, p_scale_if_zoom=0.5,
+                                           p_transl=0.0, p_shear=0.5,
+                                           mm_zoom=[0.8,1.2], mm_rot=[-20, 20],
                                            apply_flipping=False)
 
     # %%

@@ -118,16 +118,18 @@ class UpLinear(nn.Module):
 # %% now simply the logits
 class Logits(nn.Module):
 
-    def __init__(self, in_channels, out_channels, is_2d):
+    def __init__(self, in_channels, out_channels, is_2d, p_dropout=0):
         super().__init__()
         if is_2d:
             self.logits = nn.Conv2d(in_channels, out_channels, 1, bias=False)
+            self.dropout = nn.Dropout2d(p_dropout)
         else:
             self.logits = nn.Conv3d(in_channels, out_channels, 1, bias=False)
+            self.dropout = nn.Dropout3d(p_dropout)
         nn.init.kaiming_normal_(self.logits.weight)
 
     def forward(self, xb):
-        return self.logits(xb)
+        return self.dropout(self.logits(xb))
 
 # %%
 class res_skip(nn.Module):
@@ -164,7 +166,8 @@ class UNet(nn.Module):
                  is_2d, filters=32, filters_max=384, n_pyramid_scales=None,
                  conv_params=None, norm=None, norm_params=None, nonlin_params=None,
                  kernel_sizes_up=None, skip_type='skip', use_trilinear_upsampling=False,
-                 use_less_hid_channels_in_decoder=False, fac_skip_channels=1):
+                 use_less_hid_channels_in_decoder=False, fac_skip_channels=1,
+                 p_dropout_logits=0.0):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -185,6 +188,7 @@ class UNet(nn.Module):
         self.use_less_hid_channels_in_decoder = use_less_hid_channels_in_decoder
         assert fac_skip_channels <= 1 and fac_skip_channels > 0
         self.fac_skip_channels = fac_skip_channels
+        self.p_dropout_logits = p_dropout_logits
         # we double the amount of channels every downsampling step
         # up to a max of filters_max
         self.filters_list = [min([self.filters*2**i, self.filters_max])
@@ -301,7 +305,8 @@ class UNet(nn.Module):
         for in_channels in self.logits_in_list:
             self.all_logits.append(Logits(in_channels=in_channels,
                                           out_channels=self.out_channels,
-                                          is_2d=self.is_2d))
+                                          is_2d=self.is_2d,
+                                          p_dropout=self.p_dropout_logits))
 
         # now important let's turn everything into a module list
         self.blocks_down = nn.ModuleList(self.blocks_down)
@@ -341,6 +346,11 @@ class UNet(nn.Module):
         # as we iterate from bottom to top we have to flip the logits list
         return logs_list[::-1]
 
+    def update_prg_trn(self, param_dict, h, indx=None):
+        if 'p_dropout_logits' in param_dict:
+            p = (1 - h) * param_dict['p_dropout_logits'][0] + h * param_dict['p_dropout_logits'][1]
+            for l in self.all_logits:
+                l.dropout.p = p
 
 def get_2d_UNet(in_channels, out_channels, n_stages, filters=32):
     kernel_sizes = [3 for _ in range(n_stages)]
