@@ -50,10 +50,6 @@ def get_model_params(exp):
     # this time we change the amount of augmentation during training
     prg_trn_aug_params = {}
     c = 4
-    model_params['augmentation']['torch_params']['grid_inplane']['p_rot'] = 0.5
-    model_params['augmentation']['torch_params']['grid_inplane']['p_zoom'] = 0.5
-    model_params['augmentation']['torch_params']['grid_inplane']['mm_rot'] = [-20, 20]
-    model_params['augmentation']['torch_params']['grid_inplane']['mm_zoom'] = [0.8, 1.2]
 
     # reduce magnitude of gray value augmentations
     prg_trn_aug_params['mm_var_noise'] = np.array([[0, 0.05/c], [0, 0.05]])
