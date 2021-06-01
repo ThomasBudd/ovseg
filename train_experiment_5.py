@@ -16,13 +16,13 @@ batch_size = 2
 p_name = 'pod_half'
 
 # skip_type = "res_skip"
-val_fold_list = [[0, 1], [2, 3], [4]][args.gpu]
-exp_list = 5 * [0]
+val_fold_list = [[0, 1, 0], [2, 3, 1], [4, 2, 3], [4]][args.gpu]
+exp_list = [[0, 0, 1], [0, 0, 1], [0, 1, 1], [1]][args.gpu]
 
 
 def get_model_params(exp):
     # model_name = 'weight_decay_{:.1e}'.format(weight_decay)
-    model_name = ['res_encoder', 'res_encoder_bottleneck', 'res_encoder_merge_and_run'][exp]
+    model_name = ['res_encoder', 'res_encoder_se', 'res_encoder_merge_and_run'][exp]
     patch_size = [32, 128, 128]
     prg_trn_sizes = [[20, 160, 160],
                      [24, 192, 192],
@@ -32,7 +32,7 @@ def get_model_params(exp):
                  [24, 96, 96],
                  [28, 112, 112],
                  [32, 128, 128]]
-    block = ['res', 'bottleneck', 'mergeandrun'][exp]
+    block = 'res'
     model_params = get_model_params_3d_nnUNet(patch_size, 2,
                                               use_prg_trn=use_prg_trn)
     if use_prg_trn:
@@ -45,6 +45,8 @@ def get_model_params(exp):
     model_params['network']['filters'] = filters
     model_params['network']['block'] = block
     model_params['network']['z_to_xy_ratio'] = 4
+    if exp == 1:
+        model_params['network']['use_se'] = True
     model_params['data']['trn_dl_params']['batch_size'] = batch_size
     model_params['data']['val_dl_params']['batch_size'] = batch_size
     # this time we change the amount of augmentation during training

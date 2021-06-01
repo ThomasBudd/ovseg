@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from ovseg.networks.blocks import StochDepth
+from ovseg.networks.blocks import StochDepth, SE_unit
 
 def get_padding(kernel_size):
     if isinstance(kernel_size, (list, tuple, np.ndarray)):
@@ -87,7 +87,7 @@ class ResBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, is_2d=False, kernel_size=3, kernel_size2=None,
                  first_stride=1, conv_params=None, norm='inst', norm_params=None,
-                 nonlin_params=None, stochdepth_rate=0.2):
+                 nonlin_params=None, stochdepth_rate=0.2, use_se=False):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -99,6 +99,7 @@ class ResBlock(nn.Module):
         self.norm_params = norm_params
         self.nonlin_params = nonlin_params
         self.stochdepth_rate = stochdepth_rate
+        self.use_se = use_se
 
         if norm is None:
             norm = 'batch' if is_2d else 'inst'
@@ -159,9 +160,13 @@ class ResBlock(nn.Module):
         # now the skip init
         self.a = nn.Parameter(torch.zeros(()))
         self.stochdepth = StochDepth(self.stochdepth_rate)
+        if self.use_se:
+            self.se = SE_unit(self.out_channels, is_2d=self.is_2d)
 
     def forward(self, xb):
         xb_res = self.nonlin2(self.norm2(self.conv2(self.nonlin1(self.norm1(self.conv1(xb))))))
+        if self.use_se:
+            xb_res = self.se(xb_res)
         return self.skip(xb) + self.a * self.stochdepth(xb_res)
 
 
@@ -170,7 +175,7 @@ class ResBottleneckBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, is_2d=False, kernel_size=3, kernel_size2=None,
                  first_stride=1, conv_params=None, norm='inst', norm_params=None,
-                 nonlin_params=None, bottleneck_ratio=2, stochdepth_rate=0.2):
+                 nonlin_params=None, bottleneck_ratio=2, stochdepth_rate=0.2, use_se=False):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -184,6 +189,7 @@ class ResBottleneckBlock(nn.Module):
         self.bottleneck_ratio = bottleneck_ratio
         self.hid_channels = self.out_channels // self.bottleneck_ratio
         self.stochdepth_rate = stochdepth_rate
+        self.use_se = use_se
 
         if norm is None:
             norm = 'batch' if is_2d else 'inst'
@@ -252,6 +258,8 @@ class ResBottleneckBlock(nn.Module):
         # now the skip init
         self.a = nn.Parameter(torch.zeros(()))
         self.stochdepth = StochDepth(self.stochdepth_rate)
+        if self.use_se:
+            self.se = SE_unit(self.out_channels, is_2d=self.is_2d)
 
     def forward(self, xb):
 
@@ -260,6 +268,9 @@ class ResBottleneckBlock(nn.Module):
         xb = self.nonlin2(self.norm2(self.conv2(xb)))
         xb = self.nonlin3(self.norm3(self.conv3(xb)))
         xb = self.nonlin4(self.norm4(self.conv4(xb)))
+        if self.use_se:
+            xb = self.se(xb)
+
 
         return skip + self.a * self.stochdepth(xb)
 
@@ -350,7 +361,7 @@ class stackedResBlocks(nn.Module):
 
     def __init__(self, block, n_blocks, in_channels, out_channels, init_stride, is_2d=False,
                  z_to_xy_ratio=1, conv_params=None, norm='inst', norm_params=None, 
-                 nonlin_params=None, bottleneck_ratio=2, stochdepth_rate=0.2):
+                 nonlin_params=None, bottleneck_ratio=2, stochdepth_rate=0.2, use_se=False):
         super().__init__()
         assert block in ['res', 'bottleneck', 'mergeandrun']
         self.block = block
@@ -365,6 +376,7 @@ class stackedResBlocks(nn.Module):
         self.norm = norm
         self.norm_params = norm_params
         self.nonlin_params = nonlin_params
+        self.use_se = use_se
         if self.block == 'bottleneck':
             self.bottleneck_ratio = bottleneck_ratio
         if not self.block == 'mergeandrun':
@@ -384,11 +396,13 @@ class stackedResBlocks(nn.Module):
         res_blocks = []
         if self.block == 'res':
             res_block = ResBlock
-            kwargs = {'stochdepth_rate': self.stochdepth_rate}
+            kwargs = {'stochdepth_rate': self.stochdepth_rate,
+                      'use_se': self.use_se}
         elif self.block == 'bottleneck':
             res_block = ResBottleneckBlock
             kwargs = {'stochdepth_rate': self.stochdepth_rate,
-                      'bottleneck_ratio': self.bottleneck_ratio}
+                      'bottleneck_ratio': self.bottleneck_ratio,
+                      'use_se': self.use_se}
         elif self.block == 'mergeandrun':
             res_block = MergeAndRunBlock
             kwargs = {}
@@ -464,7 +478,7 @@ class UNetResEncoder(nn.Module):
     def __init__(self, in_channels, out_channels, is_2d, block, z_to_xy_ratio=1,
                  n_blocks_list=[1, 2, 6, 3], filters=32, filters_max=384,
                  conv_params=None, norm=None, norm_params=None, nonlin_params=None, 
-                 bottleneck_ratio=2, stochdepth_rate=0.2, p_dropout_logits=0.0):
+                 bottleneck_ratio=2, stochdepth_rate=0.2, p_dropout_logits=0.0, use_se=False):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -481,6 +495,7 @@ class UNetResEncoder(nn.Module):
         self.p_dropout_logits = p_dropout_logits
         self.bottleneck_ratio = bottleneck_ratio
         self.stochdepth_rate = stochdepth_rate
+        self.use_se = use_se
         # we double the amount of channels every downsampling step
         # up to a max of filters_max
         self.n_stages = len(n_blocks_list)
@@ -532,7 +547,8 @@ class UNetResEncoder(nn.Module):
                                                      norm_params=self.norm_params,
                                                      nonlin_params=self.nonlin_params,
                                                      bottleneck_ratio=self.bottleneck_ratio,
-                                                     stochdepth_rate=self.stochdepth_rate))
+                                                     stochdepth_rate=self.stochdepth_rate,
+                                                     use_se=self.use_se))
 
         # blocks on the upsampling path
         self.blocks_up = []
