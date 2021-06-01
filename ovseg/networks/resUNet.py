@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from blocks import StochDepth
+from ovseg.networks.blocks import StochDepth
 
 def get_padding(kernel_size):
     if isinstance(kernel_size, (list, tuple, np.ndarray)):
@@ -579,12 +579,10 @@ class UNetResEncoder(nn.Module):
         # contracting path
         for block in self.blocks_down[:-1]:
             xb = block(xb)
-            print(xb.shape)
             xb_list.append(xb)
 
         # bottom block
         xb = self.blocks_down[-1](xb)
-        print(xb.shape)
         logs_list.append(self.all_logits[-1](xb))
 
         # expanding path with logits
@@ -593,7 +591,6 @@ class UNetResEncoder(nn.Module):
             xb = torch.cat([xb, xb_list[i]], 1)
             del xb_list[i]
             xb = self.blocks_up[i](xb)
-            print(xb.shape)
             logs = self.all_logits[i](xb)
             logs_list.append(logs)
 

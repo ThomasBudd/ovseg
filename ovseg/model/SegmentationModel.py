@@ -9,6 +9,7 @@ from ovseg.prediction.SlidingWindowPrediction import SlidingWindowPrediction
 from ovseg.networks.UNet import UNet
 from ovseg.networks.nfUNet import nfUNet
 from ovseg.networks.iUNet import iUNet
+from ovseg.networks.resUNet import UNetResEncoder
 from ovseg.training.SegmentationTraining import SegmentationTraining
 from ovseg.model.ModelBase import ModelBase
 from ovseg.utils.torch_np_utils import check_type
@@ -140,6 +141,8 @@ class SegmentationModel(ModelBase):
             self.network = iUNet(**params).to(self.dev)
         elif self.model_parameters['architecture'].lower() in ['nfunet', 'nf-unet']:
             self.network = nfUNet(**params).to(self.dev)
+        elif self.model_parameters['architecture'].lower() == 'unetresencoder':
+            self.network = UNetResEncoder(**params).to(self.dev)
         else:
             raise ValueError('Got unkown architecture '+self.model_parameters['architecture'])
 
