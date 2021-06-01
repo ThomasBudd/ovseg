@@ -10,8 +10,8 @@ parser.add_argument("gpu", type=int)
 args = parser.parse_args()
 
 weight_decay=3e-5
-filters = 24
-use_prg_trn = False
+filters = 32
+use_prg_trn = True
 batch_size = 2
 p_name = 'pod_half'
 
