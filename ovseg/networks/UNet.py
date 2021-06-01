@@ -122,10 +122,10 @@ class Logits(nn.Module):
         super().__init__()
         if is_2d:
             self.logits = nn.Conv2d(in_channels, out_channels, 1, bias=False)
-            self.dropout = nn.Dropout2d(p_dropout)
+            self.dropout = nn.Dropout2d(p_dropout, inplace=True)
         else:
             self.logits = nn.Conv3d(in_channels, out_channels, 1, bias=False)
-            self.dropout = nn.Dropout3d(p_dropout)
+            self.dropout = nn.Dropout3d(p_dropout, inplace=True)
         nn.init.kaiming_normal_(self.logits.weight)
 
     def forward(self, xb):
