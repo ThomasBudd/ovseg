@@ -16,8 +16,8 @@ batch_size = 2
 p_name = 'pod_half'
 
 # skip_type = "res_skip"
-val_fold_list = list(range(5))
-exp_list = 5 * [args.gpu]
+val_fold_list = [[0, 1], [2, 3], [4]][args.gpu]
+exp_list = 5 * [0]
 
 
 def get_model_params(exp):
