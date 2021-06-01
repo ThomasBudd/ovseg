@@ -157,15 +157,14 @@ class NetworkTraining(TrainingBase):
             n_warm = self.lr_params['n_warmup_epochs']
             lr_max = self.lr_params['lr_max']
             if self.epochs_done < n_warm:
-                
                 lr = lr_max * (step + 1 + self.epochs_done * len(self.trn_dl)) \
                     / len(self.trn_dl) / n_warm
-                self.opt.param_groups[0]['lr'] = lr
             else:
                 if step != -1:
                     return
                 lr = lr_max * np.cos(np.pi/2*(self.epochs_done - n_warm) / (self.num_epochs - n_warm))
-                self.opt.param_groups[0]['lr'] = lr
+            self.opt.param_groups[0]['lr'] = lr
+            if step == -1:
                 self.print_and_log('Learning rate now: {:.4e}'.format(lr))
                 
 
