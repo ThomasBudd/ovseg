@@ -84,10 +84,11 @@ for val_fold, exp in zip(val_fold_list, exp_list):
     model.training.train()
     model.eval_validation_set()
     model.clean()
-
-ens = SegmentationEnsemble(val_fold=list(range(5)),
-                           data_name='OV04',
-                           preprocessed_name=p_name,
-                           model_name=model_name)
-if ens.all_folds_complete():
-    ens.eval_raw_dataset('BARTS', save_preds=True, save_plots=False)
+    
+    if val_fold == 3:
+        ens = SegmentationEnsemble(val_fold=list(range(5)),
+                                   data_name='OV04',
+                                   preprocessed_name=p_name,
+                                   model_name=model_name)
+        if ens.all_folds_complete():
+            ens.eval_raw_dataset('BARTS', save_preds=True, save_plots=False)
