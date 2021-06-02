@@ -1,27 +1,35 @@
 from ovseg.utils.io import read_dcms
 import pydicom
 import numpy as np
+import os
+import nibabel as nib
 
-dcmp = 'D:\\PhD\\Data\\Apollo_Hilal\\AP-P5L4'
+dcmp = 'D:\\PhD\\Data\\ov_data_base\\raw_data\\BARTS_dcm\\ID_133_1'
 data_tpl = read_dcms(dcmp)
-dcmrtp = 'D:\\PhD\\Data\\ov_data_base\\raw_data\\dcm_rt_test\\dcms\\rtstruct_test.dcm'
+
+pred = nib.load(os.path.join(os.environ['OV_DATA_BASE'], 'predictions', 'OV04', 'pod_half',
+                             'res_encoder', 'BARTSensemble_0_1_2_3_4',
+                             'case_313.nii.gz')).get_data()
+pod = (np.moveaxis(data_tpl['label'], 0, -1) == 9).astype(float)
+
+print(200 * np.sum(pred * pod) / np.sum(pred + pod))
 
 # %%
 from rt_utils import RTStructBuilder
 
-# Create new RT Struct. Requires the DICOM series path for the RT Struct.
-rtstruct = RTStructBuilder.create_new(dicom_series_path=dcmp)
+rtstruct = RTStructBuilder.create_from(
+  dicom_series_path=dcmp, 
+  rt_struct_path=os.path.join(dcmp, 'ID_133_1_NEW.dcm')
+)
 
-# ...
-# Create mask through means such as ML
-# ...
+# Add ROI. This is the same as the above example.
+rtstruct.add_roi(
+  mask=pod>0, 
+  color=[255, 0, 255], 
+  name="9-POD automated"
+)
 
-# Add the 3D mask as an ROI.
-# The colour, description, and name will be auto generated
-rtstruct.add_roi(mask=np.moveaxis(data_tpl['label'], 0, -1) > 0)
-
-rtstruct.save('new_rt_struct')
-
+rtstruct.save('new-rt-struct')
 
 # %%
-ds = pydicom.dcmread('new_rt_struct.dcm')
+ds = pydicom.dcmread('pod_contours.dcm')
