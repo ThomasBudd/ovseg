@@ -14,7 +14,6 @@ filters = 32
 use_prg_trn = True
 batch_size = 2
 p_name = 'pod_half'
-use_se = False
 
 # skip_type = "res_skip"
 val_fold_list = 2*[args.gpu]
@@ -47,7 +46,7 @@ def get_model_params(exp):
     model_params['network']['filters'] = filters
     model_params['network']['block'] = block
     model_params['network']['z_to_xy_ratio'] = 4
-    model_params['network']['use_se'] = use_se
+    model_params['network']['stochdepth_rate'] = sd
     model_params['data']['trn_dl_params']['batch_size'] = batch_size
     model_params['data']['val_dl_params']['batch_size'] = batch_size
     # this time we change the amount of augmentation during training
