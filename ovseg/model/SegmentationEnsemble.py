@@ -198,3 +198,7 @@ class SegmentationEnsemble(ModelBase):
             self.global_metrics_helper['overlap_'+str(c)] = ovlp
             self.global_metrics_helper['gt_volume_'+str(c)] = gt_vol
             self.global_metrics_helper['pred_volume_'+str(c)] = pred_vol
+
+    def clean(self):
+        for model in self.models:
+            model.clean()
