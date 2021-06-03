@@ -16,9 +16,10 @@ from ovseg.utils.torch_np_utils import check_type
 from ovseg.postprocessing.SegmentationPostprocessing import \
     SegmentationPostprocessing
 from ovseg.utils.io import save_nii_from_data_tpl, load_pkl, read_nii
+from ovseg.data.Dataset import raw_Dataset
 import torch
 import numpy as np
-from os import environ, makedirs, listdir, mkdir
+from os import environ, makedirs, listdir
 from os.path import join, basename, exists
 import matplotlib.pyplot as plt
 try:
@@ -212,7 +213,9 @@ class SegmentationModel(ModelBase):
     def is_cascade(self):
         return 'previous_stage' in self.model_parameters
 
-    def predict(self, data_tpl, image_key='image', pred_fps_key='pred_fps'):
+
+    def __call__(self, data_tpl, image_key='image', pred_fps_key='pred_fps',
+                do_postprocessing=True):
         '''
         There are a lot of differnt ways to do prediction. Some do require direct preprocessing
         some don't need the postprocessing imidiately (e.g. when ensembling)
@@ -263,12 +266,10 @@ class SegmentationModel(ModelBase):
         data_tpl[self.pred_key] = pred
 
         # inside the postprocessing the result will be attached to the data_tpl
-        self.postprocessing.postprocess_data_tpl(data_tpl, self.pred_key)
+        if do_postprocessing:
+            self.postprocessing.postprocess_data_tpl(data_tpl, self.pred_key)
 
         return data_tpl[self.pred_key]
-
-    def __call__(self, data_tpl, image_key='image'):
-        return self.predict(data_tpl, image_key=image_key)
 
     def save_prediction(self, data_tpl, folder_name, filename=None):
 
@@ -514,7 +515,48 @@ class SegmentationModel(ModelBase):
         return
 
     def clean(self):
+        # deletes (hopefully) all data from ram and the network from the GPU
         if hasattr(self, 'data'):
             self.data.clean()
         del self.network
         torch.cuda.empty_cache()
+
+    def eval_raw_data_npz(self, raw_data_name,
+                          scans=None, image_folder=None, dcm_revers=True,
+                          dcm_names_dict=None):
+        # this function predicts the images and raw data and saves the 
+        # predictions before thresholding. This is usefull for ensembling when
+        # the prediction takes time. This way all models in the ensemble can run the prediction
+        # indepentently and the ensemble just has to collect the results --> multi GPU ensembling
+        ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', raw_data_name),
+                         scans=scans,
+                         image_folder=image_folder,
+                         dcm_revers=dcm_revers,
+                         dcm_names_dict=dcm_names_dict,
+                         prev_stage=self.prev_stage if hasattr(self, 'prev_stage') else None)
+
+        if len(ds) == 0:
+            print('Got empty dataset for evaluation. Nothing to do here --> leaving!')
+            return
+
+        # we have a destinct folder for the npz predictions. As they take a lot of disk space
+        # this makes it easier to delete them
+        pred_npz_path = join(environ['OV_DATA_BASE'], 'npz_predictions', self.data_name,
+                             self.preprocessed_name, self.model_name, self.val_fold_str)
+
+        if not exists(pred_npz_path):
+            makedirs(pred_npz_path)
+
+        print('Evaluating '+raw_data_name+' '+self.val_fold_str+'...\n\n')
+        sleep(1)
+        for i in tqdm(range(len(ds))):
+            # get the data
+            data_tpl = ds[i]
+            # first let's try to find the name
+            scan = data_tpl['scan']
+            # now let's do (almost the full) prediction
+            pred = self.__call__(data_tpl, do_postprocessing=False)
+            if torch.is_tensor(pred):
+                pred = pred.cpu().numpy()
+            np.savez_compressed(join(pred_npz_path, scan), pred)
+            

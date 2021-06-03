@@ -29,7 +29,23 @@ rtstruct.add_roi(
   name="9-POD automated"
 )
 
-rtstruct.save('new-rt-struct')
+rtstruct.save('manual_plus_automated.dcm')
 
 # %%
-ds = pydicom.dcmread('pod_contours.dcm')
+rtstruct = RTStructBuilder.create_new(dicom_series_path=dcmp)
+
+# ...
+# Create mask through means such as ML
+# ...
+
+# Add the 3D mask as an ROI.
+# The colour, description, and name will be auto generated
+
+# Add another ROI, this time setting the color, description, and name
+rtstruct.add_roi(
+  mask=pod>0, 
+  color=[255, 0, 255], 
+  name="9-POD automated"
+)
+
+rtstruct.save('automated.dcm')
