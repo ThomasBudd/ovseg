@@ -111,6 +111,7 @@ class SegmentationEnsemble(ModelBase):
         if not self.all_folds_complete():
             print('WARNING: Ensemble is used without all training folds being completed!!')
         im = data_tpl['image']
+        scan = data_tpl['scan']
         is_np,  _ = check_type(im)
         if is_np:
             im = torch.from_numpy(im).to(self.dev)
@@ -122,8 +123,20 @@ class SegmentationEnsemble(ModelBase):
             im = self.preprocessing(data_tpl, preprocess_only_im=True)
 
         # now the importat part: the actual enembling of sliding window evaluations
-        pred = torch.stack([model.prediction(im) for model in self.models]).mean(0)
-        data_tpl[self.pred_key] = pred
+        preds = []
+        # also the path where we will look for already executed npz prediction
+        pred_npz_path = join(environ['OV_DATA_BASE'], 'npz_predictions', self.data_name,
+                             self.preprocessed_name, self.model_name)
+        for model in self.models:
+            # try find the npz file if there was already a prediction.
+            path_to_npz = join(pred_npz_path, model.val_fold_str, scan+'.npz')
+            if exists(path_to_npz):
+                pred = torch.from_numpy(np.load(path_to_npz)['arr_0']).to(self.dev)
+            else:
+                pred = model.prediction(im)
+            preds.append(pred)
+        ens_pred = torch.stack(preds).mean(0)
+        data_tpl[self.pred_key] = ens_pred
 
         # inside the postprocessing the result will be attached to the data_tpl
         self.postprocessing.postprocess_data_tpl(data_tpl, self.pred_key)
