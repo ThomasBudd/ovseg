@@ -9,10 +9,8 @@ parser.add_argument("gpu", type=int)
 parser.add_argument("-p", required=False, default=0, type=int)
 args = parser.parse_args()
 
-mag = 'small'
-lr_max = [0.03, 0.04][args.p]
-weight_decay = 3e-5
-p_name = 'pod_half'
+mag = 'normal'
+p_name = ['pod_half_3.75', 'pod_half_2.5'][args.p]
 
 # skip_type = "res_skip"
 val_fold_list = [args.gpu]
@@ -21,24 +19,29 @@ exp_list = [0]
 
 def get_model_params(exp):
     # model_name = 'weight_decay_{:.1e}'.format(weight_decay)
-    if exp == 0:
-        model_name = 'res_encoder_lr_max_{}'.format(lr_max)
-    elif exp == 1:
-        model_name = 'res_encoder_gv_aug_mag_{}'.format(mag)
-    elif exp == 2:
-        model_name = 'res_encoder_weight_decay_{}'.format(weight_decay)
-        
-    patch_size = [32, 128, 128]
-    prg_trn_sizes = [[20, 160, 160],
-                     [24, 192, 192],
-                     [28, 224, 224],
-                     [32, 256, 256]]
-    out_shape = [[20, 80, 80],
-                 [24, 96, 96],
-                 [28, 112, 112],
-                 [32, 128, 128]]
-    block = 'res'
-    model_params = get_model_params_3d_nnUNet(patch_size, 2,
+    model_name = 'res_encoder_'+p_name
+
+    if args.p == 0:
+        patch_size = [40, 120, 120]
+        out_shape = [[24, 72, 72],
+                     [30, 88, 88],
+                     [36, 104, 104],
+                     [40, 120, 120]]
+        prg_trn_sizes = [[24, 144, 144],
+                         [30, 176, 176],
+                         [36, 208, 208],
+                         [40, 240, 240]]
+    else:
+        patch_size = [52, 104, 104]
+        out_shape = [[32, 64, 64],
+                     [36, 72, 72],
+                     [44, 88, 88],
+                     [52, 104, 104]]
+        prg_trn_sizes = [[32, 128, 128],
+                         [36, 144, 144],
+                         [44, 176, 176],
+                         [52, 208, 208]]
+    model_params = get_model_params_3d_nnUNet(patch_size, 1,
                                               use_prg_trn=True)
     model_params['training']['prg_trn_sizes'] = prg_trn_sizes
 
@@ -46,8 +49,8 @@ def get_model_params(exp):
     del model_params['network']['kernel_sizes_up']
     del model_params['network']['n_pyramid_scales']
     model_params['architecture'] = 'unetresencoder'
-    model_params['network']['block'] = block
-    model_params['network']['z_to_xy_ratio'] = 4
+    model_params['network']['block'] = 'res'
+    model_params['network']['z_to_xy_ratio'] = [3, 2][args.p]
     model_params['network']['stochdepth_rate'] = 0
     # this time we change the amount of augmentation during training
     prg_trn_aug_params = {}
@@ -73,9 +76,9 @@ def get_model_params(exp):
     model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
     model_params['training']['prg_trn_resize_on_the_fly'] = False
     model_params['training']['lr_schedule'] = 'lin_ascent_cos_decay'
-    model_params['training']['lr_params'] = {'n_warmup_epochs': 50, 'lr_max': lr_max}
+    model_params['training']['lr_params'] = {'n_warmup_epochs': 50, 'lr_max': 0.02}
     model_params['training']['opt_params'] = {'momentum': 0.99,
-                                              'weight_decay': weight_decay,
+                                              'weight_decay': 3e-5,
                                               'nesterov': True,
                                               'lr': 10**-2}
     return model_params, model_name

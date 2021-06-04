@@ -29,8 +29,20 @@ rtstruct.add_roi(
   name="9-POD automated"
 )
 
-rtstruct.save('manual_plus_automated.dcm')
+rtstruct.ds.StructureSetROISequence[-1].ROIGenerationAlgorithm = "AUTOMATIC"
 
+cs = rtstruct.ds.ROIContourSequence[-1].ContourSequence
+
+for d in cs:
+    for i in range(2, len(d.ContourData), 3):
+        d.ContourData[i] = pydicom.valuerep.DSfloat(-1*float(d.ContourData[i]))
+
+
+# HACK! there is a minus sign missing 
+
+
+rtstruct.save('manual_plus_automated.dcm')
+rt_ds = pydicom.dcmread('manual_plus_automated.dcm')
 # %%
 rtstruct = RTStructBuilder.create_new(dicom_series_path=dcmp)
 
@@ -48,4 +60,16 @@ rtstruct.add_roi(
   name="9-POD automated"
 )
 
+
+# OK we should invert the sign of the z values in the counter data....
+# BUT HOW???
+rtstruct.ds.StructureSetROISequence[-1].ROIGenerationAlgorithm = "AUTOMATIC"
+
+cs = rtstruct.ds.ROIContourSequence[-1].ContourSequence
+
+for d in cs:
+    for i in range(2, len(d.ContourData), 3):
+        d.ContourData[i] = pydicom.valuerep.DSfloat(-1*float(d.ContourData[i]))
+
 rtstruct.save('automated.dcm')
+# %%
