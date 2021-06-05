@@ -13,15 +13,13 @@ p_name = 'pod_half'
 
 # skip_type = "res_skip"
 val_fold_list = [args.gpu]
-exp_list = [args.p]
+exp_list = [[0, 1], [2, 3]][args.p]
 
 
 def get_model_params(exp):
     # model_name = 'weight_decay_{:.1e}'.format(weight_decay)
-    if exp == 0:
-        model_name = 'res_decoder'
-    else:
-        model_name = 'res_encoder_p_bias_0.5'
+    p = [0.4, 0.6][exp]
+    model_name = 'res_encoder_p_bias_{}'.format(p)
 
     patch_size = [32, 128, 128]
     prg_trn_sizes = [[20, 160, 160],
@@ -45,8 +43,8 @@ def get_model_params(exp):
         model_params['architecture'] = 'unetresencoder'
         model_params['data']['trn_dl_params']['min_biased_samples'] = 0
         model_params['data']['val_dl_params']['min_biased_samples'] = 0
-        model_params['data']['trn_dl_params']['p_bias_sampling'] = 0.5
-        model_params['data']['val_dl_params']['p_bias_sampling'] = 0.5
+        model_params['data']['trn_dl_params']['p_bias_sampling'] = p
+        model_params['data']['val_dl_params']['p_bias_sampling'] = p
     model_params['network']['block'] = 'res'
     model_params['network']['z_to_xy_ratio'] = 4
     model_params['network']['stochdepth_rate'] = 0
