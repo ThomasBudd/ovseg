@@ -43,12 +43,9 @@ class basic_block_down(nn.Module):
         for in_ch, stride in zip(in_channels[self.m:], strides[self.m:]):
             modules.append(nn.Conv3d(in_ch,
                                      self.ch_out,
-                                     (1, 3, 3),
+                                     (3, 3, 3),
                                      stride=stride,
                                      padding=(0, 1, 1)))
-            modules.append(nn.Conv3d(self.ch_out,
-                                     self.ch_out,
-                                     (3, 1, 1)))
             modules.append(nn.ReLU(inplace=True))
 
         # remove last ReLU

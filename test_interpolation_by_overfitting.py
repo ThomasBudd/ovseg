@@ -3,6 +3,7 @@ from ovseg.training.interpolation_by_overfitting import interpolation_by_overfit
 from skimage.transform import resize
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 data_tpl = read_dcms('D:\\PhD\\Data\\ov_data_base\\raw_data\\OV04_dcm\\038\\CT_20091012')
 

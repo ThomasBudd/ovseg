@@ -21,7 +21,8 @@ def interpolation_by_overfitting(im, lb, labeled_slices=None, target_DSC=99.5, m
         fac = (im.shape[1] - 1) // (lb.shape[1] - 1)
         labeled_slices = list(range(0, im.shape[1], fac))
 
-    net = validzUNet(in_ch=in_channels, out_ch=out_channels, filt=filters).to(dev)
+    net = validzUNet(in_ch=in_channels, out_ch=out_channels, filt=filters,
+                     n_down=[0, 0, 0, 1, 1, 1, 2]).to(dev)
     scaler = torch.cuda.amp.GradScaler()
     opt = torch.optim.Adam(net.parameters(), lr=base_lr)
     loss_fctn = CE_dice_pyramid_loss()

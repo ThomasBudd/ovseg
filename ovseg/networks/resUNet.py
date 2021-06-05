@@ -386,12 +386,12 @@ class stackedResBlocks(nn.Module):
         in_channels_list = [self.in_channels] + (self.n_blocks - 1) * [self.out_channels]
         init_stride_list = [self.init_stride] + (self.n_blocks -1) * [1]
 
-        kernel_sizes_list = 2 * self.n_blocks * [3]
+        kernel_sizes_list = (2 * self.n_blocks) * [3]
         if not self.is_2d and self.z_to_xy_ratio > 1:
             # in this case we want to apply some inplane convolutions
             for i in range(1, 2*self.n_blocks + 1):
                 if i % self.z_to_xy_ratio != 0:
-                    kernel_sizes_list[i] = (1, 3, 3)
+                    kernel_sizes_list[i-1] = (1, 3, 3)
 
         res_blocks = []
         if self.block == 'res':
@@ -473,12 +473,12 @@ class Logits(nn.Module):
 
 
 # %%
-class UNetResEncoder(nn.Module):
+class UNetResDecoder(nn.Module):
 
-    def __init__(self, in_channels, out_channels, is_2d, block, z_to_xy_ratio=1,
+    def __init__(self, in_channels, out_channels, is_2d, z_to_xy_ratio, block='res',
                  n_blocks_list=[1, 2, 6, 3], filters=32, filters_max=384,
                  conv_params=None, norm=None, norm_params=None, nonlin_params=None, 
-                 bottleneck_ratio=2, stochdepth_rate=0.2, p_dropout_logits=0.0, use_se=False):
+                 bottleneck_ratio=2, stochdepth_rate=0.0, p_dropout_logits=0.0, use_se=False):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -495,6 +495,172 @@ class UNetResEncoder(nn.Module):
         self.p_dropout_logits = p_dropout_logits
         self.bottleneck_ratio = bottleneck_ratio
         self.stochdepth_rate = stochdepth_rate
+        self.use_se = use_se
+        # we double the amount of channels every downsampling step
+        # up to a max of filters_max
+        self.n_stages = len(n_blocks_list)
+        self.filters_list = [min([self.filters*2**i, self.filters_max])
+                             for i in range(self.n_stages)]
+
+        # first let's make the lists for the blocks on both pathes
+        # number of input and output channels of the blocks on the contracting path
+        self.in_channels_down_list = [self.in_channels] + self.filters_list[:-1]
+        self.in_channels_up_list = [2*f for f in self.filters_list[:-1]]
+        self.out_channels_list = self.filters_list
+        self.z_to_xy_ratio_list = [max([self.z_to_xy_ratio / 2**i, 1])
+                                   for i in range(self.n_stages)]
+        if self.is_2d:
+            self.kernel_sizes_up = (self.n_stages-1) * [3]
+        else:
+            self.kernel_sizes_up = [(1, 3, 3) if z_to_xy >= 2 else 3 for z_to_xy in 
+                                    self.z_to_xy_ratio_list]
+        self.init_stride_list = [1] + [get_stride(ks) for ks in self.kernel_sizes_up]
+
+
+        # blocks on the contracting path
+        self.blocks_down = []
+        for in_ch, out_ch, init_stride, z_to_xy in zip(self.in_channels_down_list[:-1],
+                                                       self.out_channels_list[:-1],
+                                                       self.init_stride_list[:-1],
+                                                       self.z_to_xy_ratio_list[:-1]):
+            kernel_size = (1, 3, 3) if not self.is_2d and z_to_xy >= 2 else 3
+            self.blocks_down.append(ConvNormNonlinBlock(in_channels=in_ch,
+                                                        out_channels=out_ch,
+                                                        first_stride=init_stride,
+                                                        kernel_size=kernel_size,
+                                                        is_2d=self.is_2d,
+                                                        conv_params=self.conv_params,
+                                                        norm=self.norm,
+                                                        norm_params=self.norm_params,
+                                                        nonlin_params=self.nonlin_params))
+        # the lowest block will be residual style
+        self.blocks_down.append(stackedResBlocks(block=self.block,
+                                                 n_blocks=self.n_blocks_list[-1],
+                                                 in_channels=self.in_channels_down_list[-1],
+                                                 out_channels=self.out_channels_list[-1],
+                                                 init_stride=self.init_stride_list[-1],
+                                                 is_2d=self.is_2d,
+                                                 z_to_xy_ratio=self.z_to_xy_ratio_list[-1],
+                                                 conv_params=self.conv_params,
+                                                 norm=self.norm,
+                                                 norm_params=self.norm_params,
+                                                 nonlin_params=self.nonlin_params,
+                                                 bottleneck_ratio=self.bottleneck_ratio,
+                                                 stochdepth_rate=self.stochdepth_rate,
+                                                 use_se=self.use_se))
+
+
+        # blocks on the upsampling path
+        self.blocks_up = []
+        # uppest block on the upsampling path we're doing normal again
+        kernel_size = (1, 3, 3) if not self.is_2d and self.z_to_xy_ratio >= 2 else 3
+        block = ConvNormNonlinBlock(in_channels=self.in_channels_up_list[0],
+                                    out_channels=self.out_channels_list[0],
+                                    is_2d=self.is_2d,
+                                    kernel_size=kernel_size,
+                                    conv_params=self.conv_params,
+                                    norm=self.norm,
+                                    norm_params=self.norm_params,
+                                    nonlin_params=self.nonlin_params)
+        self.blocks_up.append(block)
+        # the other will be residual
+        for in_channels, out_channels, n_blocks, z_to_xy in zip(self.in_channels_up_list[1:],
+                                                                self.out_channels_list[1:-1],
+                                                                self.n_blocks_list[1:-1],
+                                                                self.z_to_xy_ratio_list[1:-1]):
+            block = stackedResBlocks(block=self.block,
+                                     n_blocks=n_blocks,
+                                     in_channels=in_channels,
+                                     out_channels=out_channels,
+                                     is_2d=self.is_2d,
+                                     init_stride=1,
+                                     z_to_xy_ratio=z_to_xy,
+                                     conv_params=self.conv_params,
+                                     norm=self.norm,
+                                     norm_params=self.norm_params,
+                                     nonlin_params=self.nonlin_params,
+                                     bottleneck_ratio=self.bottleneck_ratio,
+                                     stochdepth_rate=self.stochdepth_rate,
+                                     use_se=self.use_se)
+            self.blocks_up.append(block)
+
+        # upsaplings
+        self.upsamplings = []
+        for in_channels, out_channels, kernel_size in zip(self.out_channels_list[1:],
+                                                          self.out_channels_list[:-1],
+                                                          self.kernel_sizes_up):
+            self.upsamplings.append(UpConv(in_channels=in_channels,
+                                           out_channels=out_channels,
+                                           is_2d=self.is_2d,
+                                           kernel_size=get_stride(kernel_size)))
+        # logits
+        self.all_logits = []
+        for in_channels in self.out_channels_list:
+            self.all_logits.append(Logits(in_channels=in_channels,
+                                          out_channels=self.out_channels,
+                                          is_2d=self.is_2d,
+                                          p_dropout=self.p_dropout_logits))
+
+        # now important let's turn everything into a module list
+        self.blocks_down = nn.ModuleList(self.blocks_down)
+        self.blocks_up = nn.ModuleList(self.blocks_up)
+        self.upsamplings = nn.ModuleList(self.upsamplings)
+        self.all_logits = nn.ModuleList(self.all_logits)
+
+    def forward(self, xb):
+        # keep all out tensors from the contracting path
+        xb_list = []
+        logs_list = []
+        # contracting path
+        for block in self.blocks_down[:-1]:
+            xb = block(xb)
+            xb_list.append(xb)
+
+        # bottom block
+        xb = self.blocks_down[-1](xb)
+        logs_list.append(self.all_logits[-1](xb))
+
+        # expanding path with logits
+        for i in range(self.n_stages - 2, -1, -1):
+            xb = self.upsamplings[i](xb)
+            xb = torch.cat([xb, xb_list[i]], 1)
+            del xb_list[i]
+            xb = self.blocks_up[i](xb)
+            logs = self.all_logits[i](xb)
+            logs_list.append(logs)
+
+        # as we iterate from bottom to top we have to flip the logits list
+        return logs_list[::-1]
+
+    def update_prg_trn(self, param_dict, h, indx=None):
+        if 'p_dropout_logits' in param_dict:
+            p = (1 - h) * param_dict['p_dropout_logits'][0] + h * param_dict['p_dropout_logits'][1]
+            for l in self.all_logits:
+                l.dropout.p = p
+
+# %%
+class UNetResEncoder(nn.Module):
+
+    def __init__(self, in_channels, out_channels, is_2d, z_to_xy_ratio, block='res',
+                 n_blocks_list=[1, 2, 6, 3], filters=32, filters_max=384,
+                 conv_params=None, norm=None, norm_params=None, nonlin_params=None,  
+                 bottleneck_ratio=2, stochdepth_rate=0.0, p_dropout_logits=0.0, use_se=False):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.is_2d = is_2d
+        self.block = block
+        self.z_to_xy_ratio = z_to_xy_ratio
+        self.n_blocks_list = n_blocks_list
+        self.filters = filters
+        self.filters_max = filters_max
+        self.conv_params = conv_params
+        self.norm = norm
+        self.norm_params = norm_params
+        self.nonlin_params = nonlin_params
+        self.p_dropout_logits = p_dropout_logits
+        self.stochdepth_rate = stochdepth_rate
+        self.bottleneck_ratio = bottleneck_ratio
         self.use_se = use_se
         # we double the amount of channels every downsampling step
         # up to a max of filters_max
@@ -622,8 +788,7 @@ class UNetResEncoder(nn.Module):
 
 # %%
 if __name__ == '__main__':
-    net = UNetResEncoder(in_channels=1, out_channels=2, is_2d=False, block='bottleneck', filters=24,
-                         z_to_xy_ratio=4)
+    net = UNetResDecoder(1, 2, False, 4)
     xb = torch.randn((2, 1, 32, 128, 128))
     print(net)
     yb = net(xb)
