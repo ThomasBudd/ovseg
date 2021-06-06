@@ -114,7 +114,7 @@ class raw_Dataset(object):
                       self.prev_stage['model_name'])
             raw_data_name = basename(self.raw_path)
             fols = [f for f in listdir(p) if f.startswith(raw_data_name)]
-            if not len(fols) != 1:
+            if len(fols) != 1:
                 raise FileNotFoundError('Could not identify nifti folder from previous stage '
                                         'at {}. Found {} folders starting with {}.'
                                         ''.format(p, len(fols), raw_data_name))
