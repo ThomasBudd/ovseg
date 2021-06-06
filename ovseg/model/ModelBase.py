@@ -331,7 +331,7 @@ class ModelBase(object):
         global NO_NAME_FOUND_WARNING_PRINTED
 
         if save_folder_name is None:
-            save_folder_name = ds_name + self.val_fold_str
+            save_folder_name = ds_name + '_' + self.val_fold_str
 
         # first check if the evaluation is already done and quit in case we don't want to force
         # the evaluation
@@ -425,7 +425,7 @@ class ModelBase(object):
             print('Merging resuts to CV....')
             self._merge_results_to_CV(ds_name)
 
-    def _merge_results_to_CV(self, ds_name):
+    def _merge_results_to_CV(self, ds_name='validation'):
         # we also store the results in the CV folder and merge them with
         # possible other results from other folds
         # to differentiate by name what comes from which fold we add fold_x to the names

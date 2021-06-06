@@ -107,15 +107,18 @@ class raw_Dataset(object):
         if self.is_cascade:
             assert 'preprocessed_name' in self.prev_stage
             assert 'model_name' in self.prev_stage
-            self.path_to_previous_stage = join(environ['OV_DATA_BASE'],
-                                               'predictions',
-                                               self.prev_stage['data_name'],
-                                               self.prev_stage['preprocessed_name'],
-                                               self.prev_stage['model_name'],
-                                               basename(self.raw_path))
-            if not exists(self.path_to_previous_stage):
-                raise FileNotFoundError('Path with niftis from previous stage was not found at '
-                                        + str(self.path_to_previous_stage))
+            p =  join(environ['OV_DATA_BASE'],
+                      'predictions',
+                      self.prev_stage['data_name'],
+                      self.prev_stage['preprocessed_name'],
+                      self.prev_stage['model_name'])
+            raw_data_name = basename(self.raw_path)
+            fols = [f for f in listdir(p) if f.startswith(raw_data_name)]
+            if not len(fols) != 1:
+                raise FileNotFoundError('Could not identify nifti folder from previous stage '
+                                        'at {}. Found {} folders starting with {}.'
+                                        ''.format(p, len(fols), raw_data_name))
+            self.path_to_previous_stage = join(p, fols[0])
         self.is_nifti = len(all_im_folders) > 0
 
         if self.is_nifti:
