@@ -9,7 +9,7 @@ parser.add_argument("gpu", type=int)
 parser.add_argument("p", type=int)
 args = parser.parse_args()
 
-p_name = 'pod_half'
+p_name = 'pod_full'
 
 # skip_type = "res_skip"
 val_fold_list = [args.gpu]
