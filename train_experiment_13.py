@@ -18,7 +18,7 @@ exp_list = [0]
 
 def get_model_params(exp):
     # model_name = 'weight_decay_{:.1e}'.format(weight_decay)
-    model_name = 'res_encoder'
+    model_name = 'cascadeUNet'
 
     patch_size = [28, 224, 224]
     prg_trn_sizes = [[16, 256, 256],
