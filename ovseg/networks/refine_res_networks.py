@@ -20,14 +20,17 @@ class ResBlock(nn.Module):
         self.nonlin1 = nn.LeakyReLU(inplace=True)
         self.nonlin2 = nn.LeakyReLU(inplace=True)
 
+        self.a = nn.Parameter(torch.zeros(()))
+
     def forward(self, xb):
-        return xb + self.conv2(self.nonlin2(self.conv1(self.nonlin1(xb))))
+        return xb + self.a * self.conv2(self.nonlin2(self.conv1(self.nonlin1(xb))))
 
 
 class RefineResNet(nn.Module):
 
     def __init__(self, in_channels, out_channels, hid_channels, z_to_xy_ratio, n_res_blocks=4,
                  use_large_kernels=True):
+        super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.hid_channels = hid_channels
@@ -59,15 +62,15 @@ class RefineResNet(nn.Module):
                     else:
                         self.kernel_size_list.append((1, 3, 3))
 
-        self.preprocess = nn.Conv3d(self.in_channels, self.ohid_channels, 1)
+        self.preprocess = nn.Conv3d(self.in_channels, self.hid_channels, 1)
 
         res_blocks = []
         for i in range(self.n_res_blocks):
             res_blocks.append(ResBlock(self.hid_channels,
                                        self.kernel_size_list[2*i],
                                        self.kernel_size_list[2*i+1]))
-        self.res_blocks = nn.Sequential(res_blocks)
+        self.res_blocks = nn.Sequential(*res_blocks)
         self.logits = nn.Conv3d(self.hid_channels, self.out_channels, 1)
 
     def forward(self, xb):
-        return self.logits(self.res_blocks(self.preprocess(xb)))
+        return [self.logits(self.res_blocks(self.preprocess(xb)))]

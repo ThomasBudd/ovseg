@@ -276,7 +276,8 @@ def SegmentationDataloader(vol_ds, patch_size, batch_size, num_workers=None,
                            label_key='label', pred_fps_key=None, n_fg_classes=None,
                            store_data_in_ram=False,
                            return_fp16=True,
-                           n_max_volumes=None):
+                           n_max_volumes=None,
+                           bias='fg'):
     dataset = SegmentationBatchDataset(vol_ds=vol_ds, patch_size=patch_size, batch_size=batch_size,
                                        epoch_len=epoch_len, p_bias_sampling=p_bias_sampling,
                                        min_biased_samples=min_biased_samples,
@@ -288,7 +289,8 @@ def SegmentationDataloader(vol_ds, patch_size, batch_size, num_workers=None,
                                        label_key=label_key, pred_fps_key=pred_fps_key,
                                        n_fg_classes=n_fg_classes,
                                        store_data_in_ram=store_data_in_ram,
-                                       return_fp16=return_fp16, n_max_volumes=n_max_volumes)
+                                       return_fp16=return_fp16, n_max_volumes=n_max_volumes,
+                                       bias=bias)
     if num_workers is None:
         num_workers = 0 if os.name == 'nt' else 8
     worker_init_fn = lambda _: np.random.seed()
