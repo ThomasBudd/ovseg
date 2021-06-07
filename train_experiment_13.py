@@ -1,5 +1,5 @@
 from ovseg.model.SegmentationModel import SegmentationModel
-from ovseg.model.model_parameters_segmentation import get_model_params_3d_nnUNet
+from ovseg.model.model_parameters_segmentation import get_model_params_3d_cascade
 from ovseg.model.SegmentationEnsemble import SegmentationEnsemble
 import argparse
 import numpy as np
@@ -9,42 +9,44 @@ parser.add_argument("gpu", type=int)
 parser.add_argument("p", type=int)
 args = parser.parse_args()
 
-p_name = 'pod_half'
+p_name = 'pod_full'
 
 # skip_type = "res_skip"
 val_fold_list = [args.gpu]
-exp_list = [[1]][args.p]
+exp_list = [0]
 
 
 def get_model_params(exp):
     # model_name = 'weight_decay_{:.1e}'.format(weight_decay)
-    num_epochs = [1400, 1800, 2000][exp]
-    model_name = 'res_encoder_{}'.format(num_epochs)
+    model_name = 'res_encoder'
 
-    patch_size = [32, 128, 128]
-    prg_trn_sizes = [[20, 160, 160],
-                     [24, 192, 192],
-                     [28, 224, 224],
-                     [32, 256, 256]]
-    out_shape = [[20, 80, 80],
-                 [24, 96, 96],
-                 [28, 112, 112],
-                 [32, 128, 128]]
-    model_params = get_model_params_3d_nnUNet(patch_size, 2,
-                                              use_prg_trn=True)
+    patch_size = [28, 224, 224]
+    prg_trn_sizes = [[16, 256, 256],
+                     [20, 320, 320],
+                     [24, 384, 384],
+                     [28, 448, 448]]
+    out_shape = [[16, 128, 128],
+                 [20, 160, 160],
+                 [24, 192, 192],
+                 [28, 224, 224]]
+    model_params = get_model_params_3d_cascade('pod_half',
+                                               'res_encoder_p_bias_0.5',
+                                               patch_size,
+                                               n_2d_convs=3,
+                                               use_prg_trn=True)
     model_params['training']['prg_trn_sizes'] = prg_trn_sizes
-    model_params['training']['num_epochs'] = num_epochs
-    del model_params['network']['kernel_sizes']
-    del model_params['network']['kernel_sizes_up']
-    del model_params['network']['n_pyramid_scales']
-    model_params['architecture'] = 'unetresencoder'
+
+    # del model_params['network']['kernel_sizes']
+    # del model_params['network']['kernel_sizes_up']
+    # del model_params['network']['n_pyramid_scales']
+    # model_params['architecture'] = 'unetresencoder'
     model_params['data']['trn_dl_params']['min_biased_samples'] = 0
     model_params['data']['val_dl_params']['min_biased_samples'] = 0
     model_params['data']['trn_dl_params']['p_bias_sampling'] = 0.5
     model_params['data']['val_dl_params']['p_bias_sampling'] = 0.5
-    model_params['network']['block'] = 'res'
-    model_params['network']['z_to_xy_ratio'] = 4
-    model_params['network']['stochdepth_rate'] = 0
+    # model_params['network']['block'] = 'res'
+    # model_params['network']['z_to_xy_ratio'] = 8
+    # model_params['network']['stochdepth_rate'] = 0
     # this time we change the amount of augmentation during training
     prg_trn_aug_params = {}
     c = 4
