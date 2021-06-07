@@ -16,7 +16,7 @@ class SegmentationBatchDataset(object):
                  min_biased_samples=1, augmentation=None, padded_patch_size=None,
                  n_im_channels: int = 1, store_coords_in_ram=True, memmap='r', image_key='image',
                  label_key='label', pred_fps_key=None, n_fg_classes=None,
-                 store_data_in_ram=False, return_fp16=True, n_max_volumes=None):
+                 store_data_in_ram=False, return_fp16=True, n_max_volumes=None, bias='fg'):
         self.vol_ds = vol_ds
         self.patch_size = np.array(patch_size)
         self.batch_size = batch_size
@@ -33,6 +33,7 @@ class SegmentationBatchDataset(object):
         self.store_data_in_ram = store_data_in_ram
         self.n_im_channels = n_im_channels
         self.return_fp16 = return_fp16
+        self.bias = bias
         if n_max_volumes is None:
             self.n_volumes = len(self.vol_ds)
         else:
@@ -56,6 +57,18 @@ class SegmentationBatchDataset(object):
             assert isinstance(self.n_fg_classes, int), 'n_fg_classes must be an integer'
         self._maybe_store_data_in_ram()
 
+    def _get_bias_coords(self, seg, pred_fps=None):
+
+        if self.bias == 'fg':
+            return np.stack(np.where(seg > 0)).astype(np.int16)
+        elif self.bias == 'mv':
+            mv = 0
+            for c in range(self.n_fg_classes):
+                seg_c = (seg == c).astype(float)
+                pred_c = (pred_fps == c).astype(float)
+                mv += seg_c * (1 - pred_c)
+            return np.stack(np.where(mv > 0)).astype(np.int16)
+
     def _maybe_store_data_in_ram(self):
         # maybe cleaning first, just to be sure
         self._maybe_clean_stored_data()
@@ -78,25 +91,34 @@ class SegmentationBatchDataset(object):
 
         # store coords in ram
         if self.store_coords_in_ram:
-            print('Precomputing foreground coordinates to store them in RAM.\n')
+            print('Precomputing bias coordinates to store them in RAM.\n')
             self.coords_list = []
             sleep(1)
             for ind in tqdm(range(self.n_volumes)):
                 if self.store_data_in_ram:
                     seg = self.data[ind][-1]
+                    if self.is_cascade:
+                        pred_fps = self.data[ind][1]
+                    else:
+                        pred_fps = None
                 else:
                     seg = np.load(self.vol_ds.path_dicts[ind][self.label_key])
+                    if self.is_cascade:
+                        pred_fps = np.load(self.vol_ds.path_dicts[ind][self.pred_fps_key])
+                    else:
+                        pred_fps = None
                 if len(seg.shape) == 4:
                     seg = seg[0]
                 elif not len(seg.shape) == 3:
                     raise ValueError('Got segmentation mask that is neither 3d nor 4d.')
-                coords = np.stack(np.where(seg > 0)).astype(np.int16)
+                coords = self._get_bias_coords(seg, pred_fps)
                 self.coords_list.append(coords)
             print('Done')
         else:
             # if we don't store them in ram we will compute them and store them as .npy files
             # in the preprocessed path
-            self.bias_coords_fol = os.path.join(self.vol_ds.preprocessed_path, 'bias_coordinates')
+            self.bias_coords_fol = os.path.join(self.vol_ds.preprocessed_path,
+                                                'bias_coordinates_'+self.bias)
             if not os.path.exists(self.bias_coords_fol):
                 os.mkdir(self.bias_coords_fol)
 
@@ -106,7 +128,11 @@ class SegmentationBatchDataset(object):
                 case = os.path.basename(d[self.label_key])
                 if case not in os.listdir(self.bias_coords_fol):
                     lb = np.load(d[self.label_key])
-                    coords = np.array(np.where(lb > 0)).astype(np.int16)
+                    if self.is_cascade:
+                        pred_fps = np.load(d[self.pred_fps_key])
+                    else:
+                        pred_fps = None
+                    coords = self._get_bias_coords(lb, pred_fps)
                     np.save(os.path.join(self.bias_coords_fol, case), coords)
 
     def _maybe_clean_stored_data(self):

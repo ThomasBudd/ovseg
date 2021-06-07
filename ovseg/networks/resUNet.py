@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from ovseg.networks.blocks import StochDepth, SE_unit
+import os
+import pickle
 
 def get_padding(kernel_size):
     if isinstance(kernel_size, (list, tuple, np.ndarray)):
@@ -784,6 +786,52 @@ class UNetResEncoder(nn.Module):
             p = (1 - h) * param_dict['p_dropout_logits'][0] + h * param_dict['p_dropout_logits'][1]
             for l in self.all_logits:
                 l.dropout.p = p
+
+    def load_matching_weights_from_pretrained_model(self, data_name, preprocessed_name, model_name,
+                                                    fold, model_params_name='model_parameters',
+                                                    network_name='network'):
+        model_CV_path = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models', data_name,
+                                     preprocessed_name, model_name)
+        model_path = os.path.join(model_CV_path, 'fold_{}'.format(fold))
+        model_params = pickle.load(open(os.path.join(model_CV_path,
+                                                     model_params_name+'.pkl'),
+                                        'rb'))
+        net_params = model_params['network']
+        # if this entry of the model paramters is wrong, the model has the wrong 
+        # architecture
+        assert model_params['architecture'] == 'unetresencoder'
+        # create the network and load the weights
+        print('Creating network to load from')
+        net = UNetResEncoder(**net_params)
+        path_to_weights = os.path.join(model_path, network_name+'_weights')
+        print('load weights...')
+        net.load_state_dict(torch.load(path_to_weights,
+                                          map_location=torch.device('cpu')))
+
+        # now we iterate over all module lists and try to transfere the weights
+        print('start transfering weights')
+        transfered, not_transfered = 0, 0
+        for m1, m2 in zip([self.blocks_down, self.blocks_up, self.upsamplings, self.all_logits],
+                          [net.blocks_down, net.blocks_up, net.upsamplings, net.all_logits]):
+            for b1, b2 in zip(m1, m2):
+                # iterate over all blocks
+                if isinstance(b1, stackedResBlocks):
+                    for rb1, rb2 in zip(b1.res_blocks, b2.res_blocks):
+                        for c1, c2 in zip(b1.children(), b2.children()):
+                            try:
+                                c1.load_state_dict(c2.state_dict())
+                                transfered += 1
+                            except RuntimeError:
+                                not_transfered += 1
+                else:
+                    for c1, c2 in zip(b1.children(), b2.children()):
+                        try:
+                            c1.load_state_dict(c2.state_dict())
+                            transfered += 1
+                        except RuntimeError:
+                            not_transfered += 1
+
+        print('Done! Loaded {} and skipped {} modules'.format(transfered, not_transfered))
 
 
 # %%
