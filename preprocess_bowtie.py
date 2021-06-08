@@ -43,7 +43,7 @@ class Restauration2dSimPreprocessingBowtie(Restauration2dSimPreprocessing):
         bowtie filter
         '''
         if isinstance(bowtie_filt, np.ndarray):
-            bowtie_filt = torch.from_numpy(bowtie_filt)
+            bowtie_filt = torch.from_numpy(bowtie_filt).to('cuda')
             bowtie_filt = bowtie_filt.squeeze()*dose_level
             is_np = True
         elif not torch.is_tensor(img):
