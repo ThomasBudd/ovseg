@@ -18,7 +18,7 @@ exp_list = [0]
 
 def get_model_params(exp):
     # model_name = 'weight_decay_{:.1e}'.format(weight_decay)
-    model_name = 'cascadeUNet'
+    model_name = 'cascadeUNet_no_lb_aug'
 
     patch_size = [28, 224, 224]
     prg_trn_sizes = [[16, 256, 256],
@@ -35,7 +35,7 @@ def get_model_params(exp):
                                                n_2d_convs=3,
                                                use_prg_trn=True)
     model_params['training']['prg_trn_sizes'] = prg_trn_sizes
-
+    del model_params['augmentation']['np_params']
     # del model_params['network']['kernel_sizes']
     # del model_params['network']['kernel_sizes_up']
     # del model_params['network']['n_pyramid_scales']
