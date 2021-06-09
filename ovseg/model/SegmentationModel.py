@@ -18,6 +18,7 @@ from ovseg.postprocessing.SegmentationPostprocessing import \
     SegmentationPostprocessing
 from ovseg.utils.io import save_nii_from_data_tpl, load_pkl, read_nii
 from ovseg.data.Dataset import raw_Dataset
+from skimage.measure import label
 import torch
 import numpy as np
 from os import environ, makedirs, listdir
@@ -564,4 +565,44 @@ class SegmentationModel(ModelBase):
             if torch.is_tensor(pred):
                 pred = pred.cpu().numpy()
             np.savez_compressed(join(pred_npz_path, scan), pred)
+
+    def infere_volume_thresholds(self, folder_name='cross_validation', scans=None,
+                                 image_folder=None, dcm_revers=True, dcm_names_dict=None):
+        # raw dataset to access ground truth data
+        ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', self.data_name),
+                         scans=scans,
+                         image_folder=image_folder,
+                         dcm_revers=dcm_revers,
+                         dcm_names_dict=dcm_names_dict)
+        # path with predictions (should be stored as nibabel)
+        predp = join(environ['OV_DATA_BASE'], 'predictions', self.data_name, self.preprocessed_name,
+                     self.model_name, folder_name)
+        if self.n_fg_classes > 1:
+            print('WARNING: finding optimal volume treshold is atm only implemented for '
+                  'single class problems.')
+        vols_delta_dsc = []
+        for i in tqdm(range(len(ds))):
+            data_tpl = ds[i]
+            # get ground truth and possible remove other labels from the image
+            gt = (self.preprocessing.maybe_clean_label_from_data_tpl(data_tpl) > 0).astype(float)
+            pred = read_nii(join(predp, data_tpl['scan']+'.nii.gz'))[0] > 0
+            # all connected components, but how to set the threshold for removing the too small ones?
+            comps = label(pred)
+
+            # here we collect both the volume of the component as well as the
+            # arrays containing just the component
+            vols_and_comps = [(np.sum(comps == c), comps == c) for c in range(1, comps.max() + 1)]
+            # sort the list to start with the smallest volume
+            vols_and_comps = sorted(vols_and_comps)
+
+            # this choice doesn't matter, will shift the total stats only by a constant
+            dsc_old = 0
+            for j in range(len(vols_and_comps)):
+                # prepare to fill in all components that are greater than the current threshold
+                pred_tr = np.zeros_like(pred, dtype=float)
+                for _, comp in vols_and_comps[j+1:]:
+                    pred_tr[comp] = 1
+                dsc_new = 200*np.sum(pred_tr * gt) / np.sum(gt + pred_tr)
+                vols_delta_dsc.append(vols_and_comps[j][0], dsc_new - dsc_old)
+                dsc_old = dsc_new
             

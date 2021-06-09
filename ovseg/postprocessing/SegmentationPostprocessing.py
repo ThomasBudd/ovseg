@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from ovseg.utils.interp_utils import resize_sample
 from ovseg.utils.torch_np_utils import check_type
 from skimage.measure import label
 from skimage.transform import resize
@@ -139,7 +138,3 @@ class SegmentationPostprocessing(object):
 
         # done! The mask is 0 where all the undesired components are
         return mask * volume
-
-    def infere_volume_thresholds(self, pred_folder, gt_folder):
-        raise NotImplementedError('Inference for lesion volume not '
-                                  'implemented yet.')
