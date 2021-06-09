@@ -84,7 +84,7 @@ for val_fold, exp in zip(val_fold_list, exp_list):
                               model_parameters=model_params)
     model.training.train()
     model.eval_training_set()
-    model.eval_raw_data_npz('BARTS')
+    model.eval_raw_dataset('BARTS')
     model.clean()
     
     # if val_fold == 3:

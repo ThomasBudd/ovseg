@@ -4,16 +4,16 @@ from ovseg.model.SegmentationEnsemble import SegmentationEnsemble
 import argparse
 import numpy as np
 
-parser = argparse.ArgumentParser()
-parser.add_argument("gpu", type=int)
-parser.add_argument("p", type=int)
-args = parser.parse_args()
+# parser = argparse.ArgumentParser()
+# parser.add_argument("gpu", type=int)
+# parser.add_argument("p", type=int)
+# args = parser.parse_args()
 
 p_name = 'pod_full'
 
 # skip_type = "res_skip"
-val_fold_list = [args.gpu]
-exp_list = [[0], [1]][args.p]
+val_fold_list = [0]#[args.gpu]
+exp_list = [0]#[[0], [1]][args.p]
 
 
 def get_model_params(exp):
@@ -76,10 +76,10 @@ for val_fold, exp in zip(val_fold_list, exp_list):
                               preprocessed_name=p_name,
                               model_name=model_name,
                               model_parameters=model_params)
-    model.training.train()
-    model.eval_validation_set()
-    model.eval_raw_data_npz('BARTS')
-    model.clean()
+    # model.training.train()
+    # model.eval_validation_set()
+    # model.eval_raw_data_npz('BARTS')
+    # model.clean()
     
     # if val_fold == 3:
     #     ens = SegmentationEnsemble(val_fold=list(range(5)),
@@ -88,3 +88,20 @@ for val_fold, exp in zip(val_fold_list, exp_list):
     #                                model_name=model_name)
     #     if ens.all_folds_complete():
     #         ens.eval_raw_dataset('BARTS', save_preds=True, save_plots=False)
+
+# %%
+import matplotlib.pyplot as plt
+import torch
+for batch in model.data.trn_dl:
+    break
+
+for b in range(2):
+    bat = batch.type(torch.float).cpu().numpy().astype(float)
+    im = bat[b, 0, :, 80:-80, 80:-80]
+    pred = bat[b, 1, :, 80:-80, 80:-80]
+    lb = bat[b, 2, :, 80:-80, 80:-80]
+    z = np.argmax(np.sum(lb, (1, 2)))
+    plt.subplot(1, 2, b+1)
+    plt.imshow(im[z], cmap='gray')
+    plt.contour(pred[z] > 0, colors='blue')
+    plt.contour(lb[z] > 0, colors='red')

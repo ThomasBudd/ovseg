@@ -17,25 +17,28 @@ from skimage.transform import resize
 from ovseg.utils.dict_equal import dict_equal, print_dict_diff
 from ovseg.utils.io import load_pkl, save_pkl, save_txt
 
+
 class Restauration2dSimPreprocessing(object):
     '''
     Does what the name comes from: Simulation of the 2d sinograms
     '''
 
     def __init__(self, n_angles=500, source_distance=600, det_count=736, det_spacing=1.0,
-                 num_photons=None, mu_water=0.0192, window=None, scaling=None,
-                 fbp_filter='ramp', apply_z_resizing=True, target_z_spacing=None):
+                 mu_water=0.0192, window=None, scaling=None,
+                 fbp_filter='ramp', apply_z_resizing=True, target_z_spacing=None,
+                 bowtie_filt=None, dose_level=1.0):
         self.n_angles = n_angles
         self.source_distance = source_distance
         self.det_count = det_count
         self.det_spacing = det_spacing
-        self.num_photons = num_photons
         self.mu_water = mu_water
         self.window = window
         self.scaling = scaling
         self.fbp_filter = fbp_filter
         self.apply_z_resizing = apply_z_resizing
         self.target_z_spacing = target_z_spacing
+        self.dose_level = dose_level
+        
         if self.apply_z_resizing and self.target_z_spacing is None:
             raise ValueError('target_z_spacing not set.')
 
@@ -45,8 +48,34 @@ class Restauration2dSimPreprocessing(object):
                                      det_count=self.det_count,
                                      det_spacing=self.det_spacing)
         self.preprocessing_parameters = ['n_angles', 'source_distance', 'det_count', 'det_spacing',
-                                         'num_photons', 'mu_water', 'window', 'scaling',
-                                         'fbp_filter', 'apply_z_resizing', 'target_z_spacing']
+                                         'num_photons', 'window', 'scaling',
+                                         'fbp_filter', 'apply_z_resizing', 'target_z_spacing',
+                                         'bowtie_filt', 'dose_level']
+
+        if bowtie_filt is None:
+            bowtie_filt = np.load('default_photon_stats.npy')/64
+        # ADD OTHER FILTERS HERE?
+
+        '''
+        bowtie filter
+        '''
+        if isinstance(bowtie_filt, np.ndarray):
+            bowtie_filt = torch.from_numpy(bowtie_filt)
+            bowtie_filt = bowtie_filt.squeeze()
+        elif not torch.is_tensor(bowtie_filt):
+            raise TypeError('The bowtie filter must be a numpy array or torch tensor. Got {}'
+                            ''.format(type(bowtie_filt)))
+
+        
+        if not len(bowtie_filt.shape) == 1:
+            raise ValueError('The bowtie filter must be a 1D array'
+                             'Got shape {}'.format(len(bowtie_filt.shape)))
+            
+        if not bowtie_filt.size()[0] == self.det_count:
+            raise ValueError('The bowtie filter must have the same size as the number of detector '
+                             'pixels {}. Got size {}'.format(self.det_count, bowtie_filt.size()[0]))
+
+        self.bowtie_filt = bowtie_filt
 
     def maybe_save_preprocessing_parameters(self, outfolder):
         outfile = join(outfolder, 'restauration_parameters.pkl')
@@ -87,22 +116,21 @@ class Restauration2dSimPreprocessing(object):
                              'Got shape {}'.format(len(img.shape)))
 
         # we're ingoring HU < 1000
-        img = img.clip(-1000)
+        img = img.type(torch.float).clip(-1000)
+        dev = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         # rescale from HU to linear attenuation
         img_linatt = (img + 1000) / 1000 * self.mu_water
+        img_linatt = img_linatt.type(torch.float).to(dev)
 
-        img_linatt = img_linatt.type(torch.float).to('cuda')
-
+        # rescale from HU to linear attenuation
+        bowtie_filt = self.dose_level * self.bowtie_filt.to(dev)
         proj = self.operator.forward(img_linatt)
-        if self.num_photons is not None:
-            proj_exp = torch.exp(-1 * proj)
-            proj_exp = torch.poisson(proj_exp * self.num_photons) / self.num_photons
-            proj = -1 * torch.log(proj_exp + 1e-6)
-
-        # copmute fbp and HU
-        fbp = self.operator.backprojection(self.operator.filter_sinogram(proj))        
-        fbp = 1000 * (fbp - self.mu_water) / self.mu_water
+        proj = torch.exp(-proj) 
+        proj = torch.poisson(bowtie_filt.expand_as(proj)*proj)*(1/bowtie_filt.expand_as(proj))
+        sinogram_noisy = -torch.log(1e-6 + proj)
+        fbp_linatt = self.operator.backprojection(self.operator.filter_sinogram(sinogram_noisy))
+        fbp = 1000 * (fbp_linatt - self.mu_water) / self.mu_water
         
         # now windowing and recaling
         if self.window is not None:
