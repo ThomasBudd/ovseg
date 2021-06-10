@@ -19,7 +19,7 @@ parser.add_argument("--save_as_fp32", required=False, default=False, action='sto
                     'Set this if you are sure that you need them to be stored as fp32 instead.')
 parser.add_argument("--dont_apply_resizing", required=False, default=False, action='store_true')
 parser.add_argument("--dont_apply_windowing", required=False, default=False, action='store_true')
-parser.add_argument("--target_spacing", required=False, default=5.0, type=float)
+parser.add_argument("--target_z_spacing", required=False, default=5.0, type=float)
 parser.add_argument("--n_angles", required=False, default=500, type=float)
 parser.add_argument("--source_distance", required=False, default=600, type=float)
 parser.add_argument("--det_count", required=False, default=736, type=float)
@@ -54,7 +54,8 @@ preprocesseing = Restauration2dSimPreprocessing(n_angles=args.n_angles,
                                                 mu_water=0.0192,
                                                 window=window,
                                                 scaling=scaling, fbp_filter='ramp',
-                                                apply_z_resizing=True, target_z_spacing=None,
+                                                apply_z_resizing=True,
+                                                target_z_spacing=args.target_z_spacing,
                                                 bowtie_filt=None, dose_level=args.dose_level)
 
 if len(args.ext) > 0:
