@@ -48,7 +48,7 @@ class Restauration2dSimPreprocessing(object):
                                      det_count=self.det_count,
                                      det_spacing=self.det_spacing)
         self.preprocessing_parameters = ['n_angles', 'source_distance', 'det_count', 'det_spacing',
-                                         'num_photons', 'window', 'scaling',
+                                         'window', 'scaling',
                                          'fbp_filter', 'apply_z_resizing', 'target_z_spacing',
                                          'bowtie_filt', 'dose_level']
 
@@ -77,7 +77,10 @@ class Restauration2dSimPreprocessing(object):
 
         self.bowtie_filt = bowtie_filt
 
-    def maybe_save_preprocessing_parameters(self, outfolder):
+    def maybe_save_preprocessing_parameters(self, outfolder, ext=None):
+        param_name = 'restauration_parameters'
+        if ext is not None:
+            param_name = param_name + '_' + ext
         outfile = join(outfolder, 'restauration_parameters.pkl')
         data = {key: self.__getattribute__(key) for key in
                 self.preprocessing_parameters}
@@ -219,7 +222,12 @@ class Restauration2dSimPreprocessing(object):
         for f in [fbp_folder_name, im_folder_name]:
             maybe_create_path(os.path.join(preprocessed_data_base, f))
 
-        self.maybe_save_preprocessing_parameters(preprocessed_data_base)
+        if fbp_folder_name.startswith('fbp_'):
+            ext = fbp_folder_name[4:]
+        else:
+            ext = None
+
+        self.maybe_save_preprocessing_parameters(preprocessed_data_base, ext)
 
         print('Creating datasets...')
         datasets = []
