@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 
 def dict_equal(dict1, dict2):
@@ -16,6 +17,9 @@ def dict_equal(dict1, dict2):
         try:
             if isinstance(item1, np.ndarray):
                 if not np.all(item1 == item2):
+                    return False
+            elif torch.is_tensor(item1):
+                if not np.all(item1.detach().cpu().numpy() == item2.detach().cpu().numpy()):
                     return False
             elif isinstance(item1, (list, tuple)):
                 if not np.all(np.array(item1) == np.array(item2)):
