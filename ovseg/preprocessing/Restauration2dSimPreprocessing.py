@@ -213,6 +213,9 @@ class Restauration2dSimPreprocessing(object):
                                               'preprocessed',
                                               data_name,
                                               preprocessed_name)
+        print('Storing new simulations in {}, {} at {}'.format(fbp_folder_name,
+                                                               im_folder_name,
+                                                               preprocessed_data_base))
         for f in [fbp_folder_name, im_folder_name]:
             maybe_create_path(os.path.join(preprocessed_data_base, f))
 
