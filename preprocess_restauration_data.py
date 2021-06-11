@@ -60,10 +60,9 @@ preprocesseing = Restauration2dSimPreprocessing(n_angles=args.n_angles,
 
 if len(args.ext) > 0:
     fbp_folder_name = 'fbps_'+args.ext
-    im_folder_name = 'images_restauration_'+args.ext
 else:
     fbp_folder_name = 'fbps'
-    im_folder_name = 'images_restauration'
+im_folder_name = 'images_restauration'
 
 
 
