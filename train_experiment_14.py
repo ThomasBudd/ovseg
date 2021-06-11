@@ -55,7 +55,7 @@ def get_model_params(exp):
     del model_params['network']['n_pyramid_scales']
     model_params['architecture'] = 'unetresencoder'
     model_params['network']['block'] = 'res'
-    model_params['network']['z_to_xy_ratio'] = [5/0.67, 5/0.8, 5][exp]
+    model_params['network']['z_to_xy_ratio'] = [5/0.67, 5/0.8, 5, 4][exp]
     model_params['network']['stochdepth_rate'] = 0
     # this time we change the amount of augmentation during training
     prg_trn_aug_params = {}
