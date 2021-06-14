@@ -71,6 +71,9 @@ def print_dict_diff(dict1, dict2, dict1_name='input dict', dict2_name='loaded di
             if isinstance(item1, np.ndarray):
                 if not np.all(item1 == item2):
                     print(pref+key+' missmatch: {}, {}'.format(item1, item2))
+            elif torch.is_tensor(item1):
+                if not np.all(item1.detach().cpu().numpy() == item2.detach().cpu().numpy()):
+                    print(pref+key+' missmatch: {}, {}'.format(item1, item2))
             elif isinstance(item1, (list, tuple)):
                 if not np.all(np.array(item1) == np.array(item2)):
                     print(pref+key+' missmatch: {}, {}'.format(item1, item2))
