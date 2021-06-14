@@ -51,9 +51,14 @@ class DataBase():
             self.scans = listdir(join(self.preprocessed_path, self.folders[0]))
             patient_ids = {}
             for scan in self.scans:
-                fngprnt = np.load(join(self.preprocessed_path, 'fingerprints', scan),
-                                  allow_pickle=True).item()
-                patient_ids[scan] = fngprnt['dataset'] + '_' + fngprnt['pat_id']
+                path_to_fingerprint = join(self.preprocessed_path, 'fingerprints', scan)
+                if exists(path_to_fingerprint):                    
+                    fngprnt = np.load(path_to_fingerprint,
+                                      allow_pickle=True).item()
+                    patient_ids[scan] = fngprnt['dataset'] + '_' + fngprnt['pat_id']
+                else:
+                    patient_ids[scan] = scan[:-4]
+
             self.splits = split_scans_by_patient_id(self.scans,
                                                     patient_ids,
                                                     self.n_folds,

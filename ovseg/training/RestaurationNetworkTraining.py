@@ -30,7 +30,7 @@ class RestaurationNetworkTraining(NetworkTraining):
             return
 
         if self.epochs_done % self.compute_val_psnr_everk_k_epochs == 0:
-            self.print_and_log('Compute validatin PSNR....')
+            self.print_and_log('Compute validation PSNR....')
             val_ds = self.val_dl.dataset.vol_ds
             dev = 'cuda' if torch.cuda.is_available() else 'cpu'
             mean_psnr = 0

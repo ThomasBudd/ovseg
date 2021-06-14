@@ -219,7 +219,7 @@ class Restauration2dSimPreprocessing(object):
         print('Storing new simulations in {}, {} at {}'.format(fbp_folder_name,
                                                                im_folder_name,
                                                                preprocessed_data_base))
-        for f in [fbp_folder_name, im_folder_name]:
+        for f in [fbp_folder_name, im_folder_name, 'fingerprints']:
             maybe_create_path(os.path.join(preprocessed_data_base, f))
 
         if fbp_folder_name.startswith('fbp_'):
@@ -244,6 +244,7 @@ class Restauration2dSimPreprocessing(object):
                 name = data_tpl['scan']
                 volume = data_tpl['image']
                 spacing = data_tpl['spacing']
+                fp = {'orig_spacing': spacing, 'orig_shape': volume.shape}
                 try:
                     fbp, im = self.preprocess_volume(volume, spacing)
                     np.save(os.path.join(preprocessed_data_base,
@@ -254,5 +255,9 @@ class Restauration2dSimPreprocessing(object):
                                          im_folder_name,
                                          name+'.npy'),
                             im.astype(dtype), allow_pickle=True)
+                    np.save(os.path.join(preprocessed_data_base,
+                                         'fingerprints',
+                                         name+'.npy'),
+                            fp, allow_pickle=True)
                 except ValueError:
                     print('Skip {}. Got shape {}.'.format(name, volume.shape))
