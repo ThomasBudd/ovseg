@@ -81,7 +81,7 @@ class Restauration2dSimPreprocessing(object):
         param_name = 'restauration_parameters'
         if ext is not None:
             param_name = param_name + '_' + ext
-        outfile = join(outfolder, 'restauration_parameters.pkl')
+        outfile = join(outfolder, param_name)
         data = {key: self.__getattribute__(key) for key in
                 self.preprocessing_parameters}
         if exists(outfile):
