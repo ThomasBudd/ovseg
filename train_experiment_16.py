@@ -6,12 +6,12 @@ import numpy as np
 
 parser = argparse.ArgumentParser()
 parser.add_argument("gpu", type=int)
-parser.add_argument("p", type=int)
+# parser.add_argument("p", type=int)
 args = parser.parse_args()
 
 # skip_type = "res_skip"
-val_fold_list = 2*[args.gpu]
-exp_list = [[0], [1, 2]][args.p]
+val_fold_list = [[0], [1], [2], [3], [4], [0, 1], [2, 3], [4]][args.gpu]
+exp_list = [0, 1] if args.gpu < 5 else [2, 2]
 
 
 def get_model_params(exp):
