@@ -11,7 +11,7 @@ args = parser.parse_args()
 
 # skip_type = "res_skip"
 val_fold_list = [[0], [1], [2], [3], [4], [0, 1], [2, 3], [4]][args.gpu]
-exp_list = [0, 1] if args.gpu < 5 else [2, 2]
+exp_list = [1] if args.gpu < 5 else [2, 2]
 
 
 def get_model_params(exp):
