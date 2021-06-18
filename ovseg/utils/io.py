@@ -342,6 +342,9 @@ def read_dcms(dcm_folder, reverse=True, names_dict=None, dataset=None):
                 # lucky case! All our ROIs start with numbers
                 names_dict = {}
                 for name in names_found:
+                    if not name[:1].isdigit():
+                        raise ValueError('Could not perform automated numbering of ROIs '+name
+                                         +' does not start with a digit.')
                     i = 0
                     while name[:i+1].isdigit():
                         i += 1
@@ -363,13 +366,15 @@ def read_dcms(dcm_folder, reverse=True, names_dict=None, dataset=None):
         else:
             for name in names_found:
                 if name not in names_dict:
-                    raise ValueError('Name error in '+roidcm+'. Found ROI with'
-                                     ' name '+name+' which was not given in'
-                                     ' the names_dict.')
+                    print('Found ROI with name '+name+' in '+roidcm+' that was not given in the'
+                          ' the names_dict. Skipping this ROI.')
         # now let's look at all ROIS
         for i in range(len(roids.ROIContourSequence)):
             name = roids.StructureSetROISequence[i].ROIName.lower()
-            num = names_dict[name]
+            if name in names_dict:
+                num = names_dict[name]
+            else:
+                continue
             for s in roids.ROIContourSequence[i].ContourSequence:
                 c = s.ContourData
                 # list of polygone corners
