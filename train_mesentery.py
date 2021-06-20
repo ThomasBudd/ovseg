@@ -80,6 +80,6 @@ for val_fold, exp in zip(val_fold_list, exp_list):
                               model_name=model_name,
                               model_parameters=model_params)
     model.training.train()
-    model.eval_validation_set()
+    model.eval_validation_set(save_plots=True)
     model.eval_training_set()
     model.clean()
