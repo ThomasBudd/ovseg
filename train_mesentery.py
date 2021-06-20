@@ -34,7 +34,8 @@ def get_model_params(exp):
     model_params['augmentation']['torch_params']['grid_inplane']['p_rot'] = 0.5
     model_params['augmentation']['torch_params']['grid_inplane']['p_zoom'] = 0.5
     model_params['augmentation']['torch_params']['grid_inplane']['p_shear'] = 0.5
-    # del model_params['network']['kernel_sizes']
+    model_params['network']['kernel_sizes'] = [(1, 3, 3), (1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
+    model_params['network']['kernel_sizes_up'] = [(1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
     # del model_params['network']['kernel_sizes_up']
     # del model_params['network']['n_pyramid_scales']
     # model_params['architecture'] = 'unetresencoder'
