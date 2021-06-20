@@ -137,6 +137,10 @@ class SegmentationModel(ModelBase):
             self.model_parameters['network']['out_channels'] = self.n_fg_classes + 1
             if self.parameters_match_saved_ones:
                 self.save_model_parameters()
+        # wow yes this is super ugly! It would be better to include all architecture
+        # in one file and the use
+        # from FILE import __dict__
+        # self.network = __dict__[self.model_paramters['architecture']]
         params = self.model_parameters['network'].copy()
         if self.model_parameters['architecture'].lower() in ['unet', 'u-net']:
             self.network = UNet(**params).to(self.dev)
@@ -183,14 +187,13 @@ class SegmentationModel(ModelBase):
 
         # Let's get the parameters and add the cpu augmentation
         params = self.model_parameters['data'].copy()
-        data_aug = self.augmentation.np_augmentation
 
         # add augmentation
-        for key in ['trn_dl_params', 'val_dl_params']:
-            try:
-                params[key]['augmentation'] = data_aug
-            except KeyError:
-                continue
+        # for key in ['trn_dl_params', 'val_dl_params']:
+        #     try:
+        #         params[key]['augmentation'] = data_aug
+        #     except KeyError:
+        #         continue
 
         # if we don't want to store our data in ram...
         if self.dont_store_data_in_ram:
@@ -199,6 +202,7 @@ class SegmentationModel(ModelBase):
                 params[key]['store_coords_in_ram'] = False
         self.data = SegmentationData(val_fold=self.val_fold,
                                      preprocessed_path=self.preprocessed_path,
+                                     augmentation= self.augmentation.np_augmentation,
                                      **params)
         print('Data initialised')
 

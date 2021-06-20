@@ -113,10 +113,13 @@ class SegmentationBatchDataset(object):
                     raise ValueError('Got segmentation mask that is neither 3d nor 4d.')
                 coords = self._get_bias_coords(seg, pred_fps)
                 self.coords_list.append(coords)
+            self.contains_fg_list = [ind for ind, coords in enumerate(self.coords_list)
+                                    if len(coords) > 0]
             print('Done')
         else:
             # if we don't store them in ram we will compute them and store them as .npy files
             # in the preprocessed path
+            self.contains_fg_list = []
             self.bias_coords_fol = os.path.join(self.vol_ds.preprocessed_path,
                                                 'bias_coordinates_'+self.bias)
             if not os.path.exists(self.bias_coords_fol):
@@ -124,7 +127,7 @@ class SegmentationBatchDataset(object):
 
             # now we check if come cases are missing in the folder
             print('Checking if all bias coordinates are stored in '+self.bias_coords_fol)
-            for d in self.vol_ds.path_dicts:
+            for ind, d in enumerate(self.vol_ds.path_dicts):
                 case = os.path.basename(d[self.label_key])
                 if case not in os.listdir(self.bias_coords_fol):
                     lb = np.load(d[self.label_key])
@@ -134,6 +137,10 @@ class SegmentationBatchDataset(object):
                         pred_fps = None
                     coords = self._get_bias_coords(lb, pred_fps)
                     np.save(os.path.join(self.bias_coords_fol, case), coords)
+                else:
+                    coords = np.load(os.path.join(self.bias_coords_fol, case))
+                if len(coords) > 0:
+                    self.contains_fg_list.append(ind)
 
     def _maybe_clean_stored_data(self):
         # delte stuff we stored in RAM
@@ -196,6 +203,14 @@ class SegmentationBatchDataset(object):
         else:
             return im, seg
 
+    def _get_random_volume_ind(self, biased_sampling):
+        if biased_sampling:
+            # when we do biased sampling we have to make sure that the
+            # volume we're sampling actually has fg
+            return np.random.choice(self.contains_fg_list)
+        else:
+            return np.random.randint(self.n_volumes)
+
     def __len__(self):
         return self.epoch_len * self.batch_size
 
@@ -208,7 +223,7 @@ class SegmentationBatchDataset(object):
         else:
             biased_sampling = np.random.rand() < self.p_bias_sampling
 
-        ind = np.random.randint(self.n_volumes)
+        ind = self._get_random_volume_ind(biased_sampling)
         volumes = self._get_volume_tuple(ind)
         shape = np.array(volumes[0].shape)[1:]
 

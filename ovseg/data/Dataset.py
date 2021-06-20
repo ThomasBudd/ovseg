@@ -94,7 +94,7 @@ class Dataset(object):
 class raw_Dataset(object):
 
     def __init__(self, raw_path, scans=None, image_folder=None, dcm_revers=True,
-                 dcm_names_dict=None, prev_stage=None):
+                 dcm_names_dict=None, prev_stages=None):
 
         assert image_folder in ['images', 'imagesTr', 'imagesTs', None]
 
@@ -103,23 +103,43 @@ class raw_Dataset(object):
         all_lb_folders = [lbf for lbf in listdir(self.raw_path) if lbf.startswith('labels')]
 
         # prev_stage shold be a dict with the items 'preprocessed_name', 'model_name', 'data_name'
-        self.prev_stage = prev_stage
-        self.is_cascade = self.prev_stage is not None
+        self.is_cascade = prev_stages is not None
         if self.is_cascade:
-            assert 'preprocessed_name' in self.prev_stage
-            assert 'model_name' in self.prev_stage
-            p =  join(environ['OV_DATA_BASE'],
-                      'predictions',
-                      self.prev_stage['data_name'],
-                      self.prev_stage['preprocessed_name'],
-                      self.prev_stage['model_name'])
-            raw_data_name = basename(self.raw_path)
-            fols = [f for f in listdir(p) if f.startswith(raw_data_name)]
-            if len(fols) != 1:
-                raise FileNotFoundError('Could not identify nifti folder from previous stage '
-                                        'at {}. Found {} folders starting with {}.'
-                                        ''.format(p, len(fols), raw_data_name))
-            self.path_to_previous_stage = join(p, fols[0])
+            # if we only have one previous stage we can also input just the dict and not the list
+            if isinstance(prev_stages, dict):
+                prev_stages = [prev_stages]
+
+            self.prev_stages = prev_stages
+
+            # now let's find the prediction pathes and create the keys for the data_tpl
+            self.pathes_to_previous_stages = []
+            self.keys_for_previous_stages = []
+            for prev_stage in self.prev_stages:
+                for key in ['data_name', 'preprocessed_name', 'model_name']:
+                    assert key in prev_stage
+            
+                p =  join(environ['OV_DATA_BASE'],
+                          'predictions',
+                          prev_stage['data_name'],
+                          prev_stage['preprocessed_name'],
+                          prev_stage['model_name'])
+                key = '_'.join(['prediction',
+                                prev_stage['data_name'],
+                                prev_stage['preprocessed_name'],
+                                prev_stage['model_name']])
+                raw_data_name = basename(self.raw_path)
+                fols = [f for f in listdir(p) if f.startswith(raw_data_name)]
+                if len(fols) == 0 and 'cross_validation' in listdir(p):
+                    print('Found folder \'cross_validation\' at the given path. Assuming '
+                          'predictions are found in there.')
+                    fols = ['cross_validation']
+                        
+                if len(fols) != 1:
+                    raise FileNotFoundError('Could not identify nifti folder from previous stage '
+                                            'at {}. Found {} folders starting with {}.'
+                                            ''.format(p, len(fols), raw_data_name))
+                self.pathes_to_previous_stages.append(join(p, fols[0]))
+                self.keys_for_previous_stages.append(key)
         self.is_nifti = len(all_im_folders) > 0
 
         if self.is_nifti:
@@ -214,10 +234,23 @@ class raw_Dataset(object):
                     scan = superfolder + '_' + folder
 
         if self.is_cascade:
-            pred_fps, _, _ = read_nii(join(self.path_to_previous_stage, scan+'.nii.gz'))
-            data_tpl['pred_fps'] = pred_fps
+            for path, key in zip(self.pathes_to_previous_stages, self.keys_for_previous_stages):
+                pred_fps, _, _ = read_nii(join(path, scan+'.nii.gz'))
+                data_tpl[key] = pred_fps
 
         data_tpl['dataset'] = basename(self.raw_path)
         data_tpl['scan'] = scan
 
         return data_tpl
+
+# %%
+if __name__ == '__main__':
+    raw_path = join(environ['OV_DATA_BASE'], 'raw_data', 'OV04')
+    prev_stages = [{'data_name': 'OV04',
+                    'preprocessed_name': 'om_08',
+                    'model_name': 'res_encoder_no_prg_lrn'},
+                   {'data_name': 'OV04',
+                    'preprocessed_name': 'pod_067',
+                    'model_name': 'larger_res_encoder'}]
+    ds = raw_Dataset(raw_path=raw_path, prev_stages=prev_stages)
+    data_tpl = ds[0]

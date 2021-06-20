@@ -129,15 +129,18 @@ class ModelBase(object):
 
         # %% now initialise everything we need
 
-        if 'prediction_key' in self.model_parameters:
-            self.pred_key = self.model_parameters['prediction_key']
-        else:
-            print('\'prediction_key\' was not found in model_parameters.'
-                  'Init as \'prediction\'.')
-            self.pred_key = 'prediction'
-            self.model_parameters['prediction_key'] = 'prediction'
-            if self.parameters_match_saved_ones:
-                self.save_model_parameters()
+        # this is what we once did, not let's just identify the prediction by the ugly long key...
+        self.pred_key = '_'.join(['prediction', self.data_name, self.preprocessed_name,
+                                  self.model_name])
+        # if 'prediction_key' in self.model_parameters:
+        #     self.pred_key = self.model_parameters['prediction_key']
+        # else:
+        #     print('\'prediction_key\' was not found in model_parameters.'
+        #           'Init as \'prediction\'.')
+        #     self.pred_key = 'prediction'
+        #     self.model_parameters['prediction_key'] = 'prediction'
+        #     if self.parameters_match_saved_ones:
+        #         self.save_model_parameters()
 
         self.initialise_preprocessing()
         self.initialise_augmentation()
