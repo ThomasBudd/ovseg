@@ -32,7 +32,8 @@ def get_model_params(exp):
                                               use_prg_trn=True)
     model_params['network']['filters'] = filters
     model_params['augmentation']['torch_params']['grid_inplane']['p_rot'] = 0.5
-    model_params['augmentation']['torch_params']['grid_inplane']['p_scale'] = 0.5
+    model_params['augmentation']['torch_params']['grid_inplane']['p_zoom'] = 0.5
+    model_params['augmentation']['torch_params']['grid_inplane']['p_shear'] = 0.5
     # del model_params['network']['kernel_sizes']
     # del model_params['network']['kernel_sizes_up']
     # del model_params['network']['n_pyramid_scales']
