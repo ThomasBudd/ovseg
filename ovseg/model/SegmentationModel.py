@@ -55,10 +55,10 @@ class SegmentationModel(ModelBase):
         self.is_cascade = 'prev_stage' in self.model_parameters
         if self.is_cascade:
             if 'data_name' not in self.model_parameters['prev_stage']:
-                self.model_parameters['prev_stage']['data_name'] = self.data_name
+                self.model_parameters['prev_stages']['data_name'] = self.data_name
                 if self.parameters_match_saved_ones:
                     self.save_model_parameters()
-            self.prev_stage = self.model_parameters['prev_stage']
+            self.prev_stages = self.model_parameters['prev_stages']
 
     def initialise_preprocessing(self):
         if 'preprocessing' not in self.model_parameters:
@@ -543,7 +543,7 @@ class SegmentationModel(ModelBase):
                          image_folder=image_folder,
                          dcm_revers=dcm_revers,
                          dcm_names_dict=dcm_names_dict,
-                         prev_stage=self.prev_stage if hasattr(self, 'prev_stage') else None)
+                         prev_stages=self.prev_stages if hasattr(self, 'prev_stages') else None)
 
         if len(ds) == 0:
             print('Got empty dataset for evaluation. Nothing to do here --> leaving!')

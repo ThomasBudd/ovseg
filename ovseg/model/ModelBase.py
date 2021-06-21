@@ -467,6 +467,6 @@ class ModelBase(object):
                          image_folder=image_folder,
                          dcm_revers=dcm_revers,
                          dcm_names_dict=dcm_names_dict,
-                         prev_stage=self.prev_stage if hasattr(self, 'prev_stage') else None)
+                         prev_stages=self.prev_stages if hasattr(self, 'prev_stages') else None)
         self.eval_ds(ds, ds_name=data_name, save_preds=save_preds, save_plots=save_plots,
                      force_evaluation=force_evaluation)
