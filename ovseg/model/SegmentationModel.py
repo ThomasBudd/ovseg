@@ -1,9 +1,8 @@
 import warnings
 warnings.simplefilter("ignore")
-from ovseg.preprocessing.SegmentationPreprocessing import \
-    SegmentationPreprocessing
-from ovseg.augmentation.SegmentationAugmentation import \
-    SegmentationAugmentation
+from ovseg.preprocessing.SegmentationPreprocessing import SegmentationPreprocessing
+from ovseg.preprocessing.ClassEnsemblePreprocessing import ClassEnsemblePreprocessing
+from ovseg.augmentation.SegmentationAugmentation import SegmentationAugmentation
 from ovseg.data.SegmentationData import SegmentationData
 from ovseg.prediction.SlidingWindowPrediction import SlidingWindowPrediction
 from ovseg.networks.UNet import UNet
@@ -14,8 +13,7 @@ from ovseg.networks.refine_res_networks import RefineResNet
 from ovseg.training.SegmentationTraining import SegmentationTraining
 from ovseg.model.ModelBase import ModelBase
 from ovseg.utils.torch_np_utils import check_type
-from ovseg.postprocessing.SegmentationPostprocessing import \
-    SegmentationPostprocessing
+from ovseg.postprocessing.SegmentationPostprocessing import SegmentationPostprocessing
 from ovseg.utils.io import save_nii_from_data_tpl, load_pkl, read_nii
 from ovseg.data.Dataset import raw_Dataset
 from skimage.measure import label
@@ -60,6 +58,10 @@ class SegmentationModel(ModelBase):
                     self.save_model_parameters()
             self.prev_stages = self.model_parameters['prev_stages']
 
+    def _create_preprocessing_object(self):
+        params = self.model_parameters['preprocessing'].copy()
+        self.preprocessing = SegmentationPreprocessing(**params)
+
     def initialise_preprocessing(self):
         if 'preprocessing' not in self.model_parameters:
             print('No preprocessing parameters found in model_parameters. '
@@ -82,9 +84,7 @@ class SegmentationModel(ModelBase):
                     print('Loaded preprocessing parameters without saving them to the model '
                           'parameters as current model parameters don\'t match saved ones.')
 
-        # create the preprocessing object
-        params = self.model_parameters['preprocessing'].copy()
-        self.preprocessing = SegmentationPreprocessing(**params)
+        self._create_preprocessing_object()
 
         # now for the computation of loss metrics we need the number of prevalent fg classes
         if self.preprocessing.lb_classes is not None:
@@ -174,8 +174,8 @@ class SegmentationModel(ModelBase):
         try:
             params = self.model_parameters['postprocessing'].copy()
         except KeyError:
-            print('No parameter for postprocessing were given. Take default: argmax without '
-                  'removing of small connected components.')
+            # print('No parameter for postprocessing were given. Take default: argmax without '
+            #       'removing of small connected components.')
             params = {}
         self.postprocessing = SegmentationPostprocessing(**params)
 
@@ -612,3 +612,10 @@ class SegmentationModel(ModelBase):
                 vols_delta_dsc.append(vols_and_comps[j][0], dsc_new - dsc_old)
                 dsc_old = dsc_new
             
+
+class ClassEnsemblingModel(SegmentationModel):
+
+    def _create_preprocessing_object(self):
+        prev_stages = self.model_parameters['prev_stages']
+        kwargs = self.model_parameters['preprocessing']
+        self.preprocessing = ClassEnsemblePreprocessing(prev_stages, **kwargs)
