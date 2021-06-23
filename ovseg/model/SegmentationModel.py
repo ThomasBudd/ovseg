@@ -87,7 +87,9 @@ class SegmentationModel(ModelBase):
         self.preprocessing = SegmentationPreprocessing(**params)
 
         # now for the computation of loss metrics we need the number of prevalent fg classes
-        if self.preprocessing.lb_classes is not None:
+        if self.preprocessing.reduce_lb_to_single_class:
+            self.n_fg_classes = 1
+        elif self.preprocessing.lb_classes is not None:
             self.n_fg_classes = len(self.preprocessing.lb_classes)
         elif self.model_parameters['network']['out_channels'] is not None:
             self.n_fg_classes = self.model_parameters['network']['out_channels'] - 1

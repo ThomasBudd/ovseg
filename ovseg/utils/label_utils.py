@@ -74,6 +74,6 @@ def reduce_classes(lb, classes, to_single_class=False):
         lb_new[lb == c] = i + 1
 
     if to_single_class:
-        lb_new = (lb_new > 0).astype(int)
+        lb_new = (lb_new > 0).astype(lb.dtype)
 
     return lb_new
