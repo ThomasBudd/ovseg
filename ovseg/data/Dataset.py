@@ -129,9 +129,7 @@ class raw_Dataset(object):
                                 prev_stage['model_name']])
                 raw_data_name = basename(self.raw_path)
                 fols = [f for f in listdir(p) if f.startswith(raw_data_name)]
-                if len(fols) == 0 and 'cross_validation' in listdir(p):
-                    print('Found folder \'cross_validation\' at the given path. Assuming '
-                          'predictions are found in there.')
+                if len(fols) == 0 and prev_stage['data_name'] == raw_data_name:
                     fols = ['cross_validation']
                         
                 if len(fols) != 1:

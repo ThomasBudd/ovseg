@@ -12,7 +12,7 @@ except ImportError:
     tqdm = lambda x: x
 from ovseg.utils.io import save_pkl, save_txt, read_nii
 
-n_volumes = 25
+n_volumes = 10
 
 window = [-32, 318]
 mu_water= 0.0192
@@ -53,9 +53,8 @@ class sino_filter_base():
         return filtered_sinogram.to(dtype=sinogram.dtype)
 
 # %% DO SOMETHING HERE!
-filter_fctns = [operator.filter_sinogram]
-filter_fctns_names = ['ramp']
-
+filter_fctns_names = ["ramp", "shepp-logan", "cosine", "hamming", "hann"]
+filter_fctns = [lambda y : operator.filter_sinogram(y, f) for f in filter_fctns_names]
 
 # %%
 def simulate_psnr(img, filter_fctn):
@@ -103,3 +102,5 @@ for name in results:
 
 save_pkl(results, 'FBP_PSNR_simulations.pkl')
 save_txt(results, 'FBP_PSNR_simulations.txt')
+for key in results:
+    print(key, results[key])
