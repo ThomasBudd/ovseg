@@ -330,7 +330,8 @@ class ClassEnsemblePreprocessing(object):
             raw_ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', raw_name),
                                  image_folder=image_folder,
                                  dcm_revers=dcm_revers,
-                                 dcm_names_dict=dcm_names_dict)
+                                 dcm_names_dict=dcm_names_dict,
+                                 prev_stages=self.prev_stages)
             print()
             sleep(1)
             for i in tqdm(range(len(raw_ds))):

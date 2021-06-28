@@ -1,11 +1,13 @@
 from ovseg.utils.io import load_pkl
 from ovseg.model.SegmentationModel import SegmentationModel
 from ovseg.model.ModelBase import ModelBase
+from ovseg.data.Dataset import raw_Dataset
 from os import environ, listdir
 from os.path import join, isdir, exists
 import torch
 from ovseg.utils.torch_np_utils import check_type
 import numpy as np
+from tqdm import tqdm
 
 
 class SegmentationEnsemble(ModelBase):
@@ -202,3 +204,16 @@ class SegmentationEnsemble(ModelBase):
     def clean(self):
         for model in self.models:
             model.clean()
+
+    def fill_cross_validation(self):
+        
+        ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', self.data_name),
+                         prev_stages=self.prev_stages if hasattr(self, 'prev_stages') else None)
+        pred_folder = join(environ['OV_DATA_BASE'], 'predictions', self.data_name,
+                           self.preprocessed_name, self.model_name, 'cross_validation')
+        for i in tqdm(range(len(ds))):
+            data_tpl = ds[i]
+            filename = data_tpl['scan'] + '.nii.gz'
+            if filename not in listdir(pred_folder):
+                self.__call__(data_tpl)
+                self.save_prediction(data_tpl, folder_name='cross_validation')

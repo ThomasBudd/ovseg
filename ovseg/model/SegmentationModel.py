@@ -49,14 +49,14 @@ class SegmentationModel(ModelBase):
         self.initialise_prediction()
         self.plot_n_random_slices = plot_n_random_slices
 
-        # cascade stuff!
-        self.is_cascade = 'prev_stage' in self.model_parameters
-        if self.is_cascade:
-            if 'data_name' not in self.model_parameters['prev_stage']:
-                self.model_parameters['prev_stages']['data_name'] = self.data_name
-                if self.parameters_match_saved_ones:
-                    self.save_model_parameters()
-            self.prev_stages = self.model_parameters['prev_stages']
+        # # cascade stuff!
+        # self.is_cascade = 'prev_stage' in self.model_parameters
+        # if self.is_cascade:
+        #     if 'data_name' not in self.model_parameters['prev_stage']:
+        #         self.model_parameters['prev_stages']['data_name'] = self.data_name
+        #         if self.parameters_match_saved_ones:
+        #             self.save_model_parameters()
+        #     self.prev_stages = self.model_parameters['prev_stages']
 
     def _create_preprocessing_object(self):
         params = self.model_parameters['preprocessing'].copy()
@@ -105,20 +105,21 @@ class SegmentationModel(ModelBase):
                                  'classes in the preprocessed data and the number of network '
                                  'output channels.')
 
-        # now we check if we perform a cascasde:
-        if self.is_cascade():
-            # in this case we will create a second preprocessing module for the segmentations
-            # of the previous stage
-            params_ps = {'apply_windowing': False,
-                         'scaling': [1, 0],
-                         'apply_resizing': params['apply_resizing'],
-                         'apply_pooling': params['apply_pooling'],
-                         'do_nn_img_interp': True}
-            if params_ps['apply_resizing']:
-                params_ps['target_spacing'] = params['target_spacing']
-            if params_ps['apply_pooling']:
-                params_ps['pooling_stride'] = params['pooling_stride']
-            self.preprocessing_for_pred_from_prev_stage = SegmentationPreprocessing(**params_ps)
+        # # now we check if we perform a cascasde:
+        # if self.is_cascade():
+        #     # in this case we will create a second preprocessing module for the segmentations
+        #     # of the previous stage
+        #     params = self.model_parameters['preprocessing'].copy()
+        #     params_ps = {'apply_windowing': False,
+        #                  'scaling': [1, 0],
+        #                  'apply_resizing': params['apply_resizing'],
+        #                  'apply_pooling': params['apply_pooling'],
+        #                  'do_nn_img_interp': True}
+        #     if params_ps['apply_resizing']:
+        #         params_ps['target_spacing'] = params['target_spacing']
+        #     if params_ps['apply_pooling']:
+        #         params_ps['pooling_stride'] = params['pooling_stride']
+        #     self.preprocessing_for_pred_from_prev_stage = SegmentationPreprocessing(**params_ps)
 
     def initialise_augmentation(self):
 

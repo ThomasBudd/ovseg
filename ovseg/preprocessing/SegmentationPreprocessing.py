@@ -51,6 +51,9 @@ class SegmentationPreprocessing(object):
                  n_im_channels: int = 1,
                  do_nn_img_interp=False,
                  save_only_fg_scans=True,
+                 prev_stages_inpt=None,
+                 prev_stages_mask=None,
+                 prev_stages_cropping=None,
                  dataset_properties={}):
 
         # first the parameters that determine the preprocessing operations
