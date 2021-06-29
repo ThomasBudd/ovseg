@@ -33,6 +33,7 @@ model = SegmentationModel(val_fold=args.fold,
                           preprocessed_name=preprocessed_name,
                           model_name=model_name,
                           model_parameters=model_params)
+model.save_model_paramteres()
 model.training.train()
 model.eval_validation_set()
 # we evaluate BARTS twice, once only with each model form each fold....
