@@ -21,14 +21,14 @@ class dice_loss(nn.Module):
         super().__init__()
         self.eps = eps
 
-    def forward(self, logs, yb_oh):
+    def forward(self, logs, yb_oh, bin_pred=1):
         assert logs.shape == yb_oh.shape
         pred = torch.nn.functional.softmax(logs, 1)
         # dimension in which we compute the mean
         dim = list(range(2, len(pred.shape)))
         # remove the background channel from both as the dice will only
         # be computed over foreground classes
-        pred = pred[:, 1:]
+        pred = pred[:, 1:] * bin_pred
         yb_oh = yb_oh[:, 1:]
         # now compute the metrics
         tp = torch.sum(yb_oh * pred, dim)
@@ -119,5 +119,31 @@ class CE_dice_pyramid_loss(nn.Module):
         loss = 0
         for logs, yb, w in zip(logs_list, yb_list, scale_weights):
             loss += w * self.ce_dice_loss(logs, yb)
+
+        return loss
+
+class dice_pyramid_loss_class_ensembling(nn.Module):
+
+    def __init__(self, eps=1e-5, pyramid_weight=0.5):
+        super().__init__()
+        self.dice_loss = dice_loss(eps)
+        self.pyramid_weight = pyramid_weight
+
+    def forward(self, logs_list, yb, bin_pred):
+        if yb.shape[1] == 1:
+            yb = to_one_hot_encoding(yb, logs_list[0].shape[1])
+        # compute the weights to be powers of pyramid_weight
+        scale_weights = self.pyramid_weight ** np.arange(len(logs_list))
+        # let them sum to one
+        scale_weights = scale_weights / np.sum(scale_weights)
+        # turn labels into one hot encoding and downsample to same resolutions
+        # as the logits
+        yb_list = downsample_yb(logs_list, yb)
+        bin_pred_list = downsample_yb(logs_list, bin_pred)
+
+        # now let's compute the loss for each scale
+        loss = 0
+        for logs, yb, bin_pred, w in zip(logs_list, yb_list, bin_pred_list, scale_weights):
+            loss += w * self.dice_loss(logs, yb, bin_pred)
 
         return loss

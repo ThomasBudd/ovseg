@@ -20,7 +20,7 @@ class SegmentationData(DataBase):
             print('Initialise validation dataloader')
             try:
                 self.val_dl = SegmentationDataloader(self.val_ds,
-                                                     augmentation=self.augmentation
+                                                     augmentation=self.augmentation,
                                                      **self.val_dl_params)
             except (AttributeError, TypeError):
                 print('No validatation dataloader initialised')
