@@ -163,3 +163,5 @@ ens = SegmentationEnsemble(val_fold=list(range(5)),
                            data_name='OV04',
                            preprocessed_name=p_name,
                            model_name=model_name)
+
+ens.eval_raw_dataset('BARTS', save_preds=True)

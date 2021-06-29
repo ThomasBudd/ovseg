@@ -19,9 +19,6 @@ class SegmentationPostprocessing(object):
         if not isinstance(self.volume_thresholds, (list, tuple, np.ndarray)):
             self.volume_thresholds = [self.volume_thresholds]
 
-    def __call__(self, volume, orig_shape=None):
-        return self.postprocess_volume(volume, orig_shape)
-
     def postprocess_volume(self, volume, spacing=None, orig_shape=None):
         '''
         postprocess_volume(volume, orig_shape=None)
