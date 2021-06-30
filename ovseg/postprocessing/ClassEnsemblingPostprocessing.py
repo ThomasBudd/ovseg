@@ -6,12 +6,13 @@ from skimage.transform import resize
 from torch.nn.functional import interpolate
 
 
-class SegmentationPostprocessing(object):
+class ClassEnsemblingPostprocessing(object):
 
     def __init__(self, apply_small_component_removing=False,
                  volume_thresholds=None):
         self.apply_small_component_removing = apply_small_component_removing
         self.volume_thresholds = volume_thresholds
+        self.dev = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         if self.apply_small_component_removing and \
                 self.volume_thresholds is None:
@@ -19,7 +20,7 @@ class SegmentationPostprocessing(object):
         if not isinstance(self.volume_thresholds, (list, tuple, np.ndarray)):
             self.volume_thresholds = [self.volume_thresholds]
 
-    def postprocess_volume(self, volume, spacing=None, orig_shape=None):
+    def postprocess_volume(self, volume, bin_pred, spacing=None, orig_shape=None):
         '''
         postprocess_volume(volume, orig_shape=None)
 
@@ -49,25 +50,46 @@ class SegmentationPostprocessing(object):
             raise ValueError('Expected 4d volume of shape '
                              '[n_channels, nx, ny, nz].')
 
+        if len(bin_pred.shape) == 3:
+            if isinstance(bin_pred, np.ndarray):
+                bin_pred = bin_pred[np.newaxis]
+            else:
+                bin_pred = bin_pred.unsqueeze(0)
+
         # first fun step: let's reshape to original size
         # before going to hard labels
         if orig_shape is not None:
             if np.any(orig_shape != inpt_shape):
                 orig_shape = np.array(orig_shape)
-                if is_np:
-                    volume = np.stack([resize(volume[c], orig_shape, 3)
-                                       for c in range(volume.shape[0])])
-                else:
+                if torch.cuda.is_available():
+                    if is_np:
+                        volume = torch.from_numpy(volume).to(self.dev).type(torch.float)
+                    if isinstance(bin_pred, np.ndarray):
+                        bin_pred = torch.from_numpy(bin_pred).to(self.dev).type(torch.float)
                     size = [int(s) for s in orig_shape]
                     volume = interpolate(volume.unsqueeze(0),
                                          size=size,
                                          mode='trilinear')[0]
+                    bin_pred = interpolate(bin_pred.unsqueeze(0),
+                                           size=size,
+                                           mode='nearest')[0, 0]
+                else:
+                    if not is_np:
+                        volume = volume.cpu().numpy()
+                    if torch.is_tensor(bin_pred):
+                        bin_pred = bin_pred.cpu().numpy()
+                    volume = np.stack([resize(volume[c], orig_shape, 1)
+                                       for c in range(volume.shape[0])])
+                    bin_pred = np.stack([resize(bin_pred[c], orig_shape, 0)
+                                       for c in range(bin_pred.shape[0])])
 
-        # now change from soft to hard labels
-        if is_np:
-            volume = np.argmax(volume, 0)
-        else:
-            volume = torch.argmax(volume, 0).cpu().detach().numpy()
+        if torch.is_tensor(volume):
+            volume = volume.cpu().numpy()
+        if torch.is_tensor(bin_pred):
+            bin_pred = bin_pred.cpu().numpy()
+
+        # now change from soft to hard labels and multiply by the binary prediction
+        volume = np.argmax(volume, 0) * bin_pred[0]
 
         if self.apply_small_component_removing:
             # this can only be done on the CPU

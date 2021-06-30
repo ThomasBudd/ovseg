@@ -177,9 +177,11 @@ class TrainingBase():
                 attribute_dict = pickle.load(pickle_file)
 
             for key in self.checkpoint_attributes:
-
-                item = attribute_dict[key]
-                self.__setattr__(key, item)
+                try:
+                    item = attribute_dict[key]
+                    self.__setattr__(key, item)
+                except KeyError:
+                    print('key {} was not found in loaded checkpoint. Skipping!'.format(key))
             return True
         else:
             return False

@@ -354,6 +354,8 @@ class ClassEnsemblePreprocessing(object):
                 if self.apply_pooling:
                     spacing = np.array(spacing) * np.array(self.pooling_stride)
                 fingerprint_keys = [key for key in data_tpl if key not in ['image', 'label']]
+                fingerprint_keys = [key for key in fingerprint_keys
+                                    if not key.startswith('prediction')]
                 fingerprint = {key: data_tpl[key] for key in fingerprint_keys}
                 fingerprint['orig_shape'] = orig_shape
                 fingerprint['orig_spacing'] = orig_spacing

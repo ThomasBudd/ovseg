@@ -11,11 +11,14 @@ from ovseg.networks.iUNet import iUNet
 from ovseg.networks.resUNet import UNetResEncoder, UNetResDecoder
 from ovseg.networks.refine_res_networks import RefineResNet
 from ovseg.training.SegmentationTraining import SegmentationTraining
+from ovseg.training.ClassEnsemblingTraining import ClassEnsemblingTraining
 from ovseg.model.ModelBase import ModelBase
 from ovseg.utils.torch_np_utils import check_type
 from ovseg.postprocessing.SegmentationPostprocessing import SegmentationPostprocessing
+from ovseg.postprocessing.ClassEnsemblingPostprocessing import ClassEnsemblingPostprocessing
 from ovseg.utils.io import save_nii_from_data_tpl, load_pkl, read_nii
 from ovseg.data.Dataset import raw_Dataset
+from ovseg.utils.dict_equal import dict_equal, print_dict_diff
 from skimage.measure import label
 import torch
 import numpy as np
@@ -618,7 +621,84 @@ class SegmentationModel(ModelBase):
 
 class ClassEnsemblingModel(SegmentationModel):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.prev_stages_keys = []
+        for prev_stage in self.model_parameters['prev_stages']:
+            key = '_'.join(['prediction',
+                            prev_stage['data_name'],
+                            prev_stage['preprocessed_name'],
+                            prev_stage['model_name']])
+            self.prev_stages_keys.append(key)
+
     def _create_preprocessing_object(self):
-        prev_stages = self.model_parameters['prev_stages']
         kwargs = self.model_parameters['preprocessing']
-        self.preprocessing = ClassEnsemblePreprocessing(prev_stages, **kwargs)
+        self.preprocessing = ClassEnsemblePreprocessing(**kwargs)
+
+    def initialise_training(self):
+        if 'training' not in self.model_parameters:
+            raise AttributeError('model_parameters must have key '
+                                 '\'training\'. These must contain the '
+                                 'dict of training paramters.')
+        params = self.model_parameters['training'].copy()
+        self.training = ClassEnsemblingTraining(network=self.network,
+                                                trn_dl=self.data.trn_dl,
+                                                val_dl=self.data.val_dl,
+                                                model_path=self.model_path,
+                                                network_name=self.network_name,
+                                                augmentation=self.augmentation.torch_augmentation,
+                                                **params)
+
+    def initialise_postprocessing(self):
+        try:
+            params = self.model_parameters['postprocessing'].copy()
+        except KeyError:
+            # print('No parameter for postprocessing were given. Take default: argmax without '
+            #       'removing of small connected components.')
+            params = {}
+        self.postprocessing = ClassEnsemblingPostprocessing(**params)
+
+
+    def __call__(self, data_tpl, image_key='image', do_postprocessing=True):
+        '''
+        There are a lot of differnt ways to do prediction. Some do require direct preprocessing
+        some don't need the postprocessing imidiately (e.g. when ensembling)
+        Same holds for the resizing to original shape. In the validation case we wan't to apply
+        some postprocessing (argmax and removing of small lesions) but not the resizing.
+        '''
+        self.network = self.network.eval()
+
+        # first get the image and bring it to the right device
+        im = data_tpl[image_key]
+        is_np,  _ = check_type(im)
+        if len(im.shape) == 3:
+            im = im[np.newaxis] if is_np else im.unsqueeze(0)
+        if is_np:
+            im = torch.from_numpy(im).to(self.dev)
+        else:
+            im = im.to(self.dev)    
+
+        # the preprocessing will only do something if the image is not preprocessed yet
+        if not self.preprocessing.is_preprocessed_data_tpl(data_tpl):
+            # the image already contains the binary prediction as additional channel
+            im = self.preprocessing(data_tpl, preprocess_only_im=True)
+            bin_pred = im[-1:]
+        else:
+            # if the data tpl is preprocessed we need to build the binary prediction here
+            bin_pred = data_tpl['bin_pred']
+            if isinstance(bin_pred, np.ndarray):
+                bin_pred = torch.from_numpy(bin_pred).to(self.dev).type(torch.float)
+            if len(bin_pred.shape) == 3:
+                bin_pred = bin_pred.unsqueeze(0)
+            im = torch.cat([im, bin_pred], 0)
+
+        # now the importat part: the sliding window evaluation (or derivatives of it)
+        pred = self.prediction(im)
+        data_tpl[self.pred_key] = pred
+
+        # inside the postprocessing the result will be attached to the data_tpl
+        if do_postprocessing:
+            self.postprocessing.postprocess_data_tpl(data_tpl, self.pred_key, bin_pred)
+
+        return data_tpl[self.pred_key]

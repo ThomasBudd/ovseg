@@ -197,7 +197,7 @@ class SegmentationBatchDataset(object):
         if self.is_cascade:
             if len(pred_fps.shape) == 3:
                 pred_fps = pred_fps[np.newaxis]
-
+        
         if self.is_cascade:
             return im, pred_fps, seg
         else:
