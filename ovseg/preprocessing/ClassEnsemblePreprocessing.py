@@ -51,7 +51,7 @@ class ClassEnsemblePreprocessing(object):
                  lb_min_vol=None,
                  n_im_channels: int = 1,
                  do_nn_img_interp=False,
-                 save_only_fg_scans=True,
+                 save_only_fg_scans=False,
                  dataset_properties={}):
 
         # first the parameters that determine the preprocessing operations

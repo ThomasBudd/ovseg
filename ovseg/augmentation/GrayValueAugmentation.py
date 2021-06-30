@@ -303,10 +303,10 @@ class torch_gray_value_augmentation(torch.nn.Module):
         gkernel = gkernel/gkernel.sum()
         if len(img.shape) == 4:
             # 2d case
-            gkernel = gkernel.view(1, 1, 11, 11).to(img.device)
+            gkernel = gkernel.view(1, 1, 11, 11).to(img.device).type(img.dtype)
             return torch.nn.functional.conv2d(img, gkernel, padding=5)
         else:
-            gkernel = gkernel.view(1, 1, 1, 11, 11).to(img.device)
+            gkernel = gkernel.view(1, 1, 1, 11, 11).to(img.device).type(img.dtype)
             return torch.nn.functional.conv3d(img, gkernel, padding=(0, 5, 5))
 
     def _brightness(self, img):
