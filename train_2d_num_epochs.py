@@ -10,7 +10,7 @@ parser.add_argument("num_epochs", type=int)
 parser.add_argument("--small", default=False, action='store_true')
 args = parser.parse_args()
 
-fp32 = True
+fp32 = False
 if args.small:
     model_name = '2d_UNet_small_{}'.format(args.num_epochs)
 else:
@@ -33,7 +33,7 @@ model = SegmentationModel(val_fold=args.fold,
                           preprocessed_name=preprocessed_name,
                           model_name=model_name,
                           model_parameters=model_params)
-model.save_model_paramteres()
+model.save_model_parameters()
 model.training.train()
 model.eval_validation_set()
 # we evaluate BARTS twice, once only with each model form each fold....
