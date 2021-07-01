@@ -12,7 +12,7 @@ args = parser.parse_args()
 
 fp32 = False
 if args.small:
-    model_name = '2d_UNet_small_{}'.format(args.num_epochs)
+    model_name = '2d_UNet_small_{}_v2'.format(args.num_epochs)
 else:
     model_name = '2d_UNet_large_{}'.format(args.num_epochs)
     
@@ -22,8 +22,6 @@ model_params['training']['num_epochs'] = args.num_epochs
 
 if args.small:
     model_params['network']['filters'] = 8
-    model_params['data']['trn_dl_params']['batch_size'] = 4
-    model_params['data']['val_dl_params']['batch_size'] = 4
 
 preprocessed_name = 'pod_2d'
 

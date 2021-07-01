@@ -4,7 +4,7 @@ def get_model_params_2d_restauration(image_folder='images_restauration',
                                      fbp_folder='fbps',
                                      fp32=False):
     model_parameters = {}
-    trn_dl_params = {'batch_size': 4,
+    trn_dl_params = {'batch_size': 12,
                      'epoch_len': 250,
                      'image_key': 'image',
                      'fbp_key': 'fbp',
