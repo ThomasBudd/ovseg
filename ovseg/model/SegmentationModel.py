@@ -624,8 +624,9 @@ class ClassEnsemblingModel(SegmentationModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.prev_stages = self.model_parameters['prev_stages'] 
         self.prev_stages_keys = []
-        for prev_stage in self.model_parameters['prev_stages']:
+        for prev_stage in self.prev_stages:
             key = '_'.join(['prediction',
                             prev_stage['data_name'],
                             prev_stage['preprocessed_name'],
