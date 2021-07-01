@@ -16,7 +16,7 @@ model_params['training']['compute_val_psnr_everk_k_epochs'] = 100
 model_params['data']['folders'] = ['images_restauration', fbp_folder]
 model = RestaurationModel(val_fold=0,
                           data_name='OV04',
-                          model_name='restauration_debug',
+                          model_name='restauration_'+fbp_folder,
                           model_parameters=model_params,
                           preprocessed_name='pod_2d')
 
