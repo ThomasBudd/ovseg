@@ -68,14 +68,14 @@ class SegmentationPostprocessing(object):
                 if torch.cuda.is_available():
                     with torch.no_grad():
                         if is_np:
-                            volume = torch.from_numpy(volume).to(self.dev).type(torch.float)
+                            volume = torch.from_numpy(volume).to('cuda').type(torch.float)
                         size = [int(s) for s in orig_shape]
                         volume = interpolate(volume.unsqueeze(0),
                                              size=size,
                                              mode='trilinear')[0]
                         if self.mask_with_bin_pred:
                             if isinstance(bin_pred, np.ndarray):
-                                bin_pred = torch.from_numpy(bin_pred).to(self.dev).type(torch.float)
+                                bin_pred = torch.from_numpy(bin_pred).to('cuda').type(torch.float)
                             bin_pred = interpolate(bin_pred.unsqueeze(0),
                                                    size=size,
                                                    mode='nearest')[0, 0]
