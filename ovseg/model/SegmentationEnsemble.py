@@ -125,7 +125,7 @@ class SegmentationEnsemble(ModelBase):
             im = self.preprocessing(data_tpl, preprocess_only_im=True)
 
         # now the importat part: the actual enembling of sliding window evaluations
-        preds = []
+        ens_pred = 0
         # also the path where we will look for already executed npz prediction
         pred_npz_path = join(environ['OV_DATA_BASE'], 'npz_predictions', self.data_name,
                              self.preprocessed_name, self.model_name)
@@ -137,8 +137,8 @@ class SegmentationEnsemble(ModelBase):
                     pred = torch.from_numpy(np.load(path_to_npz)['arr_0']).to(self.dev)
                 else:
                     pred = model.prediction(im)
-                preds.append(pred)
-            ens_pred = torch.stack(preds).mean(0)
+                ens_pred = ens_pred + pred.cpu().numpy()
+            ens_pred /= len(self.models)
             data_tpl[self.pred_key] = ens_pred
 
         # inside the postprocessing the result will be attached to the data_tpl
