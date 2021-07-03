@@ -129,20 +129,22 @@ class SegmentationEnsemble(ModelBase):
         # also the path where we will look for already executed npz prediction
         pred_npz_path = join(environ['OV_DATA_BASE'], 'npz_predictions', self.data_name,
                              self.preprocessed_name, self.model_name)
-        for model in self.models:
-            # try find the npz file if there was already a prediction.
-            path_to_npz = join(pred_npz_path, model.val_fold_str, scan+'.npz')
-            if exists(path_to_npz):
-                pred = torch.from_numpy(np.load(path_to_npz)['arr_0']).to(self.dev)
-            else:
-                pred = model.prediction(im)
-            preds.append(pred)
-        ens_pred = torch.stack(preds).mean(0)
-        data_tpl[self.pred_key] = ens_pred
+        with torch.no_grad():
+            for model in self.models:
+                # try find the npz file if there was already a prediction.
+                path_to_npz = join(pred_npz_path, model.val_fold_str, scan+'.npz')
+                if exists(path_to_npz):
+                    pred = torch.from_numpy(np.load(path_to_npz)['arr_0']).to(self.dev)
+                else:
+                    pred = model.prediction(im)
+                preds.append(pred)
+            ens_pred = torch.stack(preds).mean(0)
+            data_tpl[self.pred_key] = ens_pred
 
         # inside the postprocessing the result will be attached to the data_tpl
         self.postprocessing.postprocess_data_tpl(data_tpl, self.pred_key)
 
+        torch.cuda.empty_cache()
         return data_tpl[self.pred_key]
 
     def save_prediction(self, data_tpl, folder_name, filename=None):
