@@ -9,9 +9,11 @@ from torch.nn.functional import interpolate
 class SegmentationPostprocessing(object):
 
     def __init__(self, apply_small_component_removing=False,
-                 volume_thresholds=None):
+                 volume_thresholds=None,
+                 mask_with_bin_pred=False):
         self.apply_small_component_removing = apply_small_component_removing
         self.volume_thresholds = volume_thresholds
+        self.mask_with_bin_pred=mask_with_bin_pred
 
         if self.apply_small_component_removing and \
                 self.volume_thresholds is None:
@@ -19,7 +21,7 @@ class SegmentationPostprocessing(object):
         if not isinstance(self.volume_thresholds, (list, tuple, np.ndarray)):
             self.volume_thresholds = [self.volume_thresholds]
 
-    def postprocess_volume(self, volume, spacing=None, orig_shape=None):
+    def postprocess_volume(self, volume, bin_pred=None, spacing=None, orig_shape=None):
         '''
         postprocess_volume(volume, orig_shape=None)
 
@@ -48,26 +50,58 @@ class SegmentationPostprocessing(object):
         if len(inpt_shape) != 4:
             raise ValueError('Expected 4d volume of shape '
                              '[n_channels, nx, ny, nz].')
+        if self.mask_with_bin_pred:
+            if bin_pred is None:
+                raise ValueError('Trying to multiply the prediction with the bin_pred of the '
+                                 'previous stages, but no such array was given.')
 
+            if len(bin_pred.shape) == 3:
+                if isinstance(bin_pred, np.ndarray):
+                    bin_pred = bin_pred[np.newaxis]
+                else:
+                    bin_pred = bin_pred.unsqueeze(0)
         # first fun step: let's reshape to original size
         # before going to hard labels
         if orig_shape is not None:
             if np.any(orig_shape != inpt_shape):
                 orig_shape = np.array(orig_shape)
-                if is_np:
-                    volume = np.stack([resize(volume[c], orig_shape, 3)
-                                       for c in range(volume.shape[0])])
-                else:
+                if torch.cuda.is_available():
+                    if is_np:
+                        volume = torch.from_numpy(volume).to(self.dev).type(torch.float)
                     size = [int(s) for s in orig_shape]
                     volume = interpolate(volume.unsqueeze(0),
                                          size=size,
                                          mode='trilinear')[0]
+                    if self.mask_with_bin_pred:
+                        if isinstance(bin_pred, np.ndarray):
+                            bin_pred = torch.from_numpy(bin_pred).to(self.dev).type(torch.float)
+                        bin_pred = interpolate(bin_pred.unsqueeze(0),
+                                               size=size,
+                                               mode='nearest')[0, 0]
+                else:
+                    if not is_np:
+                        volume = volume.cpu().numpy()
+                    volume = np.stack([resize(volume[c], orig_shape, 1)
+                                       for c in range(volume.shape[0])])
+                    if self.mask_with_bin_pred:
+                        if torch.is_tensor(bin_pred):
+                            bin_pred = bin_pred.cpu().numpy()
+                        bin_pred = np.stack([resize(bin_pred[c], orig_shape, 0)
+                                           for c in range(bin_pred.shape[0])])
 
-        # now change from soft to hard labels
-        if is_np:
-            volume = np.argmax(volume, 0)
-        else:
-            volume = torch.argmax(volume, 0).cpu().detach().numpy()
+        # now change from soft to hard labels 
+        if torch.is_tensor(volume):
+            volume = volume.cpu().numpy()
+        if self.mask_with_bin_pred:
+            if torch.is_tensor(bin_pred):
+                bin_pred = bin_pred.cpu().numpy()
+
+        # now change from soft to hard labels and multiply by the binary prediction
+        volume = np.argmax(volume, 0)
+        if self.mask_with_bin_pred:
+            # now we're finally doing what we're asking the whole time about!
+            volume *= bin_pred[0]
+
 
         if self.apply_small_component_removing:
             # this can only be done on the CPU
@@ -75,7 +109,7 @@ class SegmentationPostprocessing(object):
 
         return volume.astype(np.uint8)
 
-    def postprocess_data_tpl(self, data_tpl, prediction_key):
+    def postprocess_data_tpl(self, data_tpl, prediction_key, bin_pred=None):
 
         pred = data_tpl[prediction_key]
 
@@ -83,17 +117,20 @@ class SegmentationPostprocessing(object):
             # the data_tpl has preprocessed data.
             # predictions in both preprocessed and original shape will be added
             data_tpl[prediction_key] = self.postprocess_volume(pred,
+                                                               bin_pred=bin_pred,
                                                                spacing=data_tpl['spacing'],
                                                                orig_shape=None)
             spacing = data_tpl['orig_spacing'] if 'orig_spacing' in data_tpl else None
             shape = data_tpl['orig_shape']
             data_tpl[prediction_key+'_orig_shape'] = self.postprocess_volume(pred,
+                                                                             bin_pred=bin_pred,
                                                                              spacing=spacing,
                                                                              orig_shape=shape)
         else:
             # in this case the data is not preprocessed
             orig_shape = data_tpl['image'].shape
             data_tpl[prediction_key] = self.postprocess_volume(pred,
+                                                               bin_pred=bin_pred,
                                                                spacing=data_tpl['spacing'],
                                                                orig_shape=orig_shape)
         return data_tpl

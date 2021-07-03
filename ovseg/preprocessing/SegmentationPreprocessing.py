@@ -51,9 +51,7 @@ class SegmentationPreprocessing(object):
                  n_im_channels: int = 1,
                  do_nn_img_interp=False,
                  save_only_fg_scans=True,
-                 prev_stages_inpt=None,
-                 prev_stages_mask=None,
-                 prev_stages_cropping=None,
+                 prev_stages=[],
                  dataset_properties={}):
 
         # first the parameters that determine the preprocessing operations
@@ -69,6 +67,7 @@ class SegmentationPreprocessing(object):
         self.lb_min_vol = lb_min_vol
         self.n_im_channels = n_im_channels
         self.do_nn_img_interp = do_nn_img_interp
+        self.prev_stages = prev_stages
         # this is only important for preprocessing of raw data
         self.save_only_fg_scans = save_only_fg_scans
         self.dataset_properties = dataset_properties
@@ -87,7 +86,27 @@ class SegmentationPreprocessing(object):
                                          'n_im_channels',
                                          'do_nn_img_interp',
                                          'save_only_fg_scans',
+                                         'prev_stages',
                                          'dataset_properties']
+        if isinstance(self.prev_stages, dict):
+            self.prev_stages = [self.prev_stages]
+
+        assert isinstance(self.prev_stages, list), 'prev_stages must be given as a list or dict'
+
+        if self.is_cascade():
+            # creating all the keys for the predictions from the previous stage.
+            # we do this here as a double check that when a new data_tpl comes in we will see
+            # if all the predictions are here
+            self.keys_for_previous_stages = []
+            for prev_stage in self.prev_stages:
+                for key in ['data_name', 'preprocessed_name', 'model_name']:
+                    assert key in prev_stage
+                key = '_'.join(['prediction',
+                                prev_stage['data_name'],
+                                prev_stage['preprocessed_name'],
+                                prev_stage['model_name']])
+    
+                self.keys_for_previous_stages.append(key)
 
         self.is_initalised = False
 
@@ -99,6 +118,9 @@ class SegmentationPreprocessing(object):
                   'Either load these with \'try_load_preprocessing_parameters\', '
                   'or infere them from raw data with \'plan_preprocessing_from_raw_data\'.'
                   'If you modify these parameters call \'initialise_preprocessing\'.')
+
+    def is_cascade(self):
+        return len(self.prev_stages) > 0
 
     def check_parameters(self):
 
@@ -121,8 +143,11 @@ class SegmentationPreprocessing(object):
         if not self.check_parameters():
             return
 
+        exclude_keys = ['lb_classes', 'reduce_lb_to_single_class', 'lb_min_vol', 
+                        'save_only_fg_scans', 'prev_stages', 'dataset_properties']
+
         inpt_dict_3d = {key: self.__getattribute__(key) for key in
-                        self.preprocessing_parameters[:-2]}
+                        self.preprocessing_parameters if key not in exclude_keys}
         inpt_dict_2d = inpt_dict_3d.copy()
         if self.apply_resizing:
             inpt_dict_2d['target_spacing'] = self.target_spacing[1:]
@@ -198,23 +223,33 @@ class SegmentationPreprocessing(object):
         spacing = data_tpl['spacing'] if 'spacing' in data_tpl else None
         if 'image' not in data_tpl:
             raise ValueError('No \'image\' found in data_tpl')
-        xb = data_tpl['image']
+        xb = data_tpl['image'].astype(float)
 
         assert len(xb.shape) in [3, 4], 'image must be 3d or 4d'
         if len(xb.shape) == 3:
             xb = xb[np.newaxis]
 
-        if 'pred_fps' in data_tpl:
-            pred_fps = data_tpl['pred_fps']
-            if len(pred_fps.shape) == 3:
-                pred_fps = pred_fps[np.newaxis]
-            xb = np.concatenate([xb, pred_fps])
+        if self.is_cascade():
+            prev_preds = []
+            for key in self.keys_for_previous_stages:
+                assert key in data_tpl, 'prediction '+key+' from previous stage missing'
+                pred = data_tpl[key]
+                if torch.is_tensor(pred):
+                    pred = pred.cpu().numpy()
+                if len(pred.shape) == 3:
+                    pred = pred[np.newaxis]
+                prev_preds.append(pred)
+    
+            bin_pred = (np.sum(prev_preds, 0) > 0).astype(float)
+
+            xb = np.concatenate([xb, bin_pred])
 
         if 'label' in data_tpl and not preprocess_only_im:
-            lb = data_tpl['label']
+            # get the label from the data_tpl and clean if applicable
+            lb = self.maybe_clean_label_from_data_tpl(data_tpl)
 
             assert len(lb.shape) == 3, 'label must be 3d'
-            lb = lb[np.newaxis]
+            lb = lb[np.newaxis].astype(float)
             xb = np.concatenate([xb, lb])
 
         xb = xb[np.newaxis]
@@ -241,7 +276,7 @@ class SegmentationPreprocessing(object):
 
     def preprocess_raw_data(self,
                             raw_data,
-                            preprocessed_name='default',
+                            preprocessed_name,
                             data_name=None,
                             save_as_fp16=True,
                             image_folder=None,
@@ -269,7 +304,10 @@ class SegmentationPreprocessing(object):
         plot_folder = join(environ['OV_DATA_BASE'], 'plots', data_name, preprocessed_name)
         print(outfolder, plot_folder)
         # now let's create the output folders
-        for f in ['images', 'labels', 'fingerprints']:
+        folders = ['images', 'labels', 'fingerprints']
+        if self.is_cascade():
+            folders.append('bin_preds')
+        for f in folders:
             maybe_create_path(join(outfolder, f))
         maybe_create_path(plot_folder)
 
@@ -283,7 +321,8 @@ class SegmentationPreprocessing(object):
             raw_ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', raw_name),
                                  image_folder=image_folder,
                                  dcm_revers=dcm_revers,
-                                 dcm_names_dict=dcm_names_dict)
+                                 dcm_names_dict=dcm_names_dict,
+                                 prev_stages=self.prev_stages if self.is_cascade() else None)
             print()
             sleep(1)
             for i in tqdm(range(len(raw_ds))):
@@ -297,14 +336,21 @@ class SegmentationPreprocessing(object):
                 if 'label' not in data_tpl:
                     data_tpl['label'] = np.zeros(orig_shape)
                 xb = self.__call__(data_tpl, return_np=True)
-                im = xb[:self.n_im_channels].astype(im_dtype)
-                lb = xb[self.n_im_channels:].astype(np.uint8)
+                ch = self.n_im_channels
+                im = xb[:ch].astype(im_dtype)
+                lb = xb[-1].astype(np.uint8)
+                if self.is_cascade():
+                    bin_pred = xb[ch].astype(np.uint8)
+
                 if lb.max() == 0 and self.save_only_fg_scans:
                     continue
+
                 spacing = self.target_spacing if self.apply_resizing else spacing
                 if self.apply_pooling:
                     spacing = np.array(spacing) * np.array(self.pooling_stride)
                 fingerprint_keys = [key for key in data_tpl if key not in ['image', 'label']]
+                fingerprint_keys = [key for key in fingerprint_keys
+                                    if not key.startswith('prediction')]
                 fingerprint = {key: data_tpl[key] for key in fingerprint_keys}
                 fingerprint['orig_shape'] = orig_shape
                 fingerprint['orig_spacing'] = orig_spacing
@@ -315,13 +361,13 @@ class SegmentationPreprocessing(object):
                 if 'pat_id' not in fingerprint:
                     fingerprint['pat_id'] = scan
                 # first save the image related stuff
-                for arr, folder in [[np.squeeze(im, 0), 'images'],
-                                    [np.squeeze(lb, 0), 'labels'],
-                                    [fingerprint, 'fingerprints']]:
-                    np.save(join(outfolder, folder, scan), arr)
+                np.save(join(outfolder, 'images', scan), np.squeeze(im, 0))
+                np.save(join(outfolder, 'labels', scan), lb)
+                np.save(join(outfolder, 'fingerprints'), fingerprint)
+                if self.is_cascade():
+                    np.save(join(outfolder, 'bin_preds', scan), bin_pred)
 
                 # additionally do some plots
-                lb = np.sum(lb, 0) > 0
                 im = im.astype(float)
 
                 contains = np.where(np.sum(lb, (1, 2)))[0]
@@ -330,7 +376,7 @@ class SegmentationPreprocessing(object):
                 if len(contains) > 0:
                     z_list.extend(np.random.choice(contains, size=1))
                 else:
-                    z_list.extend(np.random.randint(lb.shape[0], size=1))
+                    z_list.extend(np.random.randint(lb.shape, size=1))
                 n_ch = im.shape[0]
                 for z, s in zip(z_list, s_list):
                     fig = plt.figure()
@@ -342,6 +388,11 @@ class SegmentationPreprocessing(object):
                             # interrupt the beautiful beautiful tqdm bar
                             plt.contour(lb[z] > 0, linewidths=0.5, colors='red',
                                         linestyles='dashed')
+                        if self.is_cascade():
+                            if bin_pred[z].max() > 0:
+                                plt.contour(bin_pred[z] > 0, linewidths=0.5, colors='blue',
+                                            linestyles='dashed')
+                            
                         plt.axis('off')
                     plt.savefig(join(plot_folder, scan + s + '.png'))
                     plt.close(fig)
@@ -508,9 +559,6 @@ class torch_preprocessing(torch.nn.Module):
                  pooling_stride=None,
                  window=None,
                  scaling=[1, 0],
-                 lb_classes=None,
-                 reduce_lb_to_single_class=False,
-                 lb_min_vol=None,
                  n_im_channels: int = 1,
                  do_nn_img_interp=False,
                  is_2d=False):
@@ -519,9 +567,7 @@ class torch_preprocessing(torch.nn.Module):
         self.apply_pooling = apply_pooling
         self.apply_windowing = apply_windowing
         self.n_im_channels = n_im_channels
-        self.lb_classes = lb_classes
-        self.reduce_lb_to_single_class = reduce_lb_to_single_class
-        self.lb_min_vol = lb_min_vol
+
         self.dev = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.is_2d = is_2d
         self.do_nn_img_interp = do_nn_img_interp
@@ -571,22 +617,6 @@ class torch_preprocessing(torch.nn.Module):
         if has_lb:
             lbb = xb[:, self.n_im_channels:]
 
-            if self.lb_classes is not None and self.lb_min_vol is not None:
-                lbb = lbb.cpu().numpy()
-                lbb = reduce_classes(lbb, self.lb_classes, self.reduce_lb_to_single_class)
-                lbb = remove_small_connected_components_from_batch(lbb, self.lb_min_vol, spacing)
-                lbb = torch.from_numpy(lbb).to(self.dev)
-
-            elif self.lb_classes is not None:
-                lbb = lbb.cpu().numpy()
-                lbb = reduce_classes(lbb, self.lb_classes, self.reduce_lb_to_single_class)
-                lbb = torch.from_numpy(lbb).to(self.dev)
-
-            elif self.lb_min_vol is not None:
-                lbb = lbb.cpu().numpy()
-                lbb = remove_small_connected_components_from_batch(lbb, self.lb_min_vol, spacing)
-                lbb = torch.from_numpy(lbb).to(self.dev)
-
         # resizing
         if self.apply_resizing:
 
@@ -632,9 +662,6 @@ class np_preprocessing():
                  pooling_stride=None,
                  window=None,
                  scaling=[1, 0],
-                 lb_classes=None,
-                 reduce_lb_to_single_class=False,
-                 lb_min_vol=None,
                  n_im_channels: int = 1,
                  do_nn_img_interp=False,
                  is_2d=False):
@@ -643,9 +670,7 @@ class np_preprocessing():
         self.apply_pooling = apply_pooling
         self.apply_windowing = apply_windowing
         self.n_im_channels = n_im_channels
-        self.lb_classes = lb_classes
-        self.reduce_lb_to_single_class = reduce_lb_to_single_class
-        self.lb_min_vol = lb_min_vol
+
         self.is_2d = is_2d
         self.do_nn_img_interp = do_nn_img_interp
         self.img_order = 0 if self.do_nn_img_interp else 1
@@ -672,19 +697,6 @@ class np_preprocessing():
         assert len(scaling) == 2, 'scaling must be of length 2 (std, mean)'
         self.scaling = scaling
 
-    def maybe_clean_label(self, lb, spacing=None):
-
-        if self.lb_classes is not None:
-            lb = reduce_classes(lb, self.lb_classes, self.reduce_lb_to_single_class)
-
-        if self.lb_min_vol is not None:
-            if len(lb.shape) > 3:
-                lb = remove_small_connected_components_from_batch(lb, self.lb_min_vol, spacing)
-            else:
-                lb = remove_small_connected_components(lb, self.lb_min_vol, spacing)
-
-        return lb
-
     def _rescale_batch(self, im, spacing, order=1):
 
         if spacing is None:
@@ -709,8 +721,6 @@ class np_preprocessing():
         has_lb = n_ch > self.n_im_channels
         if has_lb:
             lbb = xb[:, self.n_im_channels:]
-
-            lbb = self.maybe_clean_label(lbb, spacing)
 
         # resizing
         if self.apply_resizing:

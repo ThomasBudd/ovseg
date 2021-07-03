@@ -15,7 +15,7 @@ class SegmentationBatchDataset(object):
     def __init__(self, vol_ds, patch_size, batch_size, epoch_len=250, p_bias_sampling=0,
                  min_biased_samples=1, augmentation=None, padded_patch_size=None,
                  n_im_channels: int = 1, store_coords_in_ram=True, memmap='r', image_key='image',
-                 label_key='label', pred_fps_key=None, n_fg_classes=None,
+                 label_key='label', pred_fps_key=None, n_pred_classes=None,
                  store_data_in_ram=False, return_fp16=True, n_max_volumes=None, bias='fg'):
         self.vol_ds = vol_ds
         self.patch_size = np.array(patch_size)
@@ -29,7 +29,7 @@ class SegmentationBatchDataset(object):
         self.image_key = image_key
         self.label_key = label_key
         self.pred_fps_key = pred_fps_key
-        self.n_fg_classes = n_fg_classes
+        self.n_pred_classes = n_pred_classes
         self.store_data_in_ram = store_data_in_ram
         self.n_im_channels = n_im_channels
         self.return_fp16 = return_fp16
@@ -54,7 +54,7 @@ class SegmentationBatchDataset(object):
         # now some cascade stuff
         self.is_cascade = self.pred_fps_key is not None
         if self.is_cascade:
-            assert isinstance(self.n_fg_classes, int), 'n_fg_classes must be an integer'
+            assert isinstance(self.n_pred_classes, int), 'n_pred_classes must be an integer'
         self._maybe_store_data_in_ram()
 
     def _get_bias_coords(self, seg, pred_fps=None):
@@ -63,7 +63,7 @@ class SegmentationBatchDataset(object):
             return np.stack(np.where(seg > 0)).astype(np.int16)
         elif self.bias == 'mv':
             mv = 0
-            for c in range(self.n_fg_classes):
+            for c in range(self.n_pred_classes):
                 seg_c = (seg == c).astype(float)
                 pred_c = (pred_fps == c).astype(float)
                 mv += seg_c * (1 - pred_c)
@@ -267,11 +267,11 @@ class SegmentationBatchDataset(object):
             # after augmentation we need to extend the prediction from the previous stage
             # from integer representation to one hot encoding where we can leave away the 
             # background
-            if self.n_fg_classes > 1:
+            if self.n_pred_classes > 1:
                 im = volume[:self.n_im_channels]
                 pred_fps = volume[self.n_im_channels:-1]
                 seg = volume[-1:]
-                pred_fps = np.concatenate([pred_fps == c] for c in range(1, self.n_fg_classes+1))
+                pred_fps = np.concatenate([pred_fps == c] for c in range(1, self.n_pred_classes+1))
                 pred_fps = pred_fps.astype(im.dtype)
                 volume = np.concatenate([im, pred_fps, seg])
 
@@ -288,7 +288,7 @@ def SegmentationDataloader(vol_ds, patch_size, batch_size, num_workers=None,
                            min_biased_samples=1, augmentation=None, padded_patch_size=None,
                            store_coords_in_ram=True, memmap='r', n_im_channels: int = 1,
                            image_key='image',
-                           label_key='label', pred_fps_key=None, n_fg_classes=None,
+                           label_key='label', pred_fps_key=None, n_pred_classes=None,
                            store_data_in_ram=False,
                            return_fp16=True,
                            n_max_volumes=None,
@@ -302,7 +302,7 @@ def SegmentationDataloader(vol_ds, patch_size, batch_size, num_workers=None,
                                        store_coords_in_ram=store_coords_in_ram,
                                        memmap=memmap, image_key=image_key,
                                        label_key=label_key, pred_fps_key=pred_fps_key,
-                                       n_fg_classes=n_fg_classes,
+                                       n_pred_classes=n_pred_classes,
                                        store_data_in_ram=store_data_in_ram,
                                        return_fp16=return_fp16, n_max_volumes=n_max_volumes,
                                        bias=bias)

@@ -52,18 +52,19 @@ class SegmentationModel(ModelBase):
         self.initialise_prediction()
         self.plot_n_random_slices = plot_n_random_slices
 
-        # # cascade stuff!
-        # self.is_cascade = 'prev_stage' in self.model_parameters
-        # if self.is_cascade:
-        #     if 'data_name' not in self.model_parameters['prev_stage']:
-        #         self.model_parameters['prev_stages']['data_name'] = self.data_name
-        #         if self.parameters_match_saved_ones:
-        #             self.save_model_parameters()
-        #     self.prev_stages = self.model_parameters['prev_stages']
+        if self.is_cascade():
+            self.prev_stages = self.model_parameters['prev_stages'] 
+            self.prev_stages_keys = []
+            for prev_stage in self.prev_stages:
+                key = '_'.join(['prediction',
+                                prev_stage['data_name'],
+                                prev_stage['preprocessed_name'],
+                                prev_stage['model_name']])
+                self.prev_stages_keys.append(key)
 
-    def _create_preprocessing_object(self):
-        params = self.model_parameters['preprocessing'].copy()
-        self.preprocessing = SegmentationPreprocessing(**params)
+
+    def is_cascade(self):
+        return 'prev_stages' in self.model_parameters
 
     def initialise_preprocessing(self):
         if 'preprocessing' not in self.model_parameters:
@@ -87,7 +88,18 @@ class SegmentationModel(ModelBase):
                     print('Loaded preprocessing parameters without saving them to the model '
                           'parameters as current model parameters don\'t match saved ones.')
 
-        self._create_preprocessing_object()
+        params = self.model_parameters['preprocessing'].copy()
+        if self.is_cascade():
+            # Let's compare if the prev stages in the model and preprocessing paramters match
+            # OK this is ugly, but dict_equal can not compare lists...
+            d1 = {'prev_stages': self.model_parameters['prev_stages']}
+            d2 = {'prev_stages': params['prev_stages']}
+            if not dict_equal(d1, d2):
+                print_dict_diff(d1, d2, 'model_parameters', 'preprocessing_paramters')
+                raise ValueError('Found missmatch between prev stages given in the model paramters '
+                                 'and the preprocessing parameters!')
+
+        self.preprocessing = SegmentationPreprocessing(**params)
 
         # now for the computation of loss metrics we need the number of prevalent fg classes
         if self.preprocessing.reduce_lb_to_single_class:
@@ -108,26 +120,10 @@ class SegmentationModel(ModelBase):
                                  'classes in the preprocessed data and the number of network '
                                  'output channels.')
 
-        # # now we check if we perform a cascasde:
-        # if self.is_cascade():
-        #     # in this case we will create a second preprocessing module for the segmentations
-        #     # of the previous stage
-        #     params = self.model_parameters['preprocessing'].copy()
-        #     params_ps = {'apply_windowing': False,
-        #                  'scaling': [1, 0],
-        #                  'apply_resizing': params['apply_resizing'],
-        #                  'apply_pooling': params['apply_pooling'],
-        #                  'do_nn_img_interp': True}
-        #     if params_ps['apply_resizing']:
-        #         params_ps['target_spacing'] = params['target_spacing']
-        #     if params_ps['apply_pooling']:
-        #         params_ps['pooling_stride'] = params['pooling_stride']
-        #     self.preprocessing_for_pred_from_prev_stage = SegmentationPreprocessing(**params_ps)
-
     def initialise_augmentation(self):
 
-        # first initialise CPU augmentation
-        # this happens in the dataloader
+        # the augmentation object carries two subobjects, one with the preprocessing
+        # happning in numpy on the CPU and on in torch on the GPU
         if 'augmentation' in self.model_parameters:
             self.augmentation = SegmentationAugmentation(**self.model_parameters['augmentation'])
 
@@ -180,12 +176,16 @@ class SegmentationModel(ModelBase):
         try:
             params = self.model_parameters['postprocessing'].copy()
         except KeyError:
-            # print('No parameter for postprocessing were given. Take default: argmax without '
-            #       'removing of small connected components.')
             params = {}
+        # the SegmentationPostprocessing is relatively uninteresting, what happens here
+        # is the resizing to the original volume, applying argmax, maybe removing some small
+        # connected components
         self.postprocessing = SegmentationPostprocessing(**params)
 
     def initialise_data(self):
+        # the data object holds the preprocessed data (training and validation)
+        # for each it has both a dataset returning the data tuples and the dataloaders
+        # returning the batches
         if 'data' not in self.model_parameters:
             raise AttributeError('model_parameters must have key '
                                  '\'data\'. These must contain the '
@@ -193,13 +193,6 @@ class SegmentationModel(ModelBase):
 
         # Let's get the parameters and add the cpu augmentation
         params = self.model_parameters['data'].copy()
-
-        # add augmentation
-        # for key in ['trn_dl_params', 'val_dl_params']:
-        #     try:
-        #         params[key]['augmentation'] = data_aug
-        #     except KeyError:
-        #         continue
 
         # if we don't want to store our data in ram...
         if self.dont_store_data_in_ram:
@@ -213,6 +206,8 @@ class SegmentationModel(ModelBase):
         print('Data initialised')
 
     def initialise_training(self):
+        # the magic! The training takes in a lot of things we've already initialised and
+        # takes care of the training and making the logs
         if 'training' not in self.model_parameters:
             raise AttributeError('model_parameters must have key '
                                  '\'training\'. These must contain the '
@@ -226,64 +221,54 @@ class SegmentationModel(ModelBase):
                                              augmentation=self.augmentation.torch_augmentation,
                                              **params)
 
-    def is_cascade(self):
-        return 'previous_stage' in self.model_parameters
-
-
-    def __call__(self, data_tpl, image_key='image', pred_fps_key='pred_fps',
-                do_postprocessing=True):
+    def __call__(self, data_tpl, do_postprocessing=True):
         '''
+        This function just predict the segmentation for the given data tpl
         There are a lot of differnt ways to do prediction. Some do require direct preprocessing
         some don't need the postprocessing imidiately (e.g. when ensembling)
         Same holds for the resizing to original shape. In the validation case we wan't to apply
         some postprocessing (argmax and removing of small lesions) but not the resizing.
         '''
         self.network = self.network.eval()
-        im = data_tpl[image_key]
-        is_np,  _ = check_type(im)
-        is_cascade = pred_fps_key in data_tpl
-        if len(im.shape) == 3:
-            im = im[np.newaxis] if is_np else im.unsqueeze(0)
-        if is_np:
-            if is_cascade:
-                pred_fps = data_tpl[pred_fps_key]
-                if len(pred_fps.shape) == 3:
-                    if type(pred_fps) == np.ndarray:
-                        pred_fps = pred_fps[np.newaxis]
-                        im = np.concatenate([im, pred_fps])
-                        im = torch.from_numpy(im).to(self.dev)
-                    else:
-                        pred_fps = pred_fps.unsqueeze(0).to(self.dev)
-                        im = im.to(self.dev)
-                        im = torch.cat([im, pred_fps])
 
-        else:
-            im = im.to(self.dev)
-            if is_cascade:
-                pred_fps = data_tpl[pred_fps_key]
-                if type(pred_fps) == np.ndarray:
-                    pred_fps = torch.from_numpy(pred_fps).to(self.dev)
-                if len(pred_fps.shape) == 3:
-                    pred_fps = pred_fps.unsqueeze(0)
-                im = torch.cat([im, pred_fps])
-
+        # first let's get the image and maybe the bin_pred as well
         # the preprocessing will only do something if the image is not preprocessed yet
         if not self.preprocessing.is_preprocessed_data_tpl(data_tpl):
+            # the image already contains the binary prediction as additional channel
             im = self.preprocessing(data_tpl, preprocess_only_im=True)
-
-        # let's quickly get back to the prediction from the previous stage
-        if is_cascade and self.n_fg_classes > 1:
-            im, pred_fps = im[:1], im[1]
-            pred_fps = torch.stack([pred_fps == c for c in range(1, self.n_fg_classes + 1)])
-            im = torch.cat([im, pred_fps.type(im.dtype)])
-
+            if self.is_cascade():
+                bin_pred = im[-1:]
+            else:
+                bin_pred = None
+        else:
+            # the data_tpl is already preprocessed, let's just get the arrays
+            im = data_tpl['image']
+            is_np,  _ = check_type(im)
+            if len(im.shape) == 3:
+                im = im[np.newaxis] if is_np else im.unsqueeze(0)
+            if self.is_cascade():
+                # if the data tpl is preprocessed we need to build the binary prediction here
+                prev_preds = []
+                for key in self.keys_for_previous_stages:
+                    assert key in data_tpl, 'prediction '+key+' from previous stage missing'
+                    pred = data_tpl[key]
+                    if torch.is_tensor(pred):
+                        pred = pred.cpu().numpy()
+                    if len(pred.shape) == 3:
+                        pred = pred[np.newaxis]
+                    prev_preds.append(pred)
+        
+                bin_pred = (np.sum(prev_preds, 0) > 0).astype(float)
+                im = np.concatenate([im, bin_pred])
+            else:
+                bin_pred = None
         # now the importat part: the sliding window evaluation (or derivatives of it)
         pred = self.prediction(im)
         data_tpl[self.pred_key] = pred
 
         # inside the postprocessing the result will be attached to the data_tpl
         if do_postprocessing:
-            self.postprocessing.postprocess_data_tpl(data_tpl, self.pred_key)
+            self.postprocessing.postprocess_data_tpl(data_tpl, self.pred_key, bin_pred)
 
         return data_tpl[self.pred_key]
 
@@ -624,14 +609,6 @@ class ClassEnsemblingModel(SegmentationModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.prev_stages = self.model_parameters['prev_stages'] 
-        self.prev_stages_keys = []
-        for prev_stage in self.prev_stages:
-            key = '_'.join(['prediction',
-                            prev_stage['data_name'],
-                            prev_stage['preprocessed_name'],
-                            prev_stage['model_name']])
-            self.prev_stages_keys.append(key)
 
     def _create_preprocessing_object(self):
         kwargs = self.model_parameters['preprocessing']

@@ -7,13 +7,15 @@ class cross_entropy(nn.Module):
 
     def __init__(self):
         super().__init__()
-        self.loss = torch.nn.CrossEntropyLoss()
+        self.loss = torch.nn.CrossEntropyLoss(reduction='none')
 
-    def forward(self, logs, yb_oh):
+    def forward(self, logs, yb_oh, mask=None):
         assert logs.shape == yb_oh.shape
         yb_int = torch.argmax(yb_oh, 1)
-        return self.loss(logs, yb_int)
-
+        l = self.loss(logs, yb_int)
+        if mask is not None:
+            l = l * mask[:, 0]
+        return l.mean()
 
 class dice_loss(nn.Module):
 
@@ -21,15 +23,19 @@ class dice_loss(nn.Module):
         super().__init__()
         self.eps = eps
 
-    def forward(self, logs, yb_oh, bin_pred=1):
+    def forward(self, logs, yb_oh, mask=None):
         assert logs.shape == yb_oh.shape
         pred = torch.nn.functional.softmax(logs, 1)
         # dimension in which we compute the mean
         dim = list(range(2, len(pred.shape)))
         # remove the background channel from both as the dice will only
         # be computed over foreground classes
-        pred = pred[:, 1:] * bin_pred
+        pred = pred[:, 1:]
         yb_oh = yb_oh[:, 1:]
+        if mask is not None:
+            pred = pred * mask
+            # Is this second line neseccary? Probably not! But better be safe than sorry.
+            yb_oh = yb_oh * mask
         # now compute the metrics
         tp = torch.sum(yb_oh * pred, dim)
         fn = torch.sum(yb_oh * (1 - pred), dim)

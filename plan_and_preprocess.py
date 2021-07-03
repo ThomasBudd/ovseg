@@ -43,6 +43,9 @@ parser.add_argument("--lb_min_vol", required=False, default=None, nargs='+',
                     'foreground classes. Connected components with a volume of less then this/these'
                     ' constant(s) are being discraded as a part of the preprocessing. Choose '
                     'constants in the same unit as the images spacing, typically mm^3.')
+parser.add_argument('--prev_stages', required=False, default=[], nargs='+',
+                    help='Name the data_name, preprocessed_name and model_name of arbritraily '
+                    'many previous stages here to use them as an input for model cascades.')
 args = parser.parse_args()
 
 # input arguments
@@ -86,6 +89,19 @@ else:
 
 save_only_fg_scans = not args.save_scans_without_fg
 
+if len(args.prev_stages) % 3 != 0:
+    raise ValueError('The arguments given in previous stages must be divisible by three.'
+                     'The Input shold be likedata_name1, preprocessed_name1, model_name1, ...., '
+                     'data_namek, preprocessed_namek, model_namek')
+
+n_stages = len(args.prev_stages) // 3
+prev_stages = []
+for i in range(n_stages):
+    prev_stages.append({'data_name': args.prev_stages[3*i],
+                        'preprocessed_name': args.prev_stages[3*i+1],
+                        'model_name': args.prev_stages[3*i+2]})
+
+
 preprocessing = SegmentationPreprocessing(apply_resizing=apply_resizing,
                                           apply_pooling=apply_pooling,
                                           apply_windowing=apply_windowing,
@@ -96,6 +112,7 @@ preprocessing = SegmentationPreprocessing(apply_resizing=apply_resizing,
                                           lb_classes=lb_classes,
                                           reduce_lb_to_single_class=args.reduce_lb_to_single_class,
                                           lb_min_vol=lb_min_vol,
+                                          prev_stages=prev_stages,
                                           save_only_fg_scans=save_only_fg_scans)
 
 

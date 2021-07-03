@@ -259,10 +259,10 @@ def get_model_params_class_ensembling(prev_stages, patch_size, z_to_xy_ratio, n_
     model_params['data']['keys'] = ['image', 'label', 'bin_pred']
     model_params['data']['trn_dl_params']['pred_fps_key'] = 'bin_pred'
     # we set this to have only one foreground class here as the input is binary
-    model_params['data']['trn_dl_params']['n_fg_classes'] = 1
+    model_params['data']['trn_dl_params']['n_pred_classes'] = 1
     model_params['data']['val_dl_params']['pred_fps_key'] = 'bin_pred'
-    model_params['data']['val_dl_params']['n_fg_classes'] = 1
-    return model_params        
+    model_params['data']['val_dl_params']['n_pred_classes'] = 1
+    return model_params
 
 # %%
 def get_model_params_3d_cascade(prev_stage_preprocessed_name,
