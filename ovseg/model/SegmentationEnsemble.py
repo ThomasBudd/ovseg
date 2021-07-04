@@ -137,8 +137,8 @@ class SegmentationEnsemble(ModelBase):
                     pred = torch.from_numpy(np.load(path_to_npz)['arr_0']).to(self.dev)
                 else:
                     pred = model.prediction(im)
-                preds.append(pred)
-            ens_pred = torch.stack(preds).mean(0)
+                preds.append(pred.cpu().numpy())
+            ens_pred = np.stack(preds).mean(0)
             data_tpl[self.pred_key] = ens_pred
 
         # inside the postprocessing the result will be attached to the data_tpl
