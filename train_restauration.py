@@ -33,7 +33,7 @@ prep_folder = join(model.preprocessed_path, 'restaurations_'+fbp_folder[5:])
 if not exists(prep_folder):
     mkdir(prep_folder)
 
-for folder_name in ['training', 'cross_validation']:
+for folder_name in ['training_fold_0', 'cross_validation']:
     pred_folder = join(environ['OV_DATA_BASE'], 'predictions', model.data_name,
                        model.model_name, folder_name)
     for case in listdir(pred_folder):
