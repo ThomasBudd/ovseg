@@ -16,9 +16,9 @@ model_params = get_model_params_3d_res_encoder_U_Net(patch_size=[32, 216, 216],
                                                      use_prg_trn=False,
                                                      n_fg_classes=n_fg_classes)
 if args.no_cascade:
-    model_name='res_encoder'
-else:
     model_name='res_encoder_no_cascade'
+else:
+    model_name='res_encoder'
     
 
 
