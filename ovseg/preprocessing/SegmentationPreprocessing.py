@@ -363,7 +363,7 @@ class SegmentationPreprocessing(object):
                 # first save the image related stuff
                 np.save(join(outfolder, 'images', scan), np.squeeze(im, 0))
                 np.save(join(outfolder, 'labels', scan), lb)
-                np.save(join(outfolder, 'fingerprints'), fingerprint)
+                np.save(join(outfolder, 'fingerprints', scan), fingerprint)
                 if self.is_cascade():
                     np.save(join(outfolder, 'bin_preds', scan), bin_pred)
 

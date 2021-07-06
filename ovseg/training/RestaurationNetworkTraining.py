@@ -62,4 +62,5 @@ class RestaurationNetworkTraining(NetworkTraining):
                 mean_psnr += 10 * np.log10(im.ptp()**2 / np.mean((im - pred) ** 2))
             mean_psnr /= len(val_ds)
             self.val_psnr.append(mean_psnr)
+            np.save(join(self.model_path, 'val_psnr.npy'), self.val_psnr)
             self.print_and_log('Done! The mean validation PSNR is {:.4f}.'.format(mean_psnr))

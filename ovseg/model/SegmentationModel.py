@@ -80,6 +80,8 @@ class SegmentationModel(ModelBase):
                 prep_params = load_pkl(join(self.preprocessed_path,
                                             'preprocessing_parameters.pkl'))
                 self.model_parameters['preprocessing'] = prep_params
+                if 'prev_stages' in prep_params:
+                    self.model_parameters['prev_stages'] = prep_params['prev_stages']
                 if self.parameters_match_saved_ones:
                     print('Loaded preprocessing parameters and updating model '
                           'parameters.')
