@@ -34,6 +34,7 @@ if args.no_cascade:
         del model.model_parameters['prev_stages']
     if hasattr(model, 'prev_stages'):
         del model.prev_stages
+    model.preprocessing.prev_stages = []
     model.save_model_parameters()
 model.training.train()
 model.eval_validation_set()
