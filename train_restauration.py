@@ -29,7 +29,7 @@ model.eval_training_set(save_preds=True)
 
 # %% now convert the predictions to preprocessed images
 
-prep_folder = join(model.preprocessed_path, 'restaurations_'+fbp_folder[4:])
+prep_folder = join(model.preprocessed_path, 'restaurations_'+fbp_folder[5:])
 if not exist(prep_folder):
     mkdir(prep_folder)
 
