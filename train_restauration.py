@@ -1,6 +1,9 @@
 from ovseg.model.RestaurationModel import RestaurationModel
 from ovseg.model.model_parameters_restauration import get_model_params_2d_restauration
-
+import nibabel as nib
+import numpy as np
+from os import environ, mkdir
+from os.path import join, exist
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -21,4 +24,19 @@ model = RestaurationModel(val_fold=0,
                           preprocessed_name='pod_2d')
 
 model.training.train()
-model.eval_validation_set(save_plots=True)
+model.eval_validation_set(save_preds=True)
+model.eval_training_set(save_preds=True)
+
+# %% now convert the predictions to preprocessed images
+
+prep_folder = join(model.preprocessed_path, 'restaurations_'+fbp_folder[4:])
+if not exist(prep_folder):
+    mkdir(prep_folder)
+
+for folder_name in ['training', 'cross_validation']:
+    pred_folder = join(environ['OV_DATA_BASE'], 'predictions', model.data_name,
+                       model.model_name, folder_name)
+    for case in pred_folder:
+        im = nib.load(join(pred_folder, case))
+        im = (im - model.scaling[1]) / model.scaling[0]
+        np.save(join(prep_folder, case.split('.')[0]), im)

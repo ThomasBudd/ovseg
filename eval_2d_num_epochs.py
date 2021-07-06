@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 p = join(environ['OV_DATA_BASE'], 'trained_models', 'OV04', 'pod_2d')
 
 ne_list = [250, 500, 750, 1000]
-names = ['2d_UNet_large_{}', '2d_UNet_small_{}']#, '2d_UNet_small_{}_v2']
+names = ['2d_UNet_large_{}', '2d_UNet_small_{}', '2d_UNet_small_{}_v2']
 
 for name in names:
     print(name)
