@@ -17,6 +17,7 @@ im_folder = ['images', 'restaurations_full', 'restaurations_half', 'restauration
 
 model_params = get_model_params_2d_segmentation()
 model_params['data']['folders'][0] = im_folder
+model_params['network']['norm'] = 'inst'
 model = SegmentationModel(val_fold=5+args.run,
                           data_name='OV04',
                           model_name='2d_sequential_'+im_folder,
