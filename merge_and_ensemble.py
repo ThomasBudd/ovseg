@@ -16,4 +16,4 @@ if not ens.all_folds_complete():
     raise FileNotFoundError('Some folds seem to be uninifished')
 
 ens.models[0]._merge_results_to_CV()
-ens.eval_raw_dataset(args.raw_data_name)
+ens.eval_raw_dataset(args.raw_data_name, save_preds=True)

@@ -19,6 +19,14 @@ if args.no_cascade:
     model_name='res_encoder_no_cascade'
 else:
     model_name='res_encoder'
+    model_params['data']['folders'] = ['images', 'labels', 'bin_preds']
+    model_params['data']['keys'] = ['image', 'label', 'bin_pred']
+    model_params['data']['trn_dl_params']['pred_fps_key'] = 'bin_pred'
+    # we set this to have only one foreground class here as the input is binary
+    model_params['data']['trn_dl_params']['n_pred_classes'] = 1
+    model_params['data']['val_dl_params']['pred_fps_key'] = 'bin_pred'
+    model_params['data']['val_dl_params']['n_pred_classes'] = 1
+    model_params['network']['in_channels'] = 2
     
 
 
