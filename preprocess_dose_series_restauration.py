@@ -38,17 +38,12 @@ for dose_level, ext in zip(dl_list, ext_list):
 path_to_params = os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', 'OV04',
                               'pod_2d', 'preprocessing_parameters.pkl')    
 
-params = pickle.load(open(path_to_params, 'rb'))
 
 preprocesseing = SegmentationPreprocessing(apply_resizing=False,
                                            apply_pooling=False,
-                                           apply_windowing=True,
-                                           window=window,
-                                           scaling=scaling,
-                                           lb_classes=[9],
-                                           dataset_properties=params['dataset_properties'])
+                                           apply_windowing=True)
 
-
+preprocesseing.try_load_preprocessing_parameters(path_to_params)
 # preprocesseing.preprocess_raw_folders('OV04', 'pod_2d')
 preprocesseing.preprocess_raw_data('BARTS', 'pod_2d', data_name='OV04')
 

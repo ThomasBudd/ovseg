@@ -30,17 +30,18 @@ model.eval_training_set(save_preds=True)
 # %% now predict from the preprocessed BARTS data
 preprocessed_path = join(environ['OV_DATA_BASE'], 'preprocessed', 'OV04', 'pod_2d')
 scans = [case for case in listdir(join(preprocessed_path, fbp_folder)) if int(case[5:8]) > 275]
+print(scans)
 keys  = ['image', 'fbp']
 folders = ['images_restauration', fbp_folder]
 ds = Dataset(scans, preprocessed_path, keys=keys, folders=folders)
-model.eval_ds(ds, ds_name='BARTS')
+# model.eval_ds(ds, ds_name='BARTS', save_preds=True)
 # %% now convert the predictions to preprocessed images
 
 prep_folder = join(model.preprocessed_path, 'restaurations_'+fbp_folder[5:])
 if not exists(prep_folder):
     mkdir(prep_folder)
 
-for folder_name in ['training_fold_0', 'cross_validation', 'BARTS']:
+for folder_name in ['training_fold_0', 'cross_validation', 'BARTS_fold_0']:
     pred_folder = join(environ['OV_DATA_BASE'], 'predictions', model.data_name,
                        model.model_name, folder_name)
     for case in listdir(pred_folder):

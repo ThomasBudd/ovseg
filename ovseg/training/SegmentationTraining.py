@@ -255,3 +255,20 @@ class resize(nn.Module):
         xb = F.interpolate(xb, size=self.size, mode=self.mode)
         yb = F.interpolate(yb, size=self.size)
         return xb, yb
+
+class SegmentationPretrainingMCC(SegmentationTraining):
+    '''
+    Class for multiclass cascade where the input is a binary prediction.
+    Just pretrained the network to copy the binary prediction through the network and
+    output it on every stage
+    '''
+    def __init__(self, *args, n_im_channels=1, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.n_im_channels = n_im_channels
+
+    def compute_batch_loss(self, batch):
+        #overwrite the labels with the binary predictions, we waste ressources by loading the
+        #labels, but this makes the impementation MUCH easier
+        
+        batch[: -1:] = batch[:, self.n_im_channels:self.n_im_channels+1]
+        super.compute_batch_loss(batch)
