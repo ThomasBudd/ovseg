@@ -6,7 +6,7 @@ window = [-32, 318]
 scaling = [52.286, 38.16]
 
 dl_list = 0.5 ** np.arange(6)
-ext_list = ['full', 'half', 'quater', 'eights', '16', '32'][:1]
+ext_list = ['full', 'half', 'quater', 'eights', '16', '32']
  
 for dose_level, ext in zip(dl_list, ext_list):
     preprocesseing = Restauration2dSimPreprocessing(n_angles=500,
@@ -42,5 +42,5 @@ preprocesseing = SegmentationPreprocessing(apply_resizing=False,
 
 
 # preprocesseing.preprocess_raw_folders('OV04', 'pod_2d')
-preprocesseing.preprocess_raw_folders('BARTS', 'pod_2d', data_name='OV04')
+preprocesseing.preprocess_raw_data('BARTS', 'pod_2d', data_name='OV04')
 

@@ -26,6 +26,7 @@ model = RestaurationModel(val_fold=0,
 model.training.train()
 model.eval_validation_set(save_preds=True)
 model.eval_training_set(save_preds=True)
+model.eval_raw_dataset('BARTS', save_preds=True)
 
 # %% now convert the predictions to preprocessed images
 
@@ -33,10 +34,12 @@ prep_folder = join(model.preprocessed_path, 'restaurations_'+fbp_folder[5:])
 if not exists(prep_folder):
     mkdir(prep_folder)
 
-for folder_name in ['training_fold_0', 'cross_validation']:
+for folder_name in ['training_fold_0', 'cross_validation', 'BARTS']:
     pred_folder = join(environ['OV_DATA_BASE'], 'predictions', model.data_name,
                        model.model_name, folder_name)
     for case in listdir(pred_folder):
+        if exists(join(prep_folder, case.split('.')[0]+'.npy')):
+            continue
         im = nib.load(join(pred_folder, case)).get_fdata()
         im = (im - model.scaling[1]) / model.scaling[0]
         np.save(join(prep_folder, case.split('.')[0]), im)
