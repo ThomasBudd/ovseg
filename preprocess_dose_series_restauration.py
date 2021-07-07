@@ -1,6 +1,8 @@
 from ovseg.preprocessing.Restauration2dSimPreprocessing import Restauration2dSimPreprocessing
 from ovseg.preprocessing.SegmentationPreprocessing import SegmentationPreprocessing
 import numpy as np
+import pickle
+import os
 
 window = [-32, 318]
 scaling = [52.286, 38.16]
@@ -33,12 +35,18 @@ for dose_level, ext in zip(dl_list, ext_list):
                                           fbp_folder_name=fbp_folder_name,
                                           im_folder_name=im_folder_name,
                                           save_as_fp16=True)
+path_to_params = os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed', 'OV04',
+                              'pod_2d', 'preprocessing_parameters.pkl')    
+
+params = pickle.load(open(path_to_params, 'rb'))
+
 preprocesseing = SegmentationPreprocessing(apply_resizing=False,
                                            apply_pooling=False,
                                            apply_windowing=True,
                                            window=window,
                                            scaling=scaling,
-                                           lb_classes=[9])
+                                           lb_classes=[9],
+                                           dataset_properties=params['dataset_properties'])
 
 
 # preprocesseing.preprocess_raw_folders('OV04', 'pod_2d')

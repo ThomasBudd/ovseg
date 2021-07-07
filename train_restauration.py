@@ -5,6 +5,7 @@ import numpy as np
 from os import environ, mkdir, listdir
 from os.path import join, exists
 import argparse
+from ovseg.data.Dataset import Dataset
 
 parser = argparse.ArgumentParser()
 parser.add_argument("exp", type=int)
@@ -26,8 +27,13 @@ model = RestaurationModel(val_fold=0,
 model.training.train()
 model.eval_validation_set(save_preds=True)
 model.eval_training_set(save_preds=True)
-model.eval_raw_dataset('BARTS', save_preds=True)
-
+# %% now predict from the preprocessed BARTS data
+preprocessed_path = join(environ['OV_DATA_BASE'], 'preprocessed', 'OV04', 'pod_2d')
+scans = [case for case in listdir(join(preprocessed_path, fbp_folder)) if int(case[5:8]) > 275]
+keys  = ['image', 'fbp']
+folders = ['images_restauration', fbp_folder]
+ds = Dataset(scans, preprocessed_path, keys=keys, folders=folders)
+model.eval_ds(ds, ds_name='BARTS')
 # %% now convert the predictions to preprocessed images
 
 prep_folder = join(model.preprocessed_path, 'restaurations_'+fbp_folder[5:])

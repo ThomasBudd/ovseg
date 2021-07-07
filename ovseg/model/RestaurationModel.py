@@ -117,7 +117,7 @@ class RestaurationModel(ModelBase):
         if 'fbp' in data_tpl:
             fbp = data_tpl['fbp']
         else:
-            fbp, _ = self.preprocessing.preprocess_volume(self, data_tpl['image'])
+            fbp, _ = self.preprocessing.preprocess_volume(data_tpl['image'])
         is_np, _ = check_type(fbp)
 
         # make sure fbp is torch tensor
