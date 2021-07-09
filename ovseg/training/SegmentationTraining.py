@@ -61,11 +61,11 @@ class SegmentationTraining(NetworkTraining):
         if self.batches_have_masks:
             # when we have a mask in the batch tensor the channels are orderes as 
             # im_channel[s], mask_channel, label_channel ...
-            xb = batch[:, -2:]
+            xb = batch[:, :-2]
             mask = batch[:, -2:-1]
         else:
             # ... otherwise we have im_channel[s], label_channel
-            xb = batch[:, -1:]
+            xb = batch[:, :-1]
             mask = 1
 
         if self.mask_with_bin_pred:
