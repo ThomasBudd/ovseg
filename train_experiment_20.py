@@ -44,7 +44,7 @@ model_params['data']['keys'].append('mask')
 model_params['data']['trn_dl_params']['mask_key'] = 'mask'
 model_params['data']['val_dl_params']['mask_key'] = 'mask'
 model_params['training']['batches_have_masks'] = True
-model_parsms['training']['prg_trn_resize_on_the_fly'] = True
+model_params['training']['prg_trn_resize_on_the_fly'] = True
 
 for p_name, fold in zip(p_names, fold_list):
     model = SegmentationModel(val_fold=fold,
