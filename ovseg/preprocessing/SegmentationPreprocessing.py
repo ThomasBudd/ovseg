@@ -155,7 +155,7 @@ class SegmentationPreprocessing(object):
             return
 
         exclude_keys = ['lb_classes', 'reduce_lb_to_single_class', 'lb_min_vol', 
-                        'save_only_fg_scans', 'prev_stages', 'dataset_properties']
+                        'save_only_fg_scans', 'prev_stages', 'dataset_properties', 'mask_classes']
 
         inpt_dict_3d = {key: self.__getattribute__(key) for key in
                         self.preprocessing_parameters if key not in exclude_keys}
@@ -370,7 +370,7 @@ class SegmentationPreprocessing(object):
                 if self.is_cascade():
                     bin_pred = xb[ch].astype(np.uint8)
                 if self.use_masks():
-                    mask = xb[-2].asytpe(np.unit8)
+                    mask = xb[-2].astype(np.uint8)
 
                 if lb.max() == 0 and self.save_only_fg_scans:
                     continue
