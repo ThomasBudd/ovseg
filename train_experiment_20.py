@@ -18,8 +18,9 @@ if args.exp < 2:
     out_shape = None
     larger_res_encoder = False
     z_to_xy_ratio = 6.25
-    
+    fold_list = [args.fold]
 elif args.exp == 2:
+    fold_list = list(range(5))
     use_prg_trn = True
     model_name = 'larger_res_encoder'
 
@@ -44,8 +45,8 @@ model_params['data']['trn_dl_params']['mask_key'] = 'bin_mask'
 model_params['data']['val_dl_params']['mask_key'] = 'bin_mask'
 model_params['training']['batches_have_masks'] = True
 
-for p_name in p_names:
-    model = SegmentationModel(val_fold=args.fold,
+for p_name, fold in zip(p_names, fold_list):
+    model = SegmentationModel(val_fold=fold,
                               data_name='OV04',
                               preprocessed_name=p_name,
                               model_name=model_name,
