@@ -64,6 +64,7 @@ class SegmentationPreprocessing(object):
         self.window = window
         self.scaling = scaling
         self.lb_classes = lb_classes
+        self.mask_classes = mask_classes
         self.reduce_lb_to_single_class = reduce_lb_to_single_class
         self.lb_min_vol = lb_min_vol
         self.n_im_channels = n_im_channels
@@ -82,6 +83,7 @@ class SegmentationPreprocessing(object):
                                          'window',
                                          'scaling',
                                          'lb_classes',
+                                         'mask_classes',
                                          'reduce_lb_to_single_class',
                                          'lb_min_vol',
                                          'n_im_channels',

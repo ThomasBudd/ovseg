@@ -1,4 +1,4 @@
-from ovseg.preprocessed.SegmentationPreprocessing import SegmentationPreprocessing
+from ovseg.preprocessing.SegmentationPreprocessing import SegmentationPreprocessing
 import argparse
 
 
@@ -18,7 +18,7 @@ all_classes = [1, 2, 3, 4,5, 6, 7, 9, 13, 14, 15]
 mask_classes = [c for c in all_classes if c not in lb_classes]
 
 p_name = ['om_mask', 'lesions_upper_mask', 'lesions_center_mask', 'lesions_lymphnodes_mask',
-          'pod_mask']
+          'pod_mask'][args.exp]
 
 preprocessing = SegmentationPreprocessing(apply_resizing=True,
                                           apply_pooling=False,
@@ -34,6 +34,5 @@ preprocessing.plan_preprocessing_raw_data('OV04',
                                           force_planning=True)
 
 preprocessing.preprocess_raw_data(raw_data='OV04',
-                                  preprocessed_name=args.preprocessed_name,
-                                  data_name=args.data_name,
-                                  save_as_fp16=not args.save_as_fp32)
+                                  preprocessed_name=p_name,
+                                  save_as_fp16=True)
