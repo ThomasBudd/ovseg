@@ -262,7 +262,7 @@ class SegmentationModel(ModelBase):
         
                 # bin_pred = (np.sum(prev_preds, 0) > 0).astype(float)
                 # if the data_tpl is preprocessed the binary prediction should already be in there
-                bin_pred = data_tpl['bin_pred']
+                bin_pred = data_tpl['bin_pred'][np.newaxis]
                 im = np.concatenate([im, bin_pred])
             else:
                 bin_pred = None
