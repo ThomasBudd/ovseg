@@ -38,12 +38,13 @@ model_params = get_model_params_3d_res_encoder_U_Net(patch_size, z_to_xy_ratio, 
                                                      larger_res_encoder=larger_res_encoder)
 
 # now make sure that the masks are used!
-model_params['data']['folders'].append('bin_masks')
-model_params['data']['keys'].append('bin_mask')
+model_params['data']['folders'].append('masks')
+model_params['data']['keys'].append('mask')
 
-model_params['data']['trn_dl_params']['mask_key'] = 'bin_mask'
-model_params['data']['val_dl_params']['mask_key'] = 'bin_mask'
+model_params['data']['trn_dl_params']['mask_key'] = 'mask'
+model_params['data']['val_dl_params']['mask_key'] = 'mask'
 model_params['training']['batches_have_masks'] = True
+model_parsms['training']['prg_trn_resize_on_the_fly'] = True
 
 for p_name, fold in zip(p_names, fold_list):
     model = SegmentationModel(val_fold=fold,
