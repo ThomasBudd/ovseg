@@ -4,8 +4,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("preprocessed_name")
 parser.add_argument("model_name")
-parser.add_argument("data_name", required=False, type=str, default='OV04')
-parser.add_argument("raw_data_name", required=False, type=str, default='BARTS')
+parser.add_argument("--data_name", required=False, type=str, default='OV04')
+parser.add_argument("--raw_data_name", required=False, type=str, default='BARTS')
 args = parser.parse_args()
 
 ens = SegmentationEnsemble(val_fold=list(range(5)), data_name=args.data_name,
