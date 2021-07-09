@@ -122,10 +122,10 @@ class CE_dice_pyramid_loss(nn.Module):
         # turn labels into one hot encoding and downsample to same resolutions
         # as the logits
         yb_list = downsample_yb(logs_list, yb)
-        if mask == 1:
-            mask_list = [1] * len(yb_list)
-        else:
+        if torch.is_tensor(mask):
             mask_list = downsample_yb(logs_list, mask)
+        else:
+            mask_list = [1] * len(yb_list)
 
         # now let's compute the loss for each scale
         loss = 0
