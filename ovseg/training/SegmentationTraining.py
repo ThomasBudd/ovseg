@@ -14,12 +14,18 @@ class SegmentationTraining(NetworkTraining):
                  prg_trn_arch_params=None,
                  prg_trn_aug_params=None,
                  prg_trn_resize_on_the_fly=True,
+                 n_im_channels:int = 1,
+                 batches_have_masks=False,
+                 mask_with_bin_pred=False,
                  **kwargs):
         super().__init__(*args, **kwargs)
         self.prg_trn_sizes = prg_trn_sizes
         self.prg_trn_arch_params = prg_trn_arch_params
         self.prg_trn_aug_params = prg_trn_aug_params
         self.prg_trn_resize_on_the_fly = prg_trn_resize_on_the_fly
+        self.n_im_channels = n_im_channels
+        self.batches_have_masks = batches_have_masks
+        self.mask_with_bin_pred = mask_with_bin_pred
 
         # now have fun with progressive training!
         self.do_prg_trn = self.prg_trn_sizes is not None
@@ -33,7 +39,7 @@ class SegmentationTraining(NetworkTraining):
             self.prg_trn_epochs_per_stage = self.num_epochs // self.prg_trn_n_stages
             self.prg_trn_update_parameters()
         else:
-            self.prg_trn_process_batch = identity()
+            self.prg_trn_process_batch = nn.Identity()
 
     def initialise_loss(self):
         self.loss_fctn = CE_dice_pyramid_loss(**self.loss_params)
@@ -41,18 +47,35 @@ class SegmentationTraining(NetworkTraining):
     def compute_batch_loss(self, batch):
 
         batch = batch.cuda()
-        xb, yb = batch[:, :-1], batch[:, -1:]
-        xb, yb = self.prg_trn_process_batch(xb, yb)
+        batch = self.prg_trn_process_batch(batch)
 
         if self.augmentation is not None:
-            batch = torch.cat([xb, yb], 1)
             with torch.no_grad():
+                # in theory we shouldn't need this context, but I had weird memory leaks and
+                # it doesn't hurt
                 batch = self.augmentation(batch)
-            xb, yb = batch[:, :-1], batch[:, -1:]
+
+        # now let's get the arrays from the batch
+        # the easiest one:
+        yb = batch[:, -1:]
+        if self.batches_have_masks:
+            # when we have a mask in the batch tensor the channels are orderes as 
+            # im_channel[s], mask_channel, label_channel ...
+            xb = batch[:, -2:]
+            mask = batch[:, -2:-1]
+        else:
+            # ... otherwise we have im_channel[s], label_channel
+            xb = batch[:, -1:]
+            mask = 1
+
+        if self.mask_with_bin_pred:
+            # masking with the binary prediction just means multipying the previously acquired mask
+            # with the last channel of the input tensor
+            mask = mask * xb[: -1:]      
 
         yb = to_one_hot_encoding(yb, self.network.out_channels)
         out = self.network(xb)
-        loss = self.loss_fctn(out, yb)
+        loss = self.loss_fctn(out, yb, mask)
         return loss
 
     def prg_trn_update_parameters(self):
@@ -90,14 +113,14 @@ class SegmentationTraining(NetworkTraining):
             else:
                 # here we assume that the last stage of the progressive training has the desired
                 # size i.e. the size that the augmentation/the dataloader returns
-                self.prg_trn_process_batch = identity()
+                self.prg_trn_process_batch = nn.Identity()
         else:
             # we need to change the folder the dataloader loads from
             new_folders = self.prg_trn_new_folders_list[self.prg_trn_stage]
             self.trn_dl.dataset.change_folders_and_keys(new_folders, self.prg_trn_new_keys)
             if self.val_dl is not None:
                 self.val_dl.dataset.change_folders_and_keys(new_folders, self.prg_trn_new_keys)
-            self.prg_trn_process_batch = identity()
+            self.prg_trn_process_batch = nn.Identity()
 
         # now alter the regularization
         if self.prg_trn_arch_params is not None:
@@ -236,25 +259,24 @@ class SegmentationTraining(NetworkTraining):
                 self.prg_trn_update_parameters()
 
 
-class identity(nn.Identity):
-
-    def forward(self, xb, yb):
-        return xb, yb
-
-
 class resize(nn.Module):
 
-    def __init__(self, size, is_2d):
+    def __init__(self, size, is_2d, n_im_channels=1):
         super().__init__()
 
         self.size = size
         self.is_2d = is_2d
+        self.n_im_channels=n_im_channels
         self.mode = 'bilinear' if self.is_2d else 'trilinear'
 
-    def forward(self, xb, yb):
-        xb = F.interpolate(xb, size=self.size, mode=self.mode)
-        yb = F.interpolate(yb, size=self.size)
-        return xb, yb
+    def forward(self, batch):
+        # first split the batch by channels, the first ones should always be the image
+        # the others are masks e.g. input predictions, ground truth labels or loss masks
+        im, mask = batch[:, :self.n_im_channels], batch[:, :self.n_im_channels]
+        im = F.interpolate(im, size=self.size, mode=self.mode)
+        mask = F.interpolate(mask, size=self.size)
+        batch = torch.cat([im, mask], 1)
+        return batch
 
 class SegmentationPretrainingMCC(SegmentationTraining):
     '''
@@ -262,10 +284,6 @@ class SegmentationPretrainingMCC(SegmentationTraining):
     Just pretrained the network to copy the binary prediction through the network and
     output it on every stage
     '''
-    def __init__(self, *args, n_im_channels=1, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.n_im_channels = n_im_channels
-
     def compute_batch_loss(self, batch):
         #overwrite the labels with the binary predictions, we waste ressources by loading the
         #labels, but this makes the impementation MUCH easier

@@ -46,6 +46,7 @@ class SegmentationPreprocessing(object):
                  window=None,
                  scaling=None,
                  lb_classes=None,
+                 mask_classes=None,
                  reduce_lb_to_single_class=False,
                  lb_min_vol=None,
                  n_im_channels: int = 1,
@@ -121,6 +122,14 @@ class SegmentationPreprocessing(object):
 
     def is_cascade(self):
         return len(self.prev_stages) > 0
+
+    def use_masks(self):
+        if isinstance(self.mask_classes, list):
+            return len(self.mask_classes) > 0
+        elif self.mask_classes is None:
+            return False
+        else:
+            raise ValueError('Variable mask_classes must be list or None.')
 
     def check_parameters(self):
 
@@ -214,6 +223,15 @@ class SegmentationPreprocessing(object):
                 lb = remove_small_connected_components(lb, self.lb_min_vol, spacing)
 
         return lb
+    
+    def get_mask_from_data_tpl(self, data_tpl):
+        # the mask is 0 where a label from "mask_classes" is present and 1 elsewhere
+        if not isinstance(self.mask_classes, list):
+            raise ValueError('When using masks for the loss functions, please give the '
+                             'classes used for masking as a list in mask_classes. '
+                             'Given {}'.format(type(self.mask_classes)))
+        lb = data_tpl['label']
+        return 1 - reduce_classes(lb, self.mask_classes, True)
 
     def is_preprocessed_data_tpl(self, data_tpl):
         return 'orig_shape' in data_tpl
@@ -245,6 +263,12 @@ class SegmentationPreprocessing(object):
             xb = np.concatenate([xb, bin_pred])
 
         if 'label' in data_tpl and not preprocess_only_im:
+            if self.use_masks():
+                mask = self.get_mask_from_data_tpl(data_tpl)
+                assert len(mask.shape) == 3, 'label must be 3d'
+                mask = mask[np.newaxis].astype(float)
+                xb = np.concatenate([xb, mask])
+                
             # get the label from the data_tpl and clean if applicable
             lb = self.maybe_clean_label_from_data_tpl(data_tpl)
 
@@ -307,6 +331,8 @@ class SegmentationPreprocessing(object):
         folders = ['images', 'labels', 'fingerprints']
         if self.is_cascade():
             folders.append('bin_preds')
+        if self.use_masks():
+            folders.append('masks')
         for f in folders:
             maybe_create_path(join(outfolder, f))
         maybe_create_path(plot_folder)
@@ -341,6 +367,8 @@ class SegmentationPreprocessing(object):
                 lb = xb[-1].astype(np.uint8)
                 if self.is_cascade():
                     bin_pred = xb[ch].astype(np.uint8)
+                if self.use_masks():
+                    mask = xb[-2].asytpe(np.unit8)
 
                 if lb.max() == 0 and self.save_only_fg_scans:
                     continue
@@ -366,6 +394,8 @@ class SegmentationPreprocessing(object):
                 np.save(join(outfolder, 'fingerprints', scan), fingerprint)
                 if self.is_cascade():
                     np.save(join(outfolder, 'bin_preds', scan), bin_pred)
+                if self.use_masks():
+                    np.save(join(outfolder, 'masks', scan), mask)
 
                 # additionally do some plots
                 im = im.astype(float)
