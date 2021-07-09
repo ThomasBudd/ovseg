@@ -54,13 +54,13 @@ class SegmentationModel(ModelBase):
 
         if self.is_cascade():
             self.prev_stages = self.model_parameters['prev_stages'] 
-            self.prev_stages_keys = []
-            for prev_stage in self.prev_stages:
-                key = '_'.join(['prediction',
-                                prev_stage['data_name'],
-                                prev_stage['preprocessed_name'],
-                                prev_stage['model_name']])
-                self.prev_stages_keys.append(key)
+            # self.prev_stages_keys = []
+            # for prev_stage in self.prev_stages:
+            #     key = '_'.join(['prediction',
+            #                     prev_stage['data_name'],
+            #                     prev_stage['preprocessed_name'],
+            #                     prev_stage['model_name']])
+            #     self.prev_stages_keys.append(key)
 
 
     def is_cascade(self):
@@ -250,17 +250,19 @@ class SegmentationModel(ModelBase):
                 im = im[np.newaxis] if is_np else im.unsqueeze(0)
             if self.is_cascade():
                 # if the data tpl is preprocessed we need to build the binary prediction here
-                prev_preds = []
-                for key in self.keys_for_previous_stages:
-                    assert key in data_tpl, 'prediction '+key+' from previous stage missing'
-                    pred = data_tpl[key]
-                    if torch.is_tensor(pred):
-                        pred = pred.cpu().numpy()
-                    if len(pred.shape) == 3:
-                        pred = pred[np.newaxis]
-                    prev_preds.append(pred)
+                # prev_preds = []
+                # for key in self.prev_stages_s:
+                #     assert key in data_tpl, 'prediction '+key+' from previous stage missing'
+                #     pred = data_tpl[key]
+                #     if torch.is_tensor(pred):
+                #         pred = pred.cpu().numpy()
+                #     if len(pred.shape) == 3:
+                #         pred = pred[np.newaxis]
+                #     prev_preds.append(pred)
         
-                bin_pred = (np.sum(prev_preds, 0) > 0).astype(float)
+                # bin_pred = (np.sum(prev_preds, 0) > 0).astype(float)
+                # if the data_tpl is preprocessed the binary prediction should already be in there
+                bin_pred = data_tpl['bin_pred']
                 im = np.concatenate([im, bin_pred])
             else:
                 bin_pred = None
