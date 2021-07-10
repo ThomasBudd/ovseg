@@ -278,7 +278,7 @@ class resize(nn.Module):
     def forward(self, batch):
         # first split the batch by channels, the first ones should always be the image
         # the others are masks e.g. input predictions, ground truth labels or loss masks
-        im, mask = batch[:, :self.n_im_channels], batch[:, :self.n_im_channels]
+        im, mask = batch[:, :self.n_im_channels], batch[:, self.n_im_channels:]
         im = F.interpolate(im, size=self.size, mode=self.mode)
         mask = F.interpolate(mask, size=self.size)
         batch = torch.cat([im, mask], 1)
