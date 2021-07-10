@@ -204,14 +204,31 @@ class SegmentationTraining(NetworkTraining):
                     self._rescale_and_save_arr(lb, scales, extensions, prepp,
                                                lb_folder, scan, is_lb=True)
 
-                    if len(tpl) == 3:
-                        # in this case we're in the second stage and also resize the
-                        # prediction from the previous stage
-                        prd = tpl[1]
-                        prd_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)]
+                    if self.batches_have_masks:
+
+                        mask = tpl[-2]
+                        mask_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.mask_key)]
                         
-                        self._rescale_and_save_arr(prd, scales, extensions, prepp,
-                                                   prd_folder, scan, is_lb=True)
+                        self._rescale_and_save_arr(mask, scales, extensions, prepp,
+                                                   mask_folder, scan, is_lb=True)
+                        if len(tpl) == 4:
+                            # in this case we're in the second stage and also resize the
+                            # prediction from the previous stage
+                            prd = tpl[1]
+                            prd_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)]
+                            
+                            self._rescale_and_save_arr(prd, scales, extensions, prepp,
+                                                       prd_folder, scan, is_lb=True)
+                    
+                    else:
+                        if len(tpl) == 3:
+                            # in this case we're in the second stage and also resize the
+                            # prediction from the previous stage
+                            prd = tpl[1]
+                            prd_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)]
+                            
+                            self._rescale_and_save_arr(prd, scales, extensions, prepp,
+                                                       prd_folder, scan, is_lb=True)
 
         # now we need the new_keys and new_folders for each stage to update the datasets
         self.prg_trn_new_keys = [ds.image_key, ds.label_key]
