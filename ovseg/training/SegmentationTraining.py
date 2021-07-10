@@ -264,7 +264,13 @@ class resize(nn.Module):
     def __init__(self, size, is_2d, n_im_channels=1):
         super().__init__()
 
-        self.size = size
+        if len(size) == 2:
+            self.size = (int(size[0]), int(size[1]))
+        elif len(size) == 3:
+            self.size = (int(size[0]), int(size[1]), int(size[2]))
+        else:
+            raise ValueError('Expected size to be of len 2 or 3, got {}'.format(len(size)))
+            
         self.is_2d = is_2d
         self.n_im_channels=n_im_channels
         self.mode = 'bilinear' if self.is_2d else 'trilinear'
