@@ -237,6 +237,10 @@ class SegmentationTraining(NetworkTraining):
         if ds.pred_fps_key is not None:
             self.prg_trn_new_keys.append(ds.pred_fps_key)
             folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)])
+        if self.batches_have_masks:
+            self.prg_trn_new_keys.append(ds.mask_key)
+            folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.mask_key)])
+            
         self.prg_trn_new_folders_list = []
         for ext in extensions:
             self.prg_trn_new_folders_list.append([fol+'_'+ext for fol in folders])
