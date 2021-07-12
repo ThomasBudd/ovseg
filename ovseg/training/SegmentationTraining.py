@@ -66,7 +66,7 @@ class SegmentationTraining(NetworkTraining):
         else:
             # ... otherwise we have im_channel[s], label_channel
             xb = batch[:, :-1]
-            mask = 1
+            mask = None
 
         if self.mask_with_bin_pred:
             # masking with the binary prediction just means multipying the previously acquired mask

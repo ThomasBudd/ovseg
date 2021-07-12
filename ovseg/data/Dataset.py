@@ -41,6 +41,7 @@ class Dataset(object):
             else:
                 self.unused_scans.append(scan)
         if len(self.unused_scans) > 0:
+            self.unused_scans = sorted(self.unused_scans)
             print('Some .npy files were not found: ', *self.unused_scans)
             if not self.ignore_missing_scans:
                 raise FileNotFoundError('Not all .npy files were found, missing',

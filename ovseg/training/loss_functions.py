@@ -61,7 +61,7 @@ class CE_dice_loss(nn.Module):
         self.dice_weight = dice_weight
         self.ce_weight = ce_weight
 
-    def forward(self, logs, yb, mask=1):
+    def forward(self, logs, yb, mask=None):
         if yb.shape[1] == 1:
             # turn yb to one hot encoding
             yb = to_one_hot_encoding(yb, logs.shape[1])
@@ -112,7 +112,7 @@ class CE_dice_pyramid_loss(nn.Module):
         self.ce_dice_loss = CE_dice_loss(eps, ce_weight, dice_weight)
         self.pyramid_weight = pyramid_weight
 
-    def forward(self, logs_list, yb, mask=1):
+    def forward(self, logs_list, yb, mask=None):
         if yb.shape[1] == 1:
             yb = to_one_hot_encoding(yb, logs_list[0].shape[1])
         # compute the weights to be powers of pyramid_weight
@@ -125,7 +125,7 @@ class CE_dice_pyramid_loss(nn.Module):
         if torch.is_tensor(mask):
             mask_list = downsample_yb(logs_list, mask)
         else:
-            mask_list = [1] * len(yb_list)
+            mask_list = [None] * len(yb_list)
 
         # now let's compute the loss for each scale
         loss = 0
