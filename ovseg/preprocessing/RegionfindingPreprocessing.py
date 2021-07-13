@@ -5,7 +5,7 @@ import numpy as np
 class RegionfindingPreprocessing(SegmentationPreprocessing):
 
     def __init__(self, *args, mask_dist, **kwargs):
-        super().__init__()
+        super().__init__(*args, **kwargs)
         
         self.mask_dist = mask_dist
 
