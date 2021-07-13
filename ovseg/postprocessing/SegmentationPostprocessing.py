@@ -114,12 +114,14 @@ class SegmentationPostprocessing(object):
 
         pred = data_tpl[prediction_key]
 
+        spacing = data_tpl['spacing'] if 'spacing' in data_tpl else None
+
         if 'orig_shape' in data_tpl:
             # the data_tpl has preprocessed data.
             # predictions in both preprocessed and original shape will be added
             data_tpl[prediction_key] = self.postprocess_volume(pred,
                                                                bin_pred=bin_pred,
-                                                               spacing=data_tpl['spacing'],
+                                                               spacing=spacing,
                                                                orig_shape=None)
             spacing = data_tpl['orig_spacing'] if 'orig_spacing' in data_tpl else None
             shape = data_tpl['orig_shape']
@@ -132,7 +134,7 @@ class SegmentationPostprocessing(object):
             orig_shape = data_tpl['image'].shape
             data_tpl[prediction_key] = self.postprocess_volume(pred,
                                                                bin_pred=bin_pred,
-                                                               spacing=data_tpl['spacing'],
+                                                               spacing=spacing,
                                                                orig_shape=orig_shape)
         return data_tpl
 
