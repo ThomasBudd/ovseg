@@ -425,7 +425,7 @@ class SegmentationModel(ModelBase):
         pred = data_tpl[self.pred_key]
 
         # volume of one voxel
-        fac = np.prod(data_tpl['spacing'])
+        fac = np.prod(data_tpl['spacing']) if 'spacing' in data_tpl else 1
         for c in range(1, self.n_fg_classes + 1):
             lb_c = (label == c).astype(float)
             pred_c = (pred == c).astype(float)
