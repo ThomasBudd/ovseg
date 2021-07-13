@@ -1,31 +1,37 @@
 from ovseg.model.SegmentationModel import SegmentationModel
 from ovseg.data.RegionfindingData import RegionfindingData
+from ovseg.preprocessing.RegionfindingPreprocessing import RegionfindingPreprocessing
 import numpy as np
 
 class RegionfindingModel(SegmentationModel):
 
-    def initialise_data(self):
-        # the data object holds the preprocessed data (training and validation)
-        # for each it has both a dataset returning the data tuples and the dataloaders
-        # returning the batches
-        if 'data' not in self.model_parameters:
-            raise AttributeError('model_parameters must have key '
-                                 '\'data\'. These must contain the '
-                                 'dict of training paramters.')
+    
+    def _create_preprocessing_object(self):
+        
+        self.preprocessing = RegionfindingPreprocessing(**self.model_parameters['preprocessing'])
 
-        # Let's get the parameters and add the cpu augmentation
-        params = self.model_parameters['data'].copy()
+    # def initialise_data(self):
+    #     # the data object holds the preprocessed data (training and validation)
+    #     # for each it has both a dataset returning the data tuples and the dataloaders
+    #     # returning the batches
+    #     if 'data' not in self.model_parameters:
+    #         raise AttributeError('model_parameters must have key '
+    #                              '\'data\'. These must contain the '
+    #                              'dict of training paramters.')
 
-        # if we don't want to store our data in ram...
-        if self.dont_store_data_in_ram:
-            for key in ['trn_dl_params', 'val_dl_params']:
-                params[key]['store_data_in_ram'] = False
-                params[key]['store_coords_in_ram'] = False
-        self.data = RegionfindingData(val_fold=self.val_fold,
-                                      preprocessed_path=self.preprocessed_path,
-                                      augmentation= self.augmentation.np_augmentation,
-                                      **params)
-        print('Data initialised')
+    #     # Let's get the parameters and add the cpu augmentation
+    #     params = self.model_parameters['data'].copy()
+
+    #     # if we don't want to store our data in ram...
+    #     if self.dont_store_data_in_ram:
+    #         for key in ['trn_dl_params', 'val_dl_params']:
+    #             params[key]['store_data_in_ram'] = False
+    #             params[key]['store_coords_in_ram'] = False
+    #     self.data = RegionfindingData(val_fold=self.val_fold,
+    #                                   preprocessed_path=self.preprocessed_path,
+    #                                   augmentation= self.augmentation.np_augmentation,
+    #                                   **params)
+    #     print('Data initialised')
 
 
     def compute_error_metrics(self, data_tpl):

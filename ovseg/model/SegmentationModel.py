@@ -66,6 +66,10 @@ class SegmentationModel(ModelBase):
     def is_cascade(self):
         return 'prev_stages' in self.model_parameters
 
+    def _create_preprocessing_object(self):
+        
+        self.preprocessing = SegmentationPreprocessing(**self.model_parameters['preprocessing'])
+
     def initialise_preprocessing(self):
         if 'preprocessing' not in self.model_parameters:
             print('No preprocessing parameters found in model_parameters. '
@@ -100,8 +104,8 @@ class SegmentationModel(ModelBase):
                 print_dict_diff(d1, d2, 'model_parameters', 'preprocessing_paramters')
                 raise ValueError('Found missmatch between prev stages given in the model paramters '
                                  'and the preprocessing parameters!')
-
-        self.preprocessing = SegmentationPreprocessing(**params)
+    
+        self._create_preprocessing_object()
 
         # now for the computation of loss metrics we need the number of prevalent fg classes
         if self.preprocessing.reduce_lb_to_single_class:
