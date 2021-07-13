@@ -154,11 +154,12 @@ class SegmentationPreprocessing(object):
         if not self.check_parameters():
             return
 
-        exclude_keys = ['lb_classes', 'reduce_lb_to_single_class', 'lb_min_vol', 
-                        'save_only_fg_scans', 'prev_stages', 'dataset_properties', 'mask_classes']
+        include_keys = ['apply_resizing', 'apply_pooling', 'apply_windowing', 'target_spacing', 
+                        'pooling_stride', 'window', 'scaling', 'n_im_channels',
+                        'do_nn_img_interp']
 
         inpt_dict_3d = {key: self.__getattribute__(key) for key in
-                        self.preprocessing_parameters if key not in exclude_keys}
+                        self.preprocessing_parameters if key in include_keys}
         inpt_dict_2d = inpt_dict_3d.copy()
         if self.apply_resizing:
             inpt_dict_2d['target_spacing'] = self.target_spacing[1:]
