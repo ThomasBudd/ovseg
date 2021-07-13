@@ -7,8 +7,8 @@ model_params = get_model_params_3d_res_encoder_U_Net([32, 256, 256], 8, n_fg_cla
 
 model_params['training']['loss_params'] = {'loss_names': ['cross_entropy_weighted_bg'],
                                           'loss_kwargs': [{'weight_bg': 0.01, 'n_fg_classes': 11}]}
-model_params['data']['trn_dl_params']['mask_dist'] = [2, 15, 15]
-model_params['data']['val_dl_params']['mask_dist'] = [2, 15, 15]
+# model_params['data']['trn_dl_params']['mask_dist'] = [2, 15, 15]
+# model_params['data']['val_dl_params']['mask_dist'] = [2, 15, 15]
 model_params['training']['batches_have_masks'] = True
 model_params['data']['folders'] = ['images', 'labels', 'masks']
 model_params['data']['keys'] = ['image', 'label', 'mask']
