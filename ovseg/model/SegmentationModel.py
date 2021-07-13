@@ -10,7 +10,7 @@ from ovseg.networks.nfUNet import nfUNet
 from ovseg.networks.iUNet import iUNet
 from ovseg.networks.resUNet import UNetResEncoder, UNetResDecoder
 from ovseg.networks.refine_res_networks import RefineResNet
-from ovseg.training.SegmentationTraining import SegmentationTraining
+from ovseg.training.SegmentationTraining import SegmentationTraining, SegmentationTrainingV2
 from ovseg.training.ClassEnsemblingTraining import ClassEnsemblingTraining
 from ovseg.model.ModelBase import ModelBase
 from ovseg.utils.torch_np_utils import check_type
@@ -215,13 +215,24 @@ class SegmentationModel(ModelBase):
                                  '\'training\'. These must contain the '
                                  'dict of training paramters.')
         params = self.model_parameters['training'].copy()
-        self.training = SegmentationTraining(network=self.network,
-                                             trn_dl=self.data.trn_dl,
-                                             val_dl=self.data.val_dl,
-                                             model_path=self.model_path,
-                                             network_name=self.network_name,
-                                             augmentation=self.augmentation.torch_augmentation,
-                                             **params)
+        try:
+            self.training = SegmentationTrainingV2(network=self.network,
+                                                   trn_dl=self.data.trn_dl,
+                                                   val_dl=self.data.val_dl,
+                                                   model_path=self.model_path,
+                                                   network_name=self.network_name,
+                                                   augmentation=self.augmentation.torch_augmentation,
+                                                   **params)
+        except TypeError:
+            print('Caught a Type error, are you trying to load an older model? '
+                  'Creating training object with old implementation of loss function.')
+            self.training = SegmentationTraining(network=self.network,
+                                                 trn_dl=self.data.trn_dl,
+                                                 val_dl=self.data.val_dl,
+                                                 model_path=self.model_path,
+                                                 network_name=self.network_name,
+                                                 augmentation=self.augmentation.torch_augmentation,
+                                                 **params)
 
     def __call__(self, data_tpl, do_postprocessing=True):
         '''

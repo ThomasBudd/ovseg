@@ -1,5 +1,5 @@
 from ovseg.training.SegmentationTraining import SegmentationTraining
-from ovseg.training.loss_functions import dice_pyramid_loss_class_ensembling, to_one_hot_encoding
+# from ovseg.training.loss_functions_combined import dice_pyramid_loss_class_ensembling, to_one_hot_encoding
 import torch
 
 class ClassEnsemblingTraining(SegmentationTraining):

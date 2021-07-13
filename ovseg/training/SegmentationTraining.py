@@ -1,5 +1,6 @@
 from ovseg.training.NetworkTraining import NetworkTraining
-from ovseg.training.loss_functions import CE_dice_pyramid_loss, to_one_hot_encoding
+from ovseg.training.loss_functions_combined import CE_dice_pyramid_loss, to_one_hot_encoding, \
+    weighted_combined_pyramid_loss
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -305,15 +306,7 @@ class resize(nn.Module):
         batch = torch.cat([im, mask], 1)
         return batch
 
-class SegmentationPretrainingMCC(SegmentationTraining):
-    '''
-    Class for multiclass cascade where the input is a binary prediction.
-    Just pretrained the network to copy the binary prediction through the network and
-    output it on every stage
-    '''
-    def compute_batch_loss(self, batch):
-        #overwrite the labels with the binary predictions, we waste ressources by loading the
-        #labels, but this makes the impementation MUCH easier
-        
-        batch[: -1:] = batch[:, self.n_im_channels:self.n_im_channels+1]
-        super.compute_batch_loss(batch)
+class SegmentationTrainingV2(SegmentationTraining):
+    
+    def initialise_loss(self):
+        self.loss_fctn = weighted_combined_pyramid_loss(**self.loss_params)
