@@ -227,14 +227,23 @@ class SegmentationPreprocessing(object):
 
         return lb
     
-    def get_mask_from_data_tpl(self, data_tpl):
+    def maybe_add_mask_to_volume(self, volume):
         # the mask is 0 where a label from "mask_classes" is present and 1 elsewhere
-        if not isinstance(self.mask_classes, list):
-            raise ValueError('When using masks for the loss functions, please give the '
-                             'classes used for masking as a list in mask_classes. '
-                             'Given {}'.format(type(self.mask_classes)))
-        lb = data_tpl['label']
-        return 1 - reduce_classes(lb, self.mask_classes, True)
+        if not self.use_masks():
+            return volume
+        lb = volume[-1]
+        
+        if torch.is_tensor(lb):
+            mask = 1 - reduce_classes(lb.cpu().numpy(), self.mask_classes, True)
+            mask = torch.from_numpy(mask).type(lb.dtype).to(lb.device)
+            mask = mask.unsqueeze(0)
+            volume = torch.cat([volume[:-1], mask, volume[-1:]])
+        else:
+            mask = 1 - reduce_classes(lb, self.mask_classes, True)
+            mask = mask[np.newaxis]
+            volume = np.concatenate([volume[:-1], mask, volume[-1:]])
+            
+        return volume
 
     def is_preprocessed_data_tpl(self, data_tpl):
         return 'orig_shape' in data_tpl
@@ -265,13 +274,7 @@ class SegmentationPreprocessing(object):
 
             xb = np.concatenate([xb, bin_pred])
 
-        if 'label' in data_tpl and not preprocess_only_im:
-            if self.use_masks():
-                mask = self.get_mask_from_data_tpl(data_tpl)
-                assert len(mask.shape) == 3, 'label must be 3d'
-                mask = mask[np.newaxis].astype(float)
-                xb = np.concatenate([xb, mask])
-                
+        if 'label' in data_tpl and not preprocess_only_im:                
             # get the label from the data_tpl and clean if applicable
             lb = self.maybe_clean_label_from_data_tpl(data_tpl)
 
@@ -283,23 +286,35 @@ class SegmentationPreprocessing(object):
         # now do the preprocessing
         if not torch.cuda.is_available():
             # the preprocessing is also faster in scipy then it is in torch using the CPU
-            xb_prep = self.np_preprocessing(xb, spacing)
+            xb_prep = self.np_preprocessing(xb, spacing)[0]
+            if not preprocess_only_im:
+                # if we're processing the label we might also add the mask 
+                # (only needed for training)
+                xb_prep = self.maybe_add_mask_to_volume(xb_prep)
         else:
+            # when CUDA is available we will try to preprocess the data tuple on the GPU...
             xb_cuda = torch.from_numpy(xb).type(torch.float).cuda()
             try:
-                xb_prep = self.torch_preprocessing(xb_cuda, spacing)
+                xb_prep = self.torch_preprocessing(xb_cuda, spacing)[0]
+                if not preprocess_only_im:
+                    xb_prep = self.maybe_add_mask_to_volume(xb_prep)
                 if return_np:
                     xb_prep = xb_prep.cpu().numpy()
             except RuntimeError:
+                #... unless it fails for a RuntimeError then we will try again on the CPU
                 print('Ooops! It seems like your GPU has gone out of memory while trying to '
                       'resize a large volume ({}), trying again on the CPU.'
                       ''.format(list(xb_cuda.shape)))
                 torch.cuda.empty_cache()
-                xb_prep = self.np_preprocessing(xb, spacing)
+                xb_prep = self.np_preprocessing(xb, spacing)[0]
                 if not return_np:
+                    # if we don't want to return the numpy array we're brining it
+                    # back to the GPU
                     xb_prep = torch.from_numpy(xb_prep).type(torch.float).cuda()
-
-        return xb_prep[0]
+                if not preprocess_only_im:
+                    xb_prep = self.maybe_add_mask_to_volume(xb_prep)
+            
+        return xb_prep
 
     def preprocess_raw_data(self,
                             raw_data,
