@@ -53,9 +53,19 @@ class RegionfindingModel(SegmentationModel):
             pred_c_vol = np.sum(pred_c_mask)
             if seg_c_vol > 0:
                 dice = 200 * tp / (seg_c_vol + pred_c_vol)
+                sens = 100 * np.sum(seg_c * pred_c) / np.sum(seg_c)
             else:
                 dice = np.nan
-            results.update({'bp_dice_%d' % c: dice, 'prec_%d' % c: np.mean(pred_c)})
+                sens = np.nan
+            if pred_c.max() > 0:
+                recall = 100 * np.sum(seg_c * pred_c)/np.sum(pred_c)
+            else:
+                recall = np.nan
+                
+            results.update({'bp_dice_%d' % c: dice, 
+                            'sens_%d' % c: sens,
+                            'recall_%d' % c:recall,
+                            'prec_%d' % c: np.mean(pred_c)})
 
         return results
 
