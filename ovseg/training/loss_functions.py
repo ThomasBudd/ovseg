@@ -52,7 +52,7 @@ class cross_entropy_weighted_bg(nn.Module):
         self.weight_bg = weight_bg
         self.n_fg_classes = n_fg_classes
         self.weight = [self.weight_bg] + [1] * self.n_fg_classes
-        self.weight = torch.tensor(self.weight)
+        self.weight = torch.tensor(self.weight).type(torch.float)
         if torch.cuda.is_available():
             self.weight = self.weight.cuda()
         self.loss = torch.nn.CrossEntropyLoss(weight=self.weight, reduction='none')

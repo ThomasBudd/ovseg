@@ -6,7 +6,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("w", type=int)
 args = parser.parse_args()
 
-w = [0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1][args.w]
+w = [0.0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0][args.w]
 
 model_params = get_model_params_3d_res_encoder_U_Net([32, 256, 256], 8, n_fg_classes=11,
                                                      larger_res_encoder=True)
