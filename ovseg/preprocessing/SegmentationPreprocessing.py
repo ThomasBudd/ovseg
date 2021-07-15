@@ -185,7 +185,8 @@ class SegmentationPreprocessing(object):
                 return
             else:
                 print_dict_diff(data_pkl, data, 'pkl paramters', 'given paramters')
-                raise RuntimeError('Found not matching prerpocessing parameters in '+outfolder+'.')
+                print('Found some not matching prerpocessing parameters in '+outfolder+'.'
+                      'The currently used parameters will not overwrite the stored once.')
         else:
             save_pkl(data, outfile)
             save_txt(data, outfile[:-4])
