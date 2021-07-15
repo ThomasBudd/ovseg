@@ -64,7 +64,16 @@ class SegmentationModel(ModelBase):
 
 
     def is_cascade(self):
-        return 'prev_stages' in self.model_parameters
+        if 'prev_stages' in self.model_parameters:
+            if self.model_parameters['prev_stages'] is None:
+                return False
+            elif isinstance(self.model_parameters['prev_stages'], list):
+                return len(self.model_parameters['prev_stages']) > 0
+            else:
+                raise TypeError('Got type {} for prev_stages, expected list or none.'
+                                ''.format(type(self.model_parameters['prev_stages'])))
+        else:
+            return False
 
     def _create_preprocessing_object(self):
         
