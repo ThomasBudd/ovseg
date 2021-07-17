@@ -42,7 +42,7 @@ class RegionfindingModel(SegmentationModel):
         # in case of raw data this only removes the lables that this model doesn't segment
         seg = self.preprocessing.maybe_clean_label_from_data_tpl(data_tpl)
         bin_seg = (seg > 0).astype(float)
-        results = {'prec_0': np.mean(pred == 0)}
+        results = {'prec_0': 100*np.mean(pred == 0)}
         for c in range(1, self.n_fg_classes+1):
             seg_c = (seg == c).astype(float)
             pred_c = (pred == c).astype(float)

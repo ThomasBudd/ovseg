@@ -47,10 +47,21 @@ def read_dcms(dcm_folder):
     z_im = [imds.ImagePositionPatient[2] for imds in imdss]
     imdss = [ds for _, ds in sorted(zip(z_im, imdss), reverse=True)]
     z_im = [imds.ImagePositionPatient[2] for imds in imdss]
+    try:
+        z_loc = [imds.SliceLocation for imds in imdss]
+        if np.all(np.array(z_im) == np.array(z_loc)):
+            print('ImagePositionPatient[2] match SliceLocation')
+        elif np.all(np.array(z_im) == -1*np.array(z_loc)):
+            print('ImagePositionPatient[2] with sign flip SliceLocation')
+        else:
+            print('ImagePositionPatient[2] dont match SliceLocation')
+            
+    except Exception:
+        print('no slice location found')
     return z_im, roidcms[0]
 
 # %%
-case = all_cases[0]
+case = all_cases[3]
 
 names = ['9-auto', '1-auto', '5,6,7-auto', '2,3,4-auto', '13,14,15-auto']
 
@@ -72,10 +83,10 @@ for case in tqdm(all_cases):
     
     # Add ROI. This is the same as the above example.
     for pred, color, name in zip(preds, colors, names):
-        # if pred.max() == 0:
-            # continue
+        if pred.max() == 0:
+            continue
         rtstruct.add_roi(
-          mask=pred[...,::-1]>0, 
+          mask=pred>0, 
           color=color, 
           name=name
         )
@@ -84,9 +95,9 @@ for case in tqdm(all_cases):
         
         cs = rtstruct.ds.ROIContourSequence[-1].ContourSequence
         
-        for d in cs:
-            for i in range(2, len(d.ContourData), 3):
-                print(d.ContourData[i])
+        # for d in cs:
+        #     for i in range(2, len(d.ContourData), 3):
+        #         print(d.ContourData[i])
                 # if float(d.ContourData[i]) > 0:
                     # d.ContourData[i] = pydicom.valuerep.DSfloat(-1*float(d.ContourData[i]))
     

@@ -6,7 +6,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument("w", type=int)
 args = parser.parse_args()
 
-w = [0.0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0][args.w]
+w_list = 4*[0.01] + 2*[1e-3, 1e-4, 1e-5]
+w = w_list[args.w]
+vf_list = list(range(1,5)) + 2 * [0, 1]
+vf = vf_list[args.w]
 
 model_params = get_model_params_3d_res_encoder_U_Net([32, 256, 256], 8, n_fg_classes=11,
                                                      larger_res_encoder=True)
@@ -27,7 +30,7 @@ model_params['data']['val_dl_params']['mask_key'] = 'mask'
 # model_params['network']['filters'] = 8
 # model_params['training']['num_epochs'] = 100
 
-model = RegionfindingModel(val_fold=0, data_name='OV04', preprocessed_name='multiclass',
+model = RegionfindingModel(val_fold=vf, data_name='OV04', preprocessed_name='multiclass',
                            model_name='ROIfinding_'+str(w), model_parameters=model_params)
 
 model.training.train()

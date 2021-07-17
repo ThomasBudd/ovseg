@@ -1,7 +1,7 @@
 import numpy as np
 import nibabel as nib
 import pydicom
-from os.path import join, exists, basename, split
+from os.path import join, exists, basename, split, isdir
 from os import listdir, environ
 try:
     from skimage.draw import polygon
@@ -10,6 +10,8 @@ except ImportError:
           'Please use a newer version of gcc.')
 import pickle
 
+from ovseg.utils.rt_utils import RTStructBuilder
+from ovseg.utils.rt_utils.utils import COLOR_PALETTE
 _names_sorting_warning_printed = False
 _names_dict_warning_printed = False
 _isotropic_volume_loaded_warning_printed = False
@@ -54,12 +56,8 @@ def _write_dict_to_txt(dict_name, data, file, n_tabs):
             file.write(s)
 
 
-def read_nii(nii_file):
+def _has_z_first(spacing, dims, filename):
     global _isotropic_volume_loaded_warning_printed, _ananisotropic_volume_loaded_warning_printed
-    img = nib.load(nii_file)
-    spacing = img.header['pixdim'][1:4]
-    im = img.get_fdata()
-    dims = img.shape
     # first check if the z axis is last or first
     if spacing[0] == spacing[1]:
         if spacing[0] != spacing[2]:
@@ -73,7 +71,7 @@ def read_nii(nii_file):
             if not _isotropic_volume_loaded_warning_printed:
                 print('Found at least one file {} with isotropic voxel and equal volume dimensions.'
                       'could not infere if the z axis is first or last, guessing last. '
-                      'Please make sure it is!'.format(nii_file))
+                      'Please make sure it is!'.format(filename))
                 has_z_first = False
                 _isotropic_volume_loaded_warning_printed = True
     else:
@@ -85,10 +83,16 @@ def read_nii(nii_file):
                 print('Found at least one file {} with voxelspacing {}. '
                       'Need at least two equal numbers in the spacing to find out if the z '
                       'axis is first or last, guessing last. Please make sure it is!'
-                      ''.format(nii_file, spacing))
+                      ''.format(filename, spacing))
                 has_z_first = False
                 _ananisotropic_volume_loaded_warning_printed = True
+    return has_z_first
 
+def read_nii(nii_file):
+    img = nib.load(nii_file)
+    spacing = img.header['pixdim'][1:4]
+    im = img.get_fdata()
+    has_z_first = _has_z_first(spacing, dims=img.shape, filename=nii_file)
     # now we (hopefully) know if the z axis is first or last
     if not has_z_first:
         # z axis is in the back, get it to the front!
@@ -400,13 +404,13 @@ def read_dcms(dcm_folder, reverse=True, names_dict=None, dataset=None):
             roidcms = roidcms[0]
         data_tpl['raw_label_file'] = roidcms
     data_tpl['spacing'] = spacing
-    data_tpl['z_pos'] = z_im
-    try:
-        data_tpl['SOP_ids'] = [ds.SOPInstanceUID for ds in imdss]
-    except AttributeError:
-        print('Warning: at least on SOPInstanceUID is missing for the dcm files in {}. '
-              'This means that the results can not be saved as dcm rt files, but will be saved '
-              'as nifti.'.format(dcm_folder))
+    # data_tpl['z_pos'] = z_im
+    # try:
+    #     data_tpl['SOP_ids'] = [ds.SOPInstanceUID for ds in imdss]
+    # except AttributeError:
+    #     print('Warning: at least on SOPInstanceUID is missing for the dcm files in {}. '
+    #           'This means that the results can not be saved as dcm rt files, but will be saved '
+    #           'as nifti.'.format(dcm_folder))
     ds = imdss[0]
     for key, attr in zip(['pat_id', 'date', 'pat_name'],
                          ['PatientID', 'AcquisitionDate', 'PatientName']):
@@ -461,6 +465,10 @@ def save_nii_from_data_tpl(data_tpl, out_file, key):
     if 'had_z_first' in data_tpl:
         if not data_tpl['had_z_first']:
             arr = np.stack([arr[z] for z in range(arr.shape[0])], -1)
+    else:
+        if not _has_z_first(data_tpl['spacing'], arr.shape, data_tpl['raw_image_file']):
+            arr = np.stack([arr[z] for z in range(arr.shape[0])], -1)
+            
 
     raw_path = join(environ['OV_DATA_BASE'], 'raw_data', data_tpl['dataset'])
     im_file = None
@@ -493,3 +501,43 @@ def save_nii_from_data_tpl(data_tpl, out_file, key):
             nii_img.header['pixdim'][1:4] = data_tpl['spacing']
 
     nib.save(nii_img, out_file)
+
+def save_dcmrt_from_data_tpl(data_tpl, out_file, key, names=None, colors=None, dcm_path=None):
+
+    
+    dcm_path = data_tpl['raw_image_file'] if dcm_path is None else dcm_path
+    if not isdir(dcm_path):
+        raise FileNotFoundError('No path with dcms was given for the export to dcmrt. If '
+                                'The data_tpl was loaded from a nifit file, set the argument '
+                                'dcm_path.')
+
+    pred = data_tpl[key]
+
+    if pred.max() == 0:
+        print('Skip export to dcm rt, no ROI found!')
+        return
+
+    # the rt_utils package wants predictions with z axis last so we switch it in case it is first
+    if _has_z_first(data_tpl['spacing'], pred.shape, data_tpl['raw_image_file']):
+        pred = np.stack([pred[z] for z in range(pred.shape[0])], -1)
+
+    # now let's take care of the colors and names
+    n_fg_classes = int(pred.max())
+    if names is None:
+        names = [str(i) for i in range(1, n_fg_classes+1)]
+
+    if colors is None:
+        colors = [COLOR_PALETTE[i % len(COLOR_PALETTE)] for i in range(n_fg_classes)]
+
+    rtstruct = RTStructBuilder.create_new(dicom_series_path=dcm_path)
+
+    for i, (name, color) in enumerate(zip(names, colors)):
+        mask = (pred == i)
+        if mask.max() > 0:
+    
+            rtstruct.add_roi(mask=mask,
+                             color=color,
+                             name=name)
+
+    rtstruct.save(out_file)
+        
