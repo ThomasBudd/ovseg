@@ -2,7 +2,7 @@ import os
 from typing import List
 from enum import IntEnum
 
-import cv2 as cv
+#import cv2 as cv
 import numpy as np
 from pydicom import dcmread
 from pydicom.dataset import Dataset
