@@ -6,9 +6,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("w", type=int)
 args = parser.parse_args()
 
-w_list = 4*[0.01] + 2*[1e-3, 1e-4, 1e-5]
+w_list = 3*[1e-3, 1e-4, 1e-5]
 w = w_list[args.w]
-vf_list = list(range(1,5)) + 3 * [0, 1]
+vf_list = 3 * [2, 3, 4]
 vf = vf_list[args.w]
 
 model_params = get_model_params_3d_res_encoder_U_Net([32, 256, 256], 8, n_fg_classes=11,
