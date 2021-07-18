@@ -324,7 +324,9 @@ class SegmentationPreprocessing(object):
             assert len(lb.shape) == 3, 'label must be 3d'
             lb = lb[np.newaxis].astype(float)
             xb = np.concatenate([xb, lb])
-            
+        
+        # finally add batch axis
+        xb = xb[np.newaxis]
             
         return xb
 
