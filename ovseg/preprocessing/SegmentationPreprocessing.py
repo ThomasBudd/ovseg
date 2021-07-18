@@ -313,11 +313,11 @@ class SegmentationPreprocessing(object):
                     mask = 1 - reduce_classes(lb.cpu().numpy(), self.mask_classes, True)
                     mask = torch.from_numpy(mask).type(lb.dtype).to(lb.device)
                     mask = mask.unsqueeze(0)
-                    volume = torch.cat([xb, mask])
+                    xb = torch.cat([xb, mask])
                 else:
                     mask = 1 - reduce_classes(lb, self.mask_classes, True)
                     mask = mask[np.newaxis]
-                    volume = np.concatenate([xb, mask])            
+                    xb = np.concatenate([xb, mask])            
             # get the label from the data_tpl and clean if applicable
             lb = self.maybe_clean_label_from_data_tpl(data_tpl)
 
@@ -326,7 +326,7 @@ class SegmentationPreprocessing(object):
             xb = np.concatenate([xb, lb])
             
             
-        return volume
+        return xb
 
 
         xb = xb[np.newaxis]
