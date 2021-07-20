@@ -40,16 +40,7 @@ class SegmentationEnsemble(ModelBase):
                 print('Skipping fold {}. Training was not finished.'.format(fold))
                 continue
             print('Creating model from fold: '+str(fold))
-            model = SegmentationModel(val_fold=fold,
-                                      data_name=self.data_name,
-                                      model_name=self.model_name,
-                                      model_parameters=self.model_parameters,
-                                      preprocessed_name=self.preprocessed_name,
-                                      network_name=self.network_name,
-                                      is_inference_only=True,
-                                      fmt_write=self.fmt_write,
-                                      model_parameters_name=self.model_parameters_name
-                                      )
+            model = self.create_model(fold)
             self.models.append(model)
 
         # change in evaluation mode
@@ -71,6 +62,19 @@ class SegmentationEnsemble(ModelBase):
             #                     prev_stage['model_name']])
             #     self.prev_stages_keys.append(key)
 
+
+    def create_model(self, fold):
+        model = SegmentationModel(val_fold=fold,
+                                  data_name=self.data_name,
+                                  model_name=self.model_name,
+                                  model_parameters=self.model_parameters,
+                                  preprocessed_name=self.preprocessed_name,
+                                  network_name=self.network_name,
+                                  is_inference_only=True,
+                                  fmt_write=self.fmt_write,
+                                  model_parameters_name=self.model_parameters_name
+                                  )
+        return model
 
     def is_cascade(self):
         return 'prev_stages' in self.model_parameters

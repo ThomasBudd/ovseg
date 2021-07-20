@@ -10,8 +10,8 @@ except ImportError:
           'Please use a newer version of gcc.')
 import pickle
 
-from ovseg.utils.rt_utils import RTStructBuilder
-from ovseg.utils.rt_utils.utils import COLOR_PALETTE
+from rt_utils import RTStructBuilder
+from rt_utils.utils import COLOR_PALETTE
 _names_sorting_warning_printed = False
 _names_dict_warning_printed = False
 _isotropic_volume_loaded_warning_printed = False

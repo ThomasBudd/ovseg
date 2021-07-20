@@ -88,4 +88,4 @@ class RegionfindingModel(SegmentationModel):
             pred_c = (pred == c).astype(float)
             self.global_metrics_helper['vol_'+str(c)] += np.sum(pred_c) * fac
             # now update global metrics helper
-            self.global_metrics['prec_'+str(c)] = self.global_metrics_helper['vol_'+str(c)] / tv
+            self.global_metrics['prec_'+str(c)] = 100*self.global_metrics_helper['vol_'+str(c)] / tv
