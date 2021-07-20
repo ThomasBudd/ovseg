@@ -66,18 +66,21 @@ class cross_entropy_weighted_bg(nn.Module):
         return l.mean()
 
 
-class sens_loss(nn.Module):
+class dice_loss_weighted(nn.Module):
 
-    def __init__(self, eps=1e-5):
+    def __init__(self, weight=0.5, eps=1e-5):
         super().__init__()
         self.eps = eps
+        self.weight = weight
+        self.w1 = (1-self.weight) * 0.5
+        self.w2 = self.weight * 0.5
 
     def forward(self, logs, yb_oh, mask=None):
         assert logs.shape == yb_oh.shape
         pred = torch.nn.functional.softmax(logs, 1)
         # dimension in which we compute the mean
         dim = list(range(2, len(pred.shape)))
-        # remove the background channel from both as the sens will only
+        # remove the background channel from both as the dice will only
         # be computed over foreground classes
         pred = pred[:, 1:]
         yb_oh = yb_oh[:, 1:]
@@ -88,7 +91,8 @@ class sens_loss(nn.Module):
         # now compute the metrics
         tp = torch.sum(yb_oh * pred, dim)
         yb_vol = torch.sum(yb_oh, dim)
+        pred_vol = torch.sum(pred, dim)
         # the main formula
-        sens = tp / (yb_vol + self.eps)
+        dice = (tp + self.eps) / (self.w1 * yb_vol + self.w2 * pred_vol + self.eps)
         # the mean is computed over the batch and channel axis (excluding background)
-        return 1 - 1 * sens.mean()
+        return 1 - 1 * dice.mean()

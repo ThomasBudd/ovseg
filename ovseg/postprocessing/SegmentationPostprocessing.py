@@ -110,7 +110,7 @@ class SegmentationPostprocessing(object):
             # this can only be done on the CPU
             volume = self.remove_small_components(volume, spacing)
 
-        volume = volume.astype(np.unit8)
+        volume = volume.astype(np.uint8)
 
         if self.lb_classes is not None:
             # now let's convert back from interger encoding to the classes
