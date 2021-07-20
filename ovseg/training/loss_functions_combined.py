@@ -54,7 +54,7 @@ class weighted_combined_loss(nn.Module):
                                  ' Got the modules {}'.format(name, losses_found))
             self.losses.append(loss_functions_dict[name](**kwargs))
 
-        self.losses = nn.Mod
+        self.losses = nn.ModuleList(self.losses)
 
     def forward(self, logs, yb, mask=None):
         if yb.shape[1] == 1:
