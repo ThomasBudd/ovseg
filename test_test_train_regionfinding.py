@@ -24,12 +24,11 @@ model_params['data']['val_dl_params']['mask_key'] = 'mask'
 model_params['data']['trn_dl_params']['epoch_len'] = 250
 model_params['data']['val_dl_params']['epoch_len'] = 20
 model_params['network']['filters'] = 12
-model_params['training']['num_epochs'] = 50
+model_params['training']['num_epochs'] = 250
 
 model = RegionfindingModel(val_fold=vf, data_name='OV04', preprocessed_name='multiclass',
                            model_name='delte_me', model_parameters=model_params)
 
 model.training.train()
-model.eval_validation_set(save_preds=True, save_plots=True)
-model.eval_raw_dataset('BARTS', save_preds=True, save_plots=True)
+model.eval_validation_set(save_preds=False, save_plots=True)
 
