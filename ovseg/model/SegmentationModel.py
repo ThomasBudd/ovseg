@@ -130,10 +130,14 @@ class SegmentationModel(ModelBase):
             raise AttributeError('Something seems to be wrong. Could not figure out the number '
                                  'of foreground classes in the problem...')
         if self.preprocessing.lb_classes is None and hasattr(self.preprocessing, 'dataset_properties'):
+            
+            self.lb_classes = list(range(1, self.n_fg_classes+1))
             if self.n_fg_classes != self.preprocessing.dataset_properties['n_fg_classes']:
                 raise ValueError('There seems to be a missmatch between the number of forground '
                                  'classes in the preprocessed data and the number of network '
                                  'output channels.')
+        else:
+            self.lb_classes = self.preprocessing.lb_classes
 
     def initialise_augmentation(self):
 
@@ -195,6 +199,8 @@ class SegmentationModel(ModelBase):
         # the SegmentationPostprocessing is relatively uninteresting, what happens here
         # is the resizing to the original volume, applying argmax, maybe removing some small
         # connected components
+        params.update({'lb_classes': self.preprocessing.lb_classes})
+        
         self.postprocessing = SegmentationPostprocessing(**params)
 
     def initialise_data(self):
@@ -397,9 +403,12 @@ class SegmentationModel(ModelBase):
             return None
         pred = data_tpl[self.pred_key]
         # in case of raw data this only removes the lables that this model doesn't segment
-        seg = self.preprocessing.maybe_clean_label_from_data_tpl(data_tpl)
+        # seg = self.preprocessing.maybe_clean_label_from_data_tpl(data_tpl)
+        # with the new update the prediction should be in classes as well instead of 
+        # integer encoding as before. Let's hope that it works!
+        seg = data_tpl['label']
         results = {}
-        for c in range(1, self.n_fg_classes+1):
+        for c in self.lb_classes:
             seg_c = (seg == c).astype(float)
             pred_c = (pred == c).astype(float)
 

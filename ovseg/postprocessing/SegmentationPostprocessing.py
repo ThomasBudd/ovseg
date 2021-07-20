@@ -10,10 +10,12 @@ class SegmentationPostprocessing(object):
 
     def __init__(self, apply_small_component_removing=False,
                  volume_thresholds=None,
-                 mask_with_bin_pred=False):
+                 mask_with_bin_pred=False,
+                 lb_classes=None):
         self.apply_small_component_removing = apply_small_component_removing
         self.volume_thresholds = volume_thresholds
         self.mask_with_bin_pred=mask_with_bin_pred
+        self.lb_classes = lb_classes
 
         if self.apply_small_component_removing and \
                 self.volume_thresholds is None:
@@ -108,7 +110,16 @@ class SegmentationPostprocessing(object):
             # this can only be done on the CPU
             volume = self.remove_small_components(volume, spacing)
 
-        return volume.astype(np.uint8)
+        volume = volume.astype(np.unit8)
+
+        if self.lb_classes is not None:
+            # now let's convert back from interger encoding to the classes
+            volume_lb = np.zeros_like(volume)
+            for i, c in enumerate(self.lb_classes):
+                volume_lb[volume == i+1] = c
+            volume = volume_lb
+
+        return volume
 
     def postprocess_data_tpl(self, data_tpl, prediction_key, bin_pred=None):
 
