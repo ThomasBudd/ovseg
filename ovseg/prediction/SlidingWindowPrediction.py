@@ -9,8 +9,7 @@ class SlidingWindowPrediction(object):
 
     def __init__(self, network, patch_size, batch_size=1, overlap=0.5, fp32=False,
                  patch_weight_type='gaussian', sigma_gaussian_weight=1/8, linear_min=0.1,
-                 mode='flip', TTA=None, TTA_n_full_predictions=1, TTA_n_max_augs=99,
-                 TTA_eps_stop=0.02):
+                 mode='flip'):
 
         self.dev = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.network = network.to(self.dev)
@@ -22,12 +21,9 @@ class SlidingWindowPrediction(object):
         self.sigma_gaussian_weight = sigma_gaussian_weight
         self.linear_min = linear_min
         self.mode = mode
-        self.TTA = TTA
-        self.TTA_n_full_predictions = TTA_n_full_predictions
-        self.TTA_n_max_augs = TTA_n_max_augs
-        self.TTA_eps_stop = TTA_eps_stop
 
         assert self.patch_weight_type.lower() in ['constant', 'gaussian', 'linear']
+        assert self.mode.lower() in ['simple', 'flip']
 
         # check and build up the patch weight
         # we can use a gaussian weighting since the predictions on the edge of the patch are less
@@ -74,31 +70,10 @@ class SlidingWindowPrediction(object):
         else:
             raise ValueError('patch_size must be of len 2 or 3 (for 2d and 3d networks).')
 
-    def _sliding_window(self, volume, ROI=None):
-
-        if not torch.is_tensor(volume):
-            raise TypeError('Input must be torch tensor')
-        if not len(volume.shape) == 4:
-            raise ValueError('Volume must be a 4d tensor (incl channel axis)')
-
-        # in case the volume is smaller than the patch size we pad it
-        # and save the input size to crop again before returning
-        shape_in = np.array(volume.shape)
-
-        # %% possible padding of too small volumes
-        pad = [0, self.patch_size[2] - shape_in[3], 0, self.patch_size[1] - shape_in[2],
-               0, self.patch_size[0] - shape_in[1]]
-        pad = np.maximum(pad, 0).tolist()
-        volume = F.pad(volume, pad).type(torch.float)
-        nz, nx, ny = volume.shape[1:]
-
-        # %% reserve storage
-        pred = torch.zeros((self.network.out_channels, nz, nx, ny),
-                           device=self.dev,
-                           dtype=torch.float)
-        ovlp = torch.zeros((1, nz, nx, ny),
-                           device=self.dev,
-                           dtype=torch.float)
+    def _get_xyz_list(self, shape, ROI=None):
+        
+        nz, nx, ny = shape
+        
         if ROI is None:
             # if the ROI
             ROI = torch.ones((nz, nx, ny)) > 0
@@ -115,15 +90,52 @@ class SlidingWindowPrediction(object):
         for z in z_list:
             for x in x_list:
                 for y in y_list:
-                    # we only predict the patch if we intersect the ROI
-                    if ROI[z:z+self.patch_size[0], x:x+self.patch_size[1],
-                           y:y+self.patch_size[2]].any().item():
+                    # we only predict the patch if the middle cube with half side length
+                    # intersects the ROI
+                    z1, z2 = z+self.patch_size[0]/4, z+self.patch_size[0]*3/4
+                    x1, x2 = z+self.patch_size[1]/4, z+self.patch_size[1]*3/4
+                    y1, y2 = z+self.patch_size[2]/4, z+self.patch_size[2]*3/4
+                    if ROI[z1:z2, x1:x2, y1:y2].any().item():
                         zxy_list.append((z, x, y))
 
+        return zxy_list
+
+    def _sliding_window(self, volume, ROI=None):
+
+        if not torch.is_tensor(volume):
+            raise TypeError('Input must be torch tensor')
+        if not len(volume.shape) == 4:
+            raise ValueError('Volume must be a 4d tensor (incl channel axis)')
+
+        # in case the volume is smaller than the patch size we pad it
+        # and save the input size to crop again before returning
+        shape_in = np.array(volume.shape)
+
+        # %% possible padding of too small volumes
+        pad = [0, self.patch_size[2] - shape_in[3], 0, self.patch_size[1] - shape_in[2],
+               0, self.patch_size[0] - shape_in[1]]
+        pad = np.maximum(pad, 0).tolist()
+        volume = F.pad(volume, pad).type(torch.float)
+        shape = volume.shape[1:]
+
+        # %% reserve storage
+        pred = torch.zeros((self.network.out_channels, *shape),
+                           device=self.dev,
+                           dtype=torch.float)
+        ovlp = torch.zeros((1, *shape),
+                           device=self.dev,
+                           dtype=torch.float)
+        
+        # %% get all top left coordinates of patches
+        zxy_list = self._get_xyz_list(shape, ROI)
+        
         # introduce batch size
+        # some people say that introducing a batch size at inference time makes it faster
+        # I couldn't see that so far
         n_full_batches = len(zxy_list) // self.batch_size
         zxy_batched = [zxy_list[i * self.batch_size: (i + 1) * self.batch_size]
                        for i in range(n_full_batches)]
+
         if n_full_batches * self.batch_size < len(zxy_list):
             zxy_batched.append(zxy_list[n_full_batches * self.batch_size:])
 
@@ -165,7 +177,7 @@ class SlidingWindowPrediction(object):
 
         return pred / ovlp
 
-    def predict_volume(self, volume, mode=None):
+    def predict_volume(self, volume, ROI=None, mode=None):
         # evaluates the siliding window on this volume
         # predictions are returned as soft segmentations
         if mode is None:
@@ -182,27 +194,30 @@ class SlidingWindowPrediction(object):
         if len(volume.shape) == 3:
             volume = volume.unsqueeze(0)
 
-        if mode == 'simple':
-            pred = self._predict_volume_simple(volume)
-        elif mode == 'flip':
-            pred = self._predict_volume_flip(volume)
-        elif mode == 'TTA':
-            raise NotImplementedError('Test time augmentations were not implemented beyond '
-                                      'flipping.')
-            # pred = self._predict_volume_tta(volume)
+        if mode.lower() == 'simple':
+            pred = self._predict_volume_simple(volume, ROI)
+        elif mode.lower() == 'flip':
+            pred = self._predict_volume_flip(volume, ROI)
 
         if is_np:
             pred = pred.cpu().numpy()
 
         return pred
 
-    def __call__(self, volume, mode=None):
+    def __call__(self, volume, ROI=None, mode=None):
         return self.predict_volume(volume, mode)
 
-    def _predict_volume_simple(self, volume):
-        return self._sliding_window(volume)
+    def _predict_volume_simple(self, volume, ROI=None):
+        return self._sliding_window(volume, ROI)
 
-    def _predict_volume_flip(self, volume):
+    def _predict_volume_flip(self, volume, ROI=None):
+
+        if isinstance(ROI, np.ndarray):
+            ROI = torch.from_numpy(ROI)
+        elif not torch.is_tensor(ROI) or not ROI is None:
+            raise TypeError('Got unknown type for argument ROI. Expected torch.tensor, np.ndarray, '
+                            'or None, got {}'.format(type(ROI)))
+            
 
         flip_z_list = [False] if self.is_2d else [False, True]
 
@@ -214,18 +229,22 @@ class SlidingWindowPrediction(object):
                     flip_list.append((fz, fx, fy))
 
         # do the first one outside the loop for initialisation
-        pred = self._sliding_window(volume)
+        pred = self._sliding_window(volume, ROI=None)
 
         # now some flippings!
         for f in flip_list[1:]:
             volume = self._flip_volume(volume, f)
+            if ROI is not None:
+                ROI = self._flip_volume(ROI, f)
 
             # predict flipped volume
-            pred_flipped = self._sliding_window(volume)
+            pred_flipped = self._sliding_window(volume, ROI)
 
             # flip back and update
             pred += self._flip_volume(pred_flipped, f)
             volume = self._flip_volume(volume, f)
+            if ROI is not None:
+                ROI = self._flip_volume(ROI, f)
 
         return pred / len(flip_list)
 
@@ -234,48 +253,3 @@ class SlidingWindowPrediction(object):
             if f[i]:
                 volume = volume.flip(i+1)
         return volume
-
-    # def _predict_volume_tta(self, volume):
-
-    #     if self.TTA is None:
-    #         raise TypeError('When test time augmentations are used the argument TTA of '
-    #                         'SlidingWindowPrediction must be initialised.')
-
-    #     # counter for the amount of augmentations we do to the image
-    #     self.augs = 0
-    #     # first prediction without augmentation
-    #     pred = self._sliding_window(volume)
-
-    #     # now we do some full predictions
-    #     for _ in range(1, self.TTA_n_full_predictions):
-    #         volume_aug = self.TTA.augment_volume(volume, is_inverse=False)
-    #         pred_aug = self._sliding_window(volume_aug)
-    #         pred = self.TTA.augment_volume(pred_aug, is_inverse=True)
-    #         self.augs += 1
-
-    #     # as the full predictions are over we only predict where we have error left
-    #     prev_pred = torch.zeros_like(pred)
-
-    #     # the ROI is defined as the pixels where the soft probabilities deviated
-    #     # more than eps from the previous prabilities
-    #     ROI = torch.abs(pred - prev_pred).sum(0) > self.TTA_eps_stop
-    #     eps = ROI.max().item()
-    #     while self.augs < self.TTA_n_max_augs and eps > self.TTA_eps_stop:
-
-    #         # store current pred and ovlp
-    #         prev_pred = pred
-
-    #         # create new augmentation
-    #         volume_aug = self.TTA.augment_volume(volume, is_inverse=False)
-    #         self.augs += 1
-
-    #         # do sliding window only in the ROI and update
-    #         pred_aug = self._sliding_window(volume_aug, ROI)
-    #         pred = pred + self.TTA.augment_volume(pred_aug, is_inverse=True)
-
-    #         # compute new ROI and max error
-    #         ROI = torch.abs(pred - prev_pred).sum(0)
-    #         eps = ROI.max().item()
-    #         ROI = ROI > self.TTA_eps_stop
-
-    #     return pred

@@ -15,9 +15,8 @@ class SegmentationBatchDataset(object):
     def __init__(self, vol_ds, patch_size, batch_size, epoch_len=250, p_bias_sampling=0,
                  min_biased_samples=1, augmentation=None, padded_patch_size=None,
                  n_im_channels: int = 1, store_coords_in_ram=True, memmap='r', image_key='image',
-                 label_key='label', pred_fps_key=None, n_pred_classes=None,
-                 store_data_in_ram=False, return_fp16=True, n_max_volumes=None, bias='fg',
-                 mask_key=None):
+                 mask_key='mask', store_data_in_ram=False, return_fp16=True, n_max_volumes=None,
+                 bias='fg'):
         self.vol_ds = vol_ds
         self.patch_size = np.array(patch_size)
         self.batch_size = batch_size
@@ -28,14 +27,13 @@ class SegmentationBatchDataset(object):
         self.store_coords_in_ram = store_coords_in_ram
         self.memmap = memmap
         self.image_key = image_key
-        self.label_key = label_key
-        self.pred_fps_key = pred_fps_key
-        self.n_pred_classes = n_pred_classes
+        self.mask_key = mask_key
         self.store_data_in_ram = store_data_in_ram
         self.n_im_channels = n_im_channels
         self.return_fp16 = return_fp16
         self.bias = bias
-        self.mask_key = mask_key
+
+        self.dtype = np.float16 if self.return_fp16 else np.float32
         if n_max_volumes is None:
             self.n_volumes = len(self.vol_ds)
         else:
@@ -53,26 +51,14 @@ class SegmentationBatchDataset(object):
         else:
             self.padded_patch_size = np.array(padded_patch_size)
 
-        # now some cascade stuff
-        self.is_cascade = self.pred_fps_key is not None
-        if self.is_cascade:
-            assert isinstance(self.n_pred_classes, int), 'n_pred_classes must be an integer'
-
-        self.return_masks = self.mask_key is not None
-            
         self._maybe_store_data_in_ram()
 
-    def _get_bias_coords(self, seg, pred_fps=None):
+    def _get_bias_coords(self, volume):
 
         if self.bias == 'fg':
-            return np.stack(np.where(seg > 0)).astype(np.int16)
-        elif self.bias == 'mv':
-            mv = 0
-            for c in range(self.n_pred_classes):
-                seg_c = (seg == c).astype(float)
-                pred_c = (pred_fps == c).astype(float)
-                mv += seg_c * (1 - pred_c)
-            return np.stack(np.where(mv > 0)).astype(np.int16)
+            return np.stack(np.where(volume[-1] > 0)).astype(np.int16)
+        elif self.bias == 'mask':
+            return np.stack(np.where(volume[-2] > 0)).astype(np.int16)
 
     def _maybe_store_data_in_ram(self):
         # maybe cleaning first, just to be sure
@@ -84,20 +70,17 @@ class SegmentationBatchDataset(object):
             sleep(1)
             for ind in tqdm(range(self.n_volumes)):
                 path_dict = self.vol_ds.path_dicts[ind]
-                seg = np.load(path_dict[self.label_key])
-                im = np.load(path_dict[self.image_key])
-                if self.return_fp16:
-                    im = im.astype(np.float16)
-                tpl = [im]
-                if self.is_cascade:
-                    pred_fps = np.load(path_dict[self.pred_fps_key])
-                    tpl.append(pred_fps)
-                if self.return_masks:
-                    mask = np.load(path_dict[self.mask_key])
-                    tpl.append(mask)
-            
-                tpl.append(seg)
-                self.data.append(tpl)
+                masks = np.load(path_dict[self.mask_key]).astype(np.uint8)
+                
+                if len(masks.shape) == 3:
+                    masks = masks[np.newaxis]
+                
+                im = np.load(path_dict[self.image_key]).astype(self.dtype)
+                
+                if len(im.shape) == 3:
+                    im = im[np.newaxis]
+                
+                self.data.append((im, masks))
                     
         # store coords in ram
         if self.store_coords_in_ram:
@@ -106,22 +89,14 @@ class SegmentationBatchDataset(object):
             sleep(1)
             for ind in tqdm(range(self.n_volumes)):
                 if self.store_data_in_ram:
-                    seg = self.data[ind][-1]
-                    if self.is_cascade:
-                        pred_fps = self.data[ind][1]
-                    else:
-                        pred_fps = None
+                    masks = self.data[ind][1]
                 else:
-                    seg = np.load(self.vol_ds.path_dicts[ind][self.label_key])
-                    if self.is_cascade:
-                        pred_fps = np.load(self.vol_ds.path_dicts[ind][self.pred_fps_key])
-                    else:
-                        pred_fps = None
-                if len(seg.shape) == 4:
-                    seg = seg[0]
-                elif not len(seg.shape) == 3:
+                    masks = np.load(self.vol_ds.path_dicts[ind][self.mask_key])
+                if len(masks.shape) == 3:
+                    masks = masks[np.newaxis]
+                elif not len(masks.shape) == 4:
                     raise ValueError('Got segmentation mask that is neither 3d nor 4d.')
-                coords = self._get_bias_coords(seg, pred_fps)
+                coords = self._get_bias_coords(masks)
                 self.coords_list.append(coords)
             self.contains_fg_list = [ind for ind, coords in enumerate(self.coords_list)
                                     if len(coords) > 0]
@@ -138,14 +113,10 @@ class SegmentationBatchDataset(object):
             # now we check if come cases are missing in the folder
             print('Checking if all bias coordinates are stored in '+self.bias_coords_fol)
             for ind, d in enumerate(self.vol_ds.path_dicts):
-                case = os.path.basename(d[self.label_key])
+                case = os.path.basename(d[self.mask_key])
                 if case not in os.listdir(self.bias_coords_fol):
-                    lb = np.load(d[self.label_key])
-                    if self.is_cascade:
-                        pred_fps = np.load(d[self.pred_fps_key])
-                    else:
-                        pred_fps = None
-                    coords = self._get_bias_coords(lb, pred_fps)
+                    masks = np.load(d[self.mask_key])
+                    coords = self._get_bias_coords(masks)
                     np.save(os.path.join(self.bias_coords_fol, case), coords)
                 else:
                     coords = np.load(os.path.join(self.bias_coords_fol, case))
@@ -190,18 +161,10 @@ class SegmentationBatchDataset(object):
         if load_from_ram:
             volumes = self.data[ind]
         else:
-            volumes = []
             path_dict = self.vol_ds.path_dicts[ind]
             im = np.load(path_dict[self.image_key], 'r')
-            volumes.append(im)
-            if self.is_cascade:
-                pred_fps = np.load(path_dict[self.pred_fps_key], 'r')
-                volumes.append(pred_fps)
-            if self.return_masks:
-                mask = np.load(path_dict[self.mask_key], 'r')
-                volumes.append(mask)
-            seg = np.load(path_dict[self.label_key], 'r')
-            volumes.append(seg)
+            masks = np.load(path_dict[self.mask_key], 'r')
+            volumes = [im, masks]
 
         # maybe add an additional axis
         for i in range(len(volumes)):
@@ -223,9 +186,7 @@ class SegmentationBatchDataset(object):
 
     def __getitem__(self, index):
 
-        idx = index % self.batch_size
-
-        if idx < self.min_biased_samples:
+        if index % self.batch_size < self.min_biased_samples:
             biased_sampling = True
         else:
             biased_sampling = np.random.rand() < self.p_bias_sampling
@@ -235,22 +196,20 @@ class SegmentationBatchDataset(object):
         shape = np.array(volumes[0].shape)[1:]
 
         if biased_sampling:
-            # if we're not there let's choose a center coordinate
-            # that contains fg
+            # let's get the list of bias coordinates
             if self.store_coords_in_ram:
+                # loading from RAM
                 coords = self.coords_list[ind]
             else:
-                # or not!
-                case = os.path.basename(self.vol_ds.path_dicts[ind][self.label_key])
+                # or hard drive
+                case = os.path.basename(self.vol_ds.path_dicts[ind][self.mask_key])
                 coords = np.load(os.path.join(self.bias_coords_fol, case))
+
+            # pick a random item from the list and compute the upper left corner of the patch
             n_coords = coords.shape[1]
-            if n_coords > 0:
-                coord = coords[:, np.random.randint(n_coords)] - self.patch_size//2
-            else:
-                # random coordinate
-                coord = np.random.randint(np.maximum(shape - self.patch_size+1, 1))
+            coord = coords[:, np.random.randint(n_coords)] - self.patch_size//2
         else:
-            # random coordinate
+            # random coordinate uniform from the whole volume
             coord = np.random.randint(np.maximum(shape - self.patch_size+1, 1))
         coord = np.minimum(np.maximum(coord, 0), shape - self.patch_size)
         # now get the cropped and padded sample
@@ -270,52 +229,14 @@ class SegmentationBatchDataset(object):
             # the label augmentation expects integer valued predictions as input
             volume = self.augmentation(volume[np.newaxis])[0]
 
-        if self.is_cascade:
-            # after augmentation we need to extend the prediction from the previous stage
-            # from integer representation to one hot encoding where we can leave away the 
-            # background
-            if self.n_pred_classes > 1:
-                im = volume[:self.n_im_channels]
-                # we assume that there is always only one prediction channel
-                pred_fps = volume[self.n_im_channels:self.n_im_channels+1]
-                # this contains the "rest" e.g. ground truth segmentations and masks if applicable
-                seg = volume[self.n_im_channels+1:]
-                pred_fps = np.concatenate([pred_fps == c] for c in range(1, self.n_pred_classes+1))
-                pred_fps = pred_fps.astype(im.dtype)
-                volume = np.concatenate([im, pred_fps, seg])
+        return volume.astype(self.dtype)
 
-        if self.return_fp16:
-            volume = volume.astype(np.float16)
-        else:
-            volume = volume.astype(np.float32)
-
-        return volume
 
 
 def SegmentationDataloader(vol_ds, patch_size, batch_size, num_workers=None,
-                           pin_memory=True, epoch_len=250, p_bias_sampling=0,
-                           min_biased_samples=1, augmentation=None, padded_patch_size=None,
-                           store_coords_in_ram=True, memmap='r', n_im_channels: int = 1,
-                           image_key='image',
-                           label_key='label', pred_fps_key=None, n_pred_classes=None,
-                           store_data_in_ram=False,
-                           return_fp16=True,
-                           n_max_volumes=None,
-                           bias='fg',
-                           mask_key=None):
+                           pin_memory=True, epoch_len=250, *args, **kwargs):
     dataset = SegmentationBatchDataset(vol_ds=vol_ds, patch_size=patch_size, batch_size=batch_size,
-                                       epoch_len=epoch_len, p_bias_sampling=p_bias_sampling,
-                                       min_biased_samples=min_biased_samples,
-                                       augmentation=augmentation,
-                                       padded_patch_size=padded_patch_size,
-                                       n_im_channels=n_im_channels,
-                                       store_coords_in_ram=store_coords_in_ram,
-                                       memmap=memmap, image_key=image_key,
-                                       label_key=label_key, pred_fps_key=pred_fps_key,
-                                       n_pred_classes=n_pred_classes,
-                                       store_data_in_ram=store_data_in_ram,
-                                       return_fp16=return_fp16, n_max_volumes=n_max_volumes,
-                                       bias=bias, mask_key=mask_key)
+                                       epoch_len=epoch_len, *args, **kwargs)
     if num_workers is None:
         num_workers = 0 if os.name == 'nt' else 8
     worker_init_fn = lambda _: np.random.seed()

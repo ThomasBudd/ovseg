@@ -2,8 +2,10 @@ import numpy as np
 from os import environ
 from os.path import join
 import matplotlib.pyplot as plt
+import nibabel as nib
 
 prep = join(environ['OV_DATA_BASE'], 'preprocessed', 'OV04', 'pod_2d')
+predp = join(environ['OV_DATA_BASE'], 'predictions', 'OV04', 'pod_2d')
 
 case = 'case_300.npy'
 
@@ -36,3 +38,24 @@ for i, fol in enumerate(fols):
         plt.contour(lb[z, x1-10:x2+11, y1-10:y2+11], colors='red')
     plt.axis('off')
     plt.title(t_list[i])
+
+# %%
+x, y = np.where(lb[z] > 0)
+x1, x2 = x.min(), x.max()
+y1, y2 = y.min(), y.max()
+plt.figure()
+
+for i, fol in enumerate(fols):
+    plt.subplot(2, 3, i+1)
+    im = np.load(join(prep, fol, case)).astype(float)
+    plt.imshow(im[z, x1-10:x2+11, y1-10:y2+11], cmap='bone')
+    if i == 0:
+        plt.contour(lb[z, x1-10:x2+11, y1-10:y2+11], colors='red')
+    else:
+        pred = nib.load(join(predp, '2d_sequential_'+fol, 'cross_validation', case[:-4]+'.nii.gz')).get_fdata()
+        plt.contour(pred[x1-10:x2+11, y1-10:y2+11, z], colors='blue')
+        
+    plt.axis('off')
+    plt.title(t_list[i])
+
+

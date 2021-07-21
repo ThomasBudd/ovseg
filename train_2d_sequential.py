@@ -15,27 +15,18 @@ im_folder = ['images', 'restaurations_full', 'restaurations_half', 'restauration
              'restaurations_eights', 'restaurations_16', 'restaurations_32'][args.exp]
 
 
-model_params = get_model_params_2d_segmentation()
+model_params = get_model_params_2d_segmentation(fp32=True)
 model_params['data']['folders'][0] = im_folder
 model_params['network']['norm'] = 'inst'
+model_params['network']['norm_params'] = {'affine': True, 'eps': 1e-2}
 model_params['network']['filters'] = 8
 
-if args.run == -1:
-    for i in range(3):
-        model = SegmentationModel(val_fold=5+i,
-                                  data_name='OV04',
-                                  model_name='2d_sequential_'+im_folder+'_small',
-                                  model_parameters=model_params,
-                                  preprocessed_name='pod_2d')
-        
-        model.training.train()
-        model.eval_validation_set()
-else:
-    model = SegmentationModel(val_fold=5+args.run,
-                              data_name='OV04',
-                              model_name='2d_sequential_'+im_folder+'_small',
-                              model_parameters=model_params,
-                              preprocessed_name='pod_2d')
-    
-    model.training.train()
-    model.eval_validation_set()
+
+model = SegmentationModel(val_fold=5+args.run,
+                          data_name='OV04',
+                          model_name='2d_sequential_fp32_'+im_folder+'_small',
+                          model_parameters=model_params,
+                          preprocessed_name='pod_2d')
+
+model.training.train()
+model.eval_validation_set()
