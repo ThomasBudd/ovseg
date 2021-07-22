@@ -95,8 +95,12 @@ class SlidingWindowPrediction(object):
                     z1, z2 = z+self.patch_size[0]/4, z+self.patch_size[0]*3/4
                     x1, x2 = z+self.patch_size[1]/4, z+self.patch_size[1]*3/4
                     y1, y2 = z+self.patch_size[2]/4, z+self.patch_size[2]*3/4
-                    if ROI[z1:z2, x1:x2, y1:y2].any().item():
+                    if ROI is not None:
+                        if ROI[z1:z2, x1:x2, y1:y2].any().item():
+                            zxy_list.append((z, x, y))
+                    else:
                         zxy_list.append((z, x, y))
+                        
 
         return zxy_list
 
@@ -167,15 +171,15 @@ class SlidingWindowPrediction(object):
                     ovlp[:, z:z+self.patch_size[0], x:x+self.patch_size[1],
                          y:y+self.patch_size[2]] += self.patch_weight
 
-        # %% bring maybe back to old shape
-        pred = pred[:, :shape_in[1], :shape_in[2], :shape_in[3]]
-        ovlp = ovlp[:, :shape_in[1], :shape_in[2], :shape_in[3]]
-
-        # just to be sure
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-
-        return pred / ovlp
+            # %% bring maybe back to old shape
+            pred = pred[:, :shape_in[1], :shape_in[2], :shape_in[3]]
+            ovlp = ovlp[:, :shape_in[1], :shape_in[2], :shape_in[3]]
+    
+            # just to be sure
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+    
+            return pred / ovlp
 
     def predict_volume(self, volume, ROI=None, mode=None):
         # evaluates the siliding window on this volume
@@ -214,7 +218,7 @@ class SlidingWindowPrediction(object):
 
         if isinstance(ROI, np.ndarray):
             ROI = torch.from_numpy(ROI)
-        elif not torch.is_tensor(ROI) or not ROI is None:
+        elif not (torch.is_tensor(ROI) or ROI is None):
             raise TypeError('Got unknown type for argument ROI. Expected torch.tensor, np.ndarray, '
                             'or None, got {}'.format(type(ROI)))
             
@@ -229,7 +233,7 @@ class SlidingWindowPrediction(object):
                     flip_list.append((fz, fx, fy))
 
         # do the first one outside the loop for initialisation
-        pred = self._sliding_window(volume, ROI=None)
+        pred = self._sliding_window(volume, ROI=ROI)
 
         # now some flippings!
         for f in flip_list[1:]:
