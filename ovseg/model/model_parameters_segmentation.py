@@ -101,7 +101,7 @@ def get_model_params_2d_segmentation(n_fg_classes=1,
     model_parameters['prediction'] = prediction_params
 
     # now finally the training!
-    loss_params = {'eps': 1e-5,
+    loss_params = {'eps': 1,
                    'dice_weight': 1.0,
                    'ce_weight': 1.0,
                    'pyramid_weight': 0.5}

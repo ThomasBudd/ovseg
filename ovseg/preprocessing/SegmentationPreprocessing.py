@@ -46,7 +46,6 @@ class SegmentationPreprocessing(object):
                  window=None,
                  scaling=None,
                  lb_classes=None,
-                 mask_classes=None,
                  reduce_lb_to_single_class=False,
                  lb_min_vol=None,
                  n_im_channels: int = 1,
@@ -64,7 +63,6 @@ class SegmentationPreprocessing(object):
         self.window = window
         self.scaling = scaling
         self.lb_classes = lb_classes
-        self.mask_classes = mask_classes
         self.reduce_lb_to_single_class = reduce_lb_to_single_class
         self.lb_min_vol = lb_min_vol
         self.n_im_channels = n_im_channels
@@ -83,7 +81,6 @@ class SegmentationPreprocessing(object):
                                          'window',
                                          'scaling',
                                          'lb_classes',
-                                         'mask_classes',
                                          'reduce_lb_to_single_class',
                                          'lb_min_vol',
                                          'n_im_channels',
@@ -124,14 +121,6 @@ class SegmentationPreprocessing(object):
 
     def is_cascade(self):
         return len(self.prev_stages) > 0
-
-    def use_masks(self):
-        if isinstance(self.mask_classes, list):
-            return len(self.mask_classes) > 0
-        elif self.mask_classes is None:
-            return False
-        else:
-            raise ValueError('Variable mask_classes must be list or None.')
 
     def check_parameters(self):
 
@@ -228,11 +217,6 @@ class SegmentationPreprocessing(object):
 
         return lb
     
-    def maybe_add_mask_to_volume(self, volume):
-        # this function is only implemented for the Regionfinding
-        # bad implementation? Maybe!
-        return volume
-
     def is_preprocessed_data_tpl(self, data_tpl):
         return 'orig_shape' in data_tpl
 
@@ -248,17 +232,11 @@ class SegmentationPreprocessing(object):
         if not torch.cuda.is_available():
             # the preprocessing is also faster in scipy then it is in torch using the CPU
             xb_prep = self.np_preprocessing(xb, spacing)[0]
-            if not preprocess_only_im:
-                # if we're processing the label we might also add the mask 
-                # (only needed for training)
-                xb_prep = self.maybe_add_mask_to_volume(xb_prep)
         else:
             # when CUDA is available we will try to preprocess the data tuple on the GPU...
             xb_cuda = torch.from_numpy(xb).type(torch.float).cuda()
             try:
                 xb_prep = self.torch_preprocessing(xb_cuda, spacing)[0]
-                if not preprocess_only_im:
-                    xb_prep = self.maybe_add_mask_to_volume(xb_prep)
                 if return_np:
                     xb_prep = xb_prep.cpu().numpy()
             except RuntimeError:
@@ -272,8 +250,6 @@ class SegmentationPreprocessing(object):
                     # if we don't want to return the numpy array we're brining it
                     # back to the GPU
                     xb_prep = torch.from_numpy(xb_prep).type(torch.float).cuda()
-                if not preprocess_only_im:
-                    xb_prep = self.maybe_add_mask_to_volume(xb_prep)
             
         return xb_prep
 
@@ -305,19 +281,7 @@ class SegmentationPreprocessing(object):
 
             xb = np.concatenate([xb, bin_pred])
 
-        if 'label' in data_tpl and not get_only_im:    
-            if self.use_masks():
-                lb = data_tpl['label']
-                
-                if torch.is_tensor(lb):
-                    mask = 1 - reduce_classes(lb.cpu().numpy(), self.mask_classes, True)
-                    mask = torch.from_numpy(mask).type(lb.dtype).to(lb.device)
-                    mask = mask.unsqueeze(0)
-                    xb = torch.cat([xb, mask])
-                else:
-                    mask = 1 - reduce_classes(lb, self.mask_classes, True)
-                    mask = mask[np.newaxis]
-                    xb = np.concatenate([xb, mask])            
+        if 'label' in data_tpl and not get_only_im:     
             # get the label from the data_tpl and clean if applicable
             lb = self.maybe_clean_label_from_data_tpl(data_tpl)
 
@@ -327,11 +291,7 @@ class SegmentationPreprocessing(object):
         
         # finally add batch axis
         xb = xb[np.newaxis]
-            
-        return xb
 
-
-        xb = xb[np.newaxis]
         return xb
 
     def preprocess_raw_data(self,
@@ -375,14 +335,7 @@ class SegmentationPreprocessing(object):
         plot_folder = join(environ['OV_DATA_BASE'], 'plots', data_name, preprocessed_name)
         print(outfolder, plot_folder)
         # now let's create the output folders
-        folders = ['fingerprints']
-        # get one data_tpl to find out which folders we have to create
-        data_tpl = raw_ds_list[0][0]
-        xb = self.__call__(data_tpl, return_np=True)
-        xb_dict = self.slice_xb_to_dict(xb)
-        # find all keys contained in the xb_dict, add the plural s and create these folders
-        folders.extend(xb_dict.keys() + 's')
-        for f in folders:
+        for f in ['images', 'labels', 'fingerprints']:
             maybe_create_path(join(outfolder, f))
         maybe_create_path(plot_folder)
 
@@ -401,15 +354,15 @@ class SegmentationPreprocessing(object):
 
                 orig_shape = im.shape[-3:]
                 orig_spacing = spacing.copy()
+
+                # some data_tpls come without labels e.g. from dcms if there are no ROIs
                 if 'label' not in data_tpl:
                     data_tpl['label'] = np.zeros(orig_shape)
+
+                # get the preprocessed volumes from the data_tpl
                 xb = self.__call__(data_tpl, return_np=True)
-                xb_dict = self.slice_xb_to_dict(xb)
-                im, lb = xb_dict['image'].astype(im_dtype), xb_dict['label']
-                if self.is_cascade():
-                    bin_pred = xb_dict['bin_pred']
-                if self.use_masks():
-                    mask = xb_dict['mask']
+                im = xb[:self.n_im_channels].astype(im_dtype)
+                lb = xb[self.n_im_channels:].astype(np.uint8)
 
                 if lb.max() == 0 and self.save_only_fg_scans:
                     continue
@@ -417,6 +370,8 @@ class SegmentationPreprocessing(object):
                 spacing = self.target_spacing if self.apply_resizing else spacing
                 if self.apply_pooling:
                     spacing = np.array(spacing) * np.array(self.pooling_stride)
+                # the fingerprints are defined as everything that is left in the data_tpl
+                # that is not image, label or prediction from a previous stage
                 fingerprint_keys = [key for key in data_tpl if key not in ['image', 'label']]
                 fingerprint_keys = [key for key in fingerprint_keys
                                     if not key.startswith('prediction')]
@@ -429,41 +384,43 @@ class SegmentationPreprocessing(object):
                     fingerprint['dataset'] = raw_name
                 if 'pat_id' not in fingerprint:
                     fingerprint['pat_id'] = scan
-                # first save the image related stuff
-                np.save(join(outfolder, 'images', scan), np.squeeze(im, 0))
+                # save image and label
+                # remeber that the label carries all labels incl. potential masks or
+                # predictions from previous stages
+                np.save(join(outfolder, 'images', scan), im)
                 np.save(join(outfolder, 'labels', scan), lb)
                 np.save(join(outfolder, 'fingerprints', scan), fingerprint)
-                if self.is_cascade():
-                    np.save(join(outfolder, 'bin_preds', scan), bin_pred)
-                if self.use_masks():
-                    np.save(join(outfolder, 'masks', scan), mask)
 
                 # additionally do some plots
                 im = im.astype(float)
+                lb_ch = lb.shape[0]
+                im_ch = im.shape[0]
 
-                contains = np.where(np.sum(lb, (1, 2)))[0]
-                z_list = [np.argmax(np.sum(lb, (1, 2)))]
+                # get z values of interesting slices
+                contains = np.where(np.sum(lb[-1], (1, 2)))[0]
+                z_list = [np.argmax(np.sum(lb[-1], (1, 2)))]
                 s_list = ['_largest', '_random']
+                
+                colors = ['red', 'blue', 'green', 'yellow']
+                
                 if len(contains) > 0:
                     z_list.extend(np.random.choice(contains, size=1))
                 else:
                     z_list.extend(np.random.randint(lb.shape, size=1))
-                n_ch = im.shape[0]
                 for z, s in zip(z_list, s_list):
                     fig = plt.figure()
-                    for c in range(n_ch):
-                        plt.subplot(1, n_ch, c+1)
-                        plt.imshow(im[c, z], cmap='gray')
-                        if lb[z].max() > 0:
-                            # this if is purely to avoid annoying UserWarning messages that
-                            # interrupt the beautiful beautiful tqdm bar
-                            plt.contour(lb[z] > 0, linewidths=0.5, colors='red',
-                                        linestyles='dashed')
-                        if self.is_cascade():
-                            if bin_pred[z].max() > 0:
-                                plt.contour(bin_pred[z] > 0, linewidths=0.5, colors='blue',
+                    for ic in range(im_ch):
+                        plt.subplot(1, im_ch, ic+1)
+                        plt.imshow(im[ic, z], cmap='gray')
+                        for lc in range(lb_ch):
+                            if lb[lc, z].max() > 0:
+                                # this if is purely to avoid annoying UserWarning messages that
+                                # interrupt the beautiful beautiful tqdm bar
+                                plt.contour(lb[lc, z] > 0,
+                                            linewidths=0.5,
+                                            colors=colors[lc % 4],
                                             linestyles='dashed')
-                            
+
                         plt.axis('off')
                     plt.savefig(join(plot_folder, scan + s + '.png'))
                     plt.close(fig)
@@ -471,21 +428,6 @@ class SegmentationPreprocessing(object):
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         print('Preprocessing done!')
-
-    def slice_xb_to_dict(self, xb):
-
-        d = {}
-        im = xb[:self.n_im_channels]
-        d['image'] = im
-        lb = xb[-1].astype(np.uint8)
-        d['label'] = lb
-        if self.is_cascade():
-            bin_pred = xb[self.n_im_channels].astype(np.uint8)
-            d['bin_pred'] = bin_pred
-        if self.use_masks():
-            mask = xb[-2].astype(np.uint8)
-            d['mask'] = mask
-        return d
 
     def plan_preprocessing_raw_data(self, raw_data,
                                     percentiles=[0.5, 99.5],

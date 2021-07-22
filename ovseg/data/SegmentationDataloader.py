@@ -15,8 +15,8 @@ class SegmentationBatchDataset(object):
     def __init__(self, vol_ds, patch_size, batch_size, epoch_len=250, p_bias_sampling=0,
                  min_biased_samples=1, augmentation=None, padded_patch_size=None,
                  n_im_channels: int = 1, store_coords_in_ram=True, memmap='r', image_key='image',
-                 mask_key='mask', store_data_in_ram=False, return_fp16=True, n_max_volumes=None,
-                 bias='fg'):
+                 label_key='label', store_data_in_ram=False, return_fp16=True, n_max_volumes=None,
+                 bias='fg', *args, **kwargs):
         self.vol_ds = vol_ds
         self.patch_size = np.array(patch_size)
         self.batch_size = batch_size
@@ -27,7 +27,7 @@ class SegmentationBatchDataset(object):
         self.store_coords_in_ram = store_coords_in_ram
         self.memmap = memmap
         self.image_key = image_key
-        self.mask_key = mask_key
+        self.label_key = label_key
         self.store_data_in_ram = store_data_in_ram
         self.n_im_channels = n_im_channels
         self.return_fp16 = return_fp16
@@ -53,6 +53,11 @@ class SegmentationBatchDataset(object):
 
         self._maybe_store_data_in_ram()
 
+        if len(args) > 0:
+            print('Warning, got unused args: {}'.format(args))
+        if len(kwargs) > 0:
+            print('Warning, got unused kwargs: {}'.format(kwargs))
+
     def _get_bias_coords(self, volume):
 
         if self.bias == 'fg':
@@ -70,17 +75,17 @@ class SegmentationBatchDataset(object):
             sleep(1)
             for ind in tqdm(range(self.n_volumes)):
                 path_dict = self.vol_ds.path_dicts[ind]
-                masks = np.load(path_dict[self.mask_key]).astype(np.uint8)
+                labels = np.load(path_dict[self.label_key]).astype(np.uint8)
                 
-                if len(masks.shape) == 3:
-                    masks = masks[np.newaxis]
+                if len(labels.shape) == 3:
+                    labels = labels[np.newaxis]
                 
                 im = np.load(path_dict[self.image_key]).astype(self.dtype)
                 
                 if len(im.shape) == 3:
                     im = im[np.newaxis]
                 
-                self.data.append((im, masks))
+                self.data.append((im, labels))
                     
         # store coords in ram
         if self.store_coords_in_ram:
@@ -89,14 +94,14 @@ class SegmentationBatchDataset(object):
             sleep(1)
             for ind in tqdm(range(self.n_volumes)):
                 if self.store_data_in_ram:
-                    masks = self.data[ind][1]
+                    labels = self.data[ind][1]
                 else:
-                    masks = np.load(self.vol_ds.path_dicts[ind][self.mask_key])
-                if len(masks.shape) == 3:
-                    masks = masks[np.newaxis]
-                elif not len(masks.shape) == 4:
-                    raise ValueError('Got segmentation mask that is neither 3d nor 4d.')
-                coords = self._get_bias_coords(masks)
+                    labels = np.load(self.vol_ds.path_dicts[ind][self.label_key])
+                if len(labels.shape) == 3:
+                    labels = labels[np.newaxis]
+                elif not len(labels.shape) == 4:
+                    raise ValueError('Got segmentation label that is neither 3d nor 4d.')
+                coords = self._get_bias_coords(labels)
                 self.coords_list.append(coords)
             self.contains_fg_list = [ind for ind, coords in enumerate(self.coords_list)
                                     if len(coords) > 0]
@@ -113,10 +118,10 @@ class SegmentationBatchDataset(object):
             # now we check if come cases are missing in the folder
             print('Checking if all bias coordinates are stored in '+self.bias_coords_fol)
             for ind, d in enumerate(self.vol_ds.path_dicts):
-                case = os.path.basename(d[self.mask_key])
+                case = os.path.basename(d[self.label_key])
                 if case not in os.listdir(self.bias_coords_fol):
-                    masks = np.load(d[self.mask_key])
-                    coords = self._get_bias_coords(masks)
+                    labels = np.load(d[self.label_key])
+                    coords = self._get_bias_coords(labels)
                     np.save(os.path.join(self.bias_coords_fol, case), coords)
                 else:
                     coords = np.load(os.path.join(self.bias_coords_fol, case))
@@ -163,8 +168,8 @@ class SegmentationBatchDataset(object):
         else:
             path_dict = self.vol_ds.path_dicts[ind]
             im = np.load(path_dict[self.image_key], 'r')
-            masks = np.load(path_dict[self.mask_key], 'r')
-            volumes = [im, masks]
+            labels = np.load(path_dict[self.label_key], 'r')
+            volumes = [im, labels]
 
         # maybe add an additional axis
         for i in range(len(volumes)):
@@ -202,7 +207,7 @@ class SegmentationBatchDataset(object):
                 coords = self.coords_list[ind]
             else:
                 # or hard drive
-                case = os.path.basename(self.vol_ds.path_dicts[ind][self.mask_key])
+                case = os.path.basename(self.vol_ds.path_dicts[ind][self.label_key])
                 coords = np.load(os.path.join(self.bias_coords_fol, case))
 
             # pick a random item from the list and compute the upper left corner of the patch

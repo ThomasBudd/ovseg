@@ -1,4 +1,5 @@
 from ovseg.preprocessing.SegmentationPreprocessing import SegmentationPreprocessing
+from ovseg.preprocessing.RegionfindingPreprocessing import RegionfindingPreprocessing
 from os.path import join
 from os import environ
 import argparse
@@ -46,6 +47,10 @@ parser.add_argument("--lb_min_vol", required=False, default=None, nargs='+',
 parser.add_argument('--prev_stages', required=False, default=[], nargs='+',
                     help='Name the data_name, preprocessed_name and model_name of arbritraily '
                     'many previous stages here to use them as an input for model cascades.')
+parser.add_argument('--mask_dist', required=False, default=None, nargs='+',
+                    help='When preprocessing for Region finding mask_dist determins the distance '
+                    'in each direction in which the labels are dialated to create the mask for '
+                    'training. Must be of len 3')
 args = parser.parse_args()
 
 # input arguments
@@ -102,19 +107,35 @@ for i in range(n_stages):
                         'model_name': args.prev_stages[3*i+2]})
 
 
-preprocessing = SegmentationPreprocessing(apply_resizing=apply_resizing,
-                                          apply_pooling=apply_pooling,
-                                          apply_windowing=apply_windowing,
-                                          target_spacing=target_spacing,
-                                          pooling_stride=pooling_stride,
-                                          window=window,
-                                          scaling=scaling,
-                                          lb_classes=lb_classes,
-                                          reduce_lb_to_single_class=args.reduce_lb_to_single_class,
-                                          lb_min_vol=lb_min_vol,
-                                          prev_stages=prev_stages,
-                                          save_only_fg_scans=save_only_fg_scans)
-
+if args.mask_dist is None:
+    preprocessing = SegmentationPreprocessing(apply_resizing=apply_resizing,
+                                              apply_pooling=apply_pooling,
+                                              apply_windowing=apply_windowing,
+                                              target_spacing=target_spacing,
+                                              pooling_stride=pooling_stride,
+                                              window=window,
+                                              scaling=scaling,
+                                              lb_classes=lb_classes,
+                                              reduce_lb_to_single_class=args.reduce_lb_to_single_class,
+                                              lb_min_vol=lb_min_vol,
+                                              prev_stages=prev_stages,
+                                              save_only_fg_scans=save_only_fg_scans)
+else:
+    mask_dist = [int(m) for m in args.mask_dist]
+    preprocessing = RegionfindingPreprocessing(apply_resizing=apply_resizing,
+                                               apply_pooling=apply_pooling,
+                                               apply_windowing=apply_windowing,
+                                               target_spacing=target_spacing,
+                                               pooling_stride=pooling_stride,
+                                               window=window,
+                                               scaling=scaling,
+                                               lb_classes=lb_classes,
+                                               reduce_lb_to_single_class=args.reduce_lb_to_single_class,
+                                               lb_min_vol=lb_min_vol,
+                                               prev_stages=prev_stages,
+                                               save_only_fg_scans=save_only_fg_scans,
+                                               mask_dist=mask_dist)
+    
 
 preprocessing.plan_preprocessing_raw_data(args.raw_data,
                                           force_planning=True)

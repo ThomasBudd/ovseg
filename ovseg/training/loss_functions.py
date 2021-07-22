@@ -19,7 +19,7 @@ class cross_entropy(nn.Module):
 
 class dice_loss(nn.Module):
 
-    def __init__(self, eps=1e-5):
+    def __init__(self, eps=1):
         super().__init__()
         self.eps = eps
 
@@ -68,7 +68,7 @@ class cross_entropy_weighted_bg(nn.Module):
 
 class dice_loss_weighted(nn.Module):
 
-    def __init__(self, weight=0.5, eps=1e-5):
+    def __init__(self, weight=0.5, eps=1):
         super().__init__()
         self.eps = eps
         self.weight = weight

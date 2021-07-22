@@ -9,7 +9,7 @@ class RegionfindingPreprocessing(SegmentationPreprocessing):
         super().__init__(*args, **kwargs)
         
         self.mask_dist = mask_dist
-
+        assert len(self.mask_dist) == 3, 'mask_dist must be of len 3'
         axes = [np.linspace(-1, 1, 2*m+1) for m in self.mask_dist]
         
         # define the ball with radius as in mask_dist
@@ -33,8 +33,27 @@ class RegionfindingPreprocessing(SegmentationPreprocessing):
                                          'mask_dist']
         self._slow_dilation_warning_printed = False
     
-    def use_masks(self):
-        return True
+    def __call__(self, data_tpl, preprocess_only_im=False, return_np=False):
+        volume = super().__call__(data_tpl, preprocess_only_im, return_np=False)
+
+        if preprocess_only_im:
+            return volume
+
+        # now let's add the mask to the preprocessed volumes
+        # as this comes from the segmentation preprocessing the volume should only carry
+        # the image and the ground truht label
+        if torch.cuda.is_available():
+            volume = self._torch_add_mask_to_volume(volume)
+            if return_np:
+                volume = volume.cpu().numpy()
+        else:
+            volume = volume.cpu().numpy()
+            volume = self._np_add_mask_to_volume(volume)
+            if not return_np:
+                volume = torch.from_numpy(volume)
+
+        return volume
+        
     
     def _np_add_mask_to_volume(self, volume):
         
@@ -50,10 +69,7 @@ class RegionfindingPreprocessing(SegmentationPreprocessing):
         # now keep everything in the loss function, but the dialated edge
         mask = 1 - lb_dial_edge
         mask = mask[np.newaxis].astype(dtype)
-        if super().use_masks():
-            volume[-2:-1] *= mask
-        else:
-            volume = np.concatenate([volume[:-1], mask, volume[-1:]])
+        volume = np.concatenate([volume[:-1], mask, volume[-1:]])
         return volume
 
     def _torch_add_mask_to_volume(self, volume):
@@ -70,10 +86,7 @@ class RegionfindingPreprocessing(SegmentationPreprocessing):
         dial_edge = dial - bin_lb_cuda
         mask = (1 - dial_edge).type(dtype)
 
-        if super().use_masks():
-            volume[-2:-1] *= mask
-        else:
-            volume = torch.cat([volume[:-1], mask, volume[-1:]])
+        volume = torch.cat([volume[:-1], mask, volume[-1:]])
         return volume
         
     def maybe_add_mask_to_volume(self, volume):
