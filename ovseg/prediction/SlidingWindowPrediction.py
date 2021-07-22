@@ -13,7 +13,7 @@ class SlidingWindowPrediction(object):
 
         self.dev = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.network = network.to(self.dev)
-        self.patch_size = np.array(patch_size)
+        self.patch_size = np.array(patch_size).astype(int)
         self.batch_size = batch_size
         self.overlap = overlap
         self.fp32 = fp32
@@ -92,15 +92,11 @@ class SlidingWindowPrediction(object):
                 for y in y_list:
                     # we only predict the patch if the middle cube with half side length
                     # intersects the ROI
-                    z1, z2 = z+self.patch_size[0]/4, z+self.patch_size[0]*3/4
-                    x1, x2 = z+self.patch_size[1]/4, z+self.patch_size[1]*3/4
-                    y1, y2 = z+self.patch_size[2]/4, z+self.patch_size[2]*3/4
-                    if ROI is not None:
-                        if ROI[z1:z2, x1:x2, y1:y2].any().item():
-                            zxy_list.append((z, x, y))
-                    else:
+                    z1, z2 = z+self.patch_size[0]//4, z+self.patch_size[0]*3//4
+                    x1, x2 = z+self.patch_size[1]//4, z+self.patch_size[1]*3//4
+                    y1, y2 = z+self.patch_size[2]//4, z+self.patch_size[2]*3//4
+                    if ROI[z1:z2, x1:x2, y1:y2].any().item():
                         zxy_list.append((z, x, y))
-                        
 
         return zxy_list
 

@@ -1,5 +1,4 @@
 from ovseg.model.SegmentationModel import SegmentationModel
-from ovseg.data.RegionfindingData import RegionfindingData
 from ovseg.preprocessing.RegionfindingPreprocessing import RegionfindingPreprocessing
 import numpy as np
 
