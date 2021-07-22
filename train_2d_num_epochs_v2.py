@@ -5,16 +5,11 @@ import argparse
 is_small = True
 
 parser = argparse.ArgumentParser()
-parser.add_argument("exp", type=int)
 parser.add_argument("run", type=int)
 args = parser.parse_args()
 
-im_folder = ['images', 'restaurations_full', 'restaurations_half', 'restaurations_quater',
-             'restaurations_eights', 'restaurations_16', 'restaurations_32'][args.exp]
-
 
 model_params = get_model_params_2d_segmentation(fp32=True)
-model_params['data']['folders'][0] = im_folder
 model_params['network']['norm'] = 'inst'
 model_params['network']['norm_params'] = {'affine': True, 'eps': 1e-2}
 model_params['training']['stop_after_epochs'] = [250, 500, 750]
