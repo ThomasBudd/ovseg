@@ -18,6 +18,7 @@ class SegmentationTraining(NetworkTraining):
                  n_im_channels:int = 1,
                  batches_have_masks=False,
                  mask_with_bin_pred=False,
+                 stop_after_epochs=[],
                  **kwargs):
         super().__init__(*args, **kwargs)
         self.prg_trn_sizes = prg_trn_sizes
@@ -27,6 +28,7 @@ class SegmentationTraining(NetworkTraining):
         self.n_im_channels = n_im_channels
         self.batches_have_masks = batches_have_masks
         self.mask_with_bin_pred = mask_with_bin_pred
+        self.stop_after_epochs = stop_after_epochs
 
         # now have fun with progressive training!
         self.do_prg_trn = self.prg_trn_sizes is not None
@@ -279,6 +281,10 @@ class SegmentationTraining(NetworkTraining):
             if self.epochs_done % self.prg_trn_epochs_per_stage == 0:
                 # ... if this is the right epoch for this
                 self.prg_trn_update_parameters()
+
+        # check if we want to stop the training after this epoch
+        if self.epochs_done in self.stop_after_epochs:
+            self.stop_training = True
 
 
 class resize(nn.Module):

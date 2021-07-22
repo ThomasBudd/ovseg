@@ -69,10 +69,15 @@ class TrainingBase():
             # do nothing if the traing was already finished
             print('Training was already completed. Doing nothing here.')
             return
-
+        else:
+            # if we've stopped the training before by setting stop_training = True
+            # this resumes it
+            self.stop_training = False
+        
         self.on_training_start()
 
-        while self.epochs_done < self.num_epochs:
+        # we're using the stop_training flag to easily allow early stopping in the training
+        while not self.stop_training:
 
             self.on_epoch_start()
 
@@ -133,6 +138,8 @@ class TrainingBase():
         self.epochs_done += 1
         self.print_and_log('Average epoch training time: {:.2f} seconds'
                            .format(self.total_train_time/self.epochs_done))
+        if self.epochs_done >= self.num_epochs:
+            self.stop_training = True
 
     def on_training_end(self):
 
