@@ -25,8 +25,8 @@ model = SegmentationModel(val_fold=5+args.run,
                           model_parameters=model_params,
                           preprocessed_name='pod_2d')
 
-for num_epochs in range([250, 500, 750, 1000]):
+for num_epochs in [250, 500, 750, 1000]:
     model.training.train()
     
-    model.eval_ds(model.val_ds, ds_name='validation_'+str(num_epochs), save_preds=False,
+    model.eval_ds(model.data.val_ds, ds_name='validation_'+str(num_epochs), save_preds=False,
                   save_plots=False, merge_to_CV_results=True)

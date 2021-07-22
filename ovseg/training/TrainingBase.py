@@ -91,7 +91,8 @@ class TrainingBase():
             self.save_checkpoint()
             self.print_and_log('', 1)
 
-        self.on_training_end()
+        if self.epochs_done >= self.num_epochs:
+            self.on_training_end()
 
     def on_training_start(self):
 
