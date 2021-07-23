@@ -502,6 +502,20 @@ def save_nii_from_data_tpl(data_tpl, out_file, key):
 
     nib.save(nii_img, out_file)
 
+
+def save_npy_from_data_tpl(data_tpl, out_file, key):
+
+    arr = data_tpl[key]
+    if 'had_z_first' in data_tpl:
+        if not data_tpl['had_z_first']:
+            arr = np.stack([arr[z] for z in range(arr.shape[0])], -1)
+    else:
+        if not _has_z_first(data_tpl['spacing'], arr.shape, data_tpl['raw_image_file']):
+            arr = np.stack([arr[z] for z in range(arr.shape[0])], -1)
+
+    np.save(out_file, arr)
+
+    
 def save_dcmrt_from_data_tpl(data_tpl, out_file, key, names=None, colors=None, dcm_path=None):
 
     
@@ -532,10 +546,10 @@ def save_dcmrt_from_data_tpl(data_tpl, out_file, key, names=None, colors=None, d
     rtstruct = RTStructBuilder.create_new(dicom_series_path=dcm_path)
 
     for i, (name, color) in enumerate(zip(names, colors)):
-        mask = (pred == i)
+        mask = (pred == i+1)
         if mask.max() > 0:
-    
-            rtstruct.add_roi(mask=mask,
+            # rt_utils sorts the images the other way around
+            rtstruct.add_roi(mask=mask[..., ::-1],
                              color=color,
                              name=name)
 

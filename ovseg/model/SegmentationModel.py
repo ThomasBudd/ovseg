@@ -16,7 +16,7 @@ from ovseg.model.ModelBase import ModelBase
 from ovseg.utils.torch_np_utils import check_type
 from ovseg.postprocessing.SegmentationPostprocessing import SegmentationPostprocessing
 from ovseg.postprocessing.ClassEnsemblingPostprocessing import ClassEnsemblingPostprocessing
-from ovseg.utils.io import save_nii_from_data_tpl, load_pkl, read_nii
+from ovseg.utils.io import save_nii_from_data_tpl, save_npy_from_data_tpl, load_pkl, read_nii
 from ovseg.data.Dataset import raw_Dataset
 from ovseg.utils.dict_equal import dict_equal, print_dict_diff
 from skimage.measure import label
@@ -329,6 +329,7 @@ class SegmentationModel(ModelBase):
             key += '_orig_shape'
 
         save_nii_from_data_tpl(data_tpl, join(pred_folder, filename), key)
+        save_npy_from_data_tpl(data_tpl, join(pred_folder, filename), key)
 
     def plot_prediction(self, data_tpl, folder_name, filename=None, image_key='image'):
 
@@ -407,6 +408,13 @@ class SegmentationModel(ModelBase):
         # with the new update the prediction should be in classes as well instead of 
         # integer encoding as before. Let's hope that it works!
         seg = data_tpl['label']
+        if self.preprocessing.is_preprocessed_data_tpl(data_tpl):
+            # if we have a preprocessed data_tpl we need to bring the segmentation back from
+            # integer to class encoding
+            seg_lb = np.zeros_like(seg)
+            for i, c in enumerate(self.lb_classes):
+                seg_lb[seg == i+1] = c
+            seg = seg_lb
         results = {}
         for c in self.lb_classes:
             seg_c = (seg == c).astype(float)
@@ -598,7 +606,9 @@ class SegmentationModel(ModelBase):
             pred = self.__call__(data_tpl, do_postprocessing=False)
             if torch.is_tensor(pred):
                 pred = pred.cpu().numpy()
-            np.savez_compressed(join(pred_npz_path, scan), pred)
+            pred = pred.astype(np.float16)
+            # np.savez_compressed(join(pred_npz_path, scan), pred)
+            np.save(join(pred_npz_path, scan), pred)
 
     def infere_volume_thresholds(self, folder_name='cross_validation', scans=None,
                                  image_folder=None, dcm_revers=True, dcm_names_dict=None):

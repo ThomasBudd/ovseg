@@ -6,7 +6,7 @@ import torch
 
 class RegionexpertPreprocessing(SegmentationPreprocessing):
 
-    def __init__(self, *args, region_finding_model, **kwargs):
+    def __init__(self, *args, region_finding_model:dict, **kwargs):
         super().__init__(*args, **kwargs)
         
         self.region_finding_model = region_finding_model
@@ -40,13 +40,13 @@ class RegionexpertPreprocessing(SegmentationPreprocessing):
     def get_xb_from_data_tpl(self, data_tpl, get_only_im=False):
         
         xb = super().get_xb_from_data_tpl(data_tpl, get_only_im)
-        if get_only_im:
-            return xb
 
         # in contrast to the previous method we need to get the region as well and might merge it
         # with the other masks
         assert self.region_finding_key in data_tpl, 'Regions not found in data_tpl'
         region = data_tpl[self.region_finding_key]
+
+        # preprare region mask from data_tpl
         if self.lb_classes is None:
             mask = region > 0
         else:
@@ -54,24 +54,12 @@ class RegionexpertPreprocessing(SegmentationPreprocessing):
             for c in self.lb_classes:
                 mask[region == c] = 1
 
-        if self.use_masks():
-            xb[-2:-1] = mask * xb[-2:-1]
+        if get_only_im:
+            # if we're only intrested in the image and no the label the region is just
+            # the last channel of the tensor
+            xb = np.concatenate([xb, mask])
         else:
+            # else the region channel is after the image and before the ground truht label
             xb = np.concatenate([xb[:-1], mask, xb[-1:]])
 
         return xb
-
-    def slice_xb_to_dict(self, xb):
-
-        d = {}
-        im = xb[:self.n_im_channels]
-        d['image'] = im
-        lb = xb[-1].astype(np.uint8)
-        d['label'] = lb
-        if self.is_cascade():
-            bin_pred = xb[self.n_im_channels].astype(np.uint8)
-            d['bin_pred'] = bin_pred
-        mask = xb[-2].astype(np.uint8)
-        d['mask'] = mask
-        return d
-        
