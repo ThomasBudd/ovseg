@@ -13,7 +13,7 @@ model_parmas = get_model_params_3d_res_encoder_U_Net([32, 216, 216], 6.25,  n_fg
 model_name = 'res_encoder'
 
 model = SegmentationModel(val_fold=args.fold, data_name='OV04', preprocessed_name='new_multiclass',
-                          model_parameters=model_parmas)
+                          model_name=model_name, model_parameters=model_parmas)
 
 model.training.train()
 model.eval_validation_set()
