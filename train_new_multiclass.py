@@ -1,6 +1,6 @@
 from ovseg.model.SegmentationModel import SegmentationModel
 from ovseg.model.RegionfindingModel import RegionfindingModel
-from ovseg.model.model_paramters_segmentation import get_model_params_3d_res_encoder_U_Net
+from ovseg.model.model_parameters_segmentation import get_model_params_3d_res_encoder_U_Net
 
 import argparse
 
