@@ -82,7 +82,10 @@ class SlidingWindowPrediction(object):
                             (self.overlap * self.patch_size)).astype(int) + 1
 
         # upper left corners of all patches
-        z_list = np.linspace(0, nz - self.patch_size[0], n_patches[0]).astype(int).tolist()
+        if self.is_2d:
+            z_list = np.arange(nz).astype(int).tolist()
+        else:
+            z_list = np.linspace(0, nz - self.patch_size[0], n_patches[0]).astype(int).tolist()
         x_list = np.linspace(0, nx - self.patch_size[1], n_patches[1]).astype(int).tolist()
         y_list = np.linspace(0, ny - self.patch_size[2], n_patches[2]).astype(int).tolist()
 
@@ -92,7 +95,10 @@ class SlidingWindowPrediction(object):
                 for y in y_list:
                     # we only predict the patch if the middle cube with half side length
                     # intersects the ROI
-                    z1, z2 = z+self.patch_size[0]//4, z+self.patch_size[0]*3//4
+                    if self.is_2d:
+                        z1, z2 = z, z+1
+                    else:
+                        z1, z2 = z+self.patch_size[0]//4, z+self.patch_size[0]*3//4
                     x1, x2 = z+self.patch_size[1]//4, z+self.patch_size[1]*3//4
                     y1, y2 = z+self.patch_size[2]//4, z+self.patch_size[2]*3//4
                     if ROI[z1:z2, x1:x2, y1:y2].any().item():

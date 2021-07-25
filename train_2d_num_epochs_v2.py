@@ -2,19 +2,19 @@ from ovseg.model.SegmentationModel import SegmentationModel
 from ovseg.model.model_parameters_segmentation import get_model_params_2d_segmentation
 import argparse
 
-is_small = True
-
 parser = argparse.ArgumentParser()
 parser.add_argument("run", type=int)
+parser.add_argument("--small", required=False, default=False, action='store_true')
 args = parser.parse_args()
 
 
-model_params = get_model_params_2d_segmentation(fp32=True)
+model_params = get_model_params_2d_segmentation()
 model_params['network']['norm'] = 'inst'
 model_params['network']['norm_params'] = {'affine': True, 'eps': 1e-2}
 model_params['training']['stop_after_epochs'] = [250, 500, 750]
-model_name = '2d_num_epochs'
-if is_small:
+model_params['training']['opt_name'] = 'ADAM'
+model_name = '2d_num_epochs_ADAM'
+if args.small:
     model_params['network']['filters'] = 8
     model_name += '_small'
 
