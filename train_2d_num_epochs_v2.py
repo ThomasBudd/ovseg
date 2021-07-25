@@ -13,6 +13,7 @@ model_params['network']['norm'] = 'inst'
 model_params['network']['norm_params'] = {'affine': True, 'eps': 1e-2}
 model_params['training']['stop_after_epochs'] = [250, 500, 750]
 model_params['training']['opt_name'] = 'ADAM'
+model_params['training']['opt_params'] = {'lr': 10**-4}
 model_name = '2d_num_epochs_ADAM'
 if args.small:
     model_params['network']['filters'] = 8
