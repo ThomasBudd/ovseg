@@ -3,19 +3,30 @@ from torch import nn
 import numpy as np
 
 
+# class cross_entropy(nn.Module):
+
+#     def __init__(self):
+#         super().__init__()
+#         self.loss = torch.nn.CrossEntropyLoss(reduction='none')
+
+#     def forward(self, logs, yb_oh, mask=None):
+#         assert logs.shape == yb_oh.shape
+#         yb_int = torch.argmax(yb_oh, 1)
+#         l = self.loss(logs, yb_int)
+#         if mask is not None:
+#             l = l * mask[:, 0]
+#         return l.mean()
 class cross_entropy(nn.Module):
 
     def __init__(self):
         super().__init__()
-        self.loss = torch.nn.CrossEntropyLoss(reduction='none')
+        self.loss = torch.nn.CrossEntropyLoss()
 
     def forward(self, logs, yb_oh, mask=None):
         assert logs.shape == yb_oh.shape
         yb_int = torch.argmax(yb_oh, 1)
-        l = self.loss(logs, yb_int)
-        if mask is not None:
-            l = l * mask[:, 0]
-        return l.mean()
+        return self.loss(logs, yb_int)
+
 
 class dice_loss(nn.Module):
 

@@ -329,7 +329,7 @@ class SegmentationModel(ModelBase):
             key += '_orig_shape'
 
         save_nii_from_data_tpl(data_tpl, join(pred_folder, filename), key)
-        save_npy_from_data_tpl(data_tpl, join(pred_folder, filename), key)
+        # save_npy_from_data_tpl(data_tpl, join(pred_folder, filename), key)
 
     def plot_prediction(self, data_tpl, folder_name, filename=None, image_key='image'):
 
@@ -423,7 +423,7 @@ class SegmentationModel(ModelBase):
             has_fg = seg_c.max() > 0
             fg_pred = pred_c.max() > 0
 
-            results.update({'has_fg_%d' % c: seg_c.max() > 0,
+            results.update({'has_fg_%d' % c: has_fg,
                             'fg_pred_%d' % c: fg_pred})
             tp = np.sum(seg_c * pred_c)
             seg_c_vol = np.sum(seg_c)
