@@ -7,14 +7,15 @@ parser.add_argument("run", type=int)
 parser.add_argument("--small", required=False, default=False, action='store_true')
 args = parser.parse_args()
 
+epochs = list(range(100, 1000, 100))
 
 model_params = get_model_params_2d_segmentation()
 model_params['network']['norm'] = 'inst'
 model_params['network']['norm_params'] = {'affine': True, 'eps': 1e-2}
-model_params['training']['stop_after_epochs'] = [250, 500, 750]
+model_params['training']['stop_after_epochs'] = epochs
 model_params['training']['opt_name'] = 'ADAM'
 model_params['training']['opt_params'] = {'lr': 10**-4}
-model_name = '2d_num_epochs_ADAM'
+model_name = '2d_num_epochs_ADAM_new'
 if args.small:
     model_params['network']['filters'] = 8
     model_name += '_small'
@@ -26,7 +27,7 @@ model = SegmentationModel(val_fold=5+args.run,
                           model_parameters=model_params,
                           preprocessed_name='pod_2d')
 
-for num_epochs in [250, 500, 750, 1000]:
+for num_epochs in epochs + [1000]:
     model.training.train()
     
     model.eval_ds(model.data.val_ds, ds_name='validation_'+str(num_epochs), save_preds=False,
