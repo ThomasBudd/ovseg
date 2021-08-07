@@ -32,3 +32,27 @@ for num_epochs in epochs + [1000]:
     
     model.eval_ds(model.data.val_ds, ds_name='validation_'+str(num_epochs), save_preds=False,
                   save_plots=False, merge_to_CV_results=True)
+
+# %%
+import os
+import pickle
+import matplotlib.pyplot as plt
+import numpy as np
+
+bp = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models', 'OV04', 'pod_2d',
+                  '2d_num_epochs_ADAM_new')
+
+epochs = list(range(100, 1100, 100))
+mean_dscs = []
+for epoch in epochs:
+    res = pickle.load(open(os.path.join(bp, 'validation_{}_CV_results.pkl'.format(epoch)), 'rb'))
+    mean_dscs.append(np.mean([res[key]['dice_9'] for key in res]))
+
+plt.plot(epochs, mean_dscs, 'b')
+mean_dscs = []
+for epoch in epochs:
+    res = pickle.load(open(os.path.join(bp+'_small', 'validation_{}_CV_results.pkl'.format(epoch)), 'rb'))
+    mean_dscs.append(np.mean([res[key]['dice_9'] for key in res]))
+
+plt.plot(epochs, mean_dscs, 'r')
+plt.legend(['32 filters', '8 filters'])
