@@ -48,6 +48,7 @@ for fbp_folder in fbp_folders:
         
         
         model_params = get_model_params_2d_segmentation()
+        del model_params['augmentation']['torch_params']['grayvalue']
         model_params['network']['norm'] = 'inst'
         model_name = 'delete_me_2d_joint_'+dose
         
