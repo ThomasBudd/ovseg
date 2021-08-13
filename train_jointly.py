@@ -1,8 +1,8 @@
 from ovseg.model.RestaurationModel import RestaurationModel
 from ovseg.model.SegmentationModel import SegmentationModel
 from ovseg.model.model_parameters_segmentation import get_model_params_2d_segmentation
-from JoinedRestSegTraining import JoinedRestSegTraining
-from JoinedRestSegData import JoinedRestSegData
+from ovseg.training.JoinedRestSegTraining import JoinedRestSegTraining
+from ovseg.data.JoinedRestSegData import JoinedRestSegData
 import argparse
 import os
 
@@ -42,7 +42,8 @@ for fbp_folder in fbp_folders:
         rest_model = RestaurationModel(val_fold=0,
                                        data_name='OV04',
                                        model_name='restauration_'+fbp_folder,
-                                       preprocessed_name='pod_2d')
+                                       preprocessed_name='pod_2d',
+                                       dont_store_data_in_ram=True)
         
         
         
@@ -55,7 +56,8 @@ for fbp_folder in fbp_folders:
                                       data_name='OV04',
                                       model_name=model_name,
                                       model_parameters=model_params,
-                                      preprocessed_name='pod_2d')
+                                      preprocessed_name='pod_2d',
+                                      dont_store_data_in_ram=True)
     
         model_path = os.path.join(joint_folder, 'fold_{}'.format(5+i))
         training = JoinedRestSegTraining(model1=rest_model,

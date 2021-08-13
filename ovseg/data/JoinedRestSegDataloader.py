@@ -53,7 +53,7 @@ class JoinedRestSegBatchDataset(object):
                     data_dict = self.vol_ds[ind]
                     seg = data_dict['label']
                 if seg.max() > 0:
-                    coords = np.stack(np.where(np.sum(seg, (0, 1)) > 0)[0]).astype(np.int16)
+                    coords = np.stack(np.where(np.sum(seg, (1, 2)) > 0)[0]).astype(np.int16)
                 else:
                     coords = np.array([])
                 self.coords_list.append(coords)
@@ -69,7 +69,7 @@ class JoinedRestSegBatchDataset(object):
                 case = os.path.basename(d[self.label_key])
                 if case not in os.listdir(self.bias_coords_fol):
                     lb = np.load(d[self.label_key])
-                    coords = np.stack(np.where(np.sum(lb, (0, 1)) > 0)[0])
+                    coords = np.stack(np.where(np.sum(lb, (1, 2)) > 0)[0])
                     coords = coords.astype(np.int16)
                     np.save(os.path.join(self.bias_coords_fol, case), coords)
 
@@ -126,14 +126,14 @@ class JoinedRestSegBatchDataset(object):
                     zcoord = coords[np.random.randint(n_coords)]
                 else:
                     # random coordinate
-                    zcoord = np.random.randint(seg.shape[-1])
+                    zcoord = np.random.randint(seg.shape[0])
             else:
                 # random coordinate
-                zcoord = np.random.randint(seg.shape[-1])
+                zcoord = np.random.randint(seg.shape[0])
             # now get the cropped and padded sample
-            fbps.append(fbp[np.newaxis, ..., zcoord])
-            ims.append(im[np.newaxis, ..., zcoord])
-            segs.append(seg[np.newaxis,..., zcoord])
+            fbps.append(fbp[np.newaxis, zcoord])
+            ims.append(im[np.newaxis, zcoord])
+            segs.append(seg[np.newaxis, zcoord])
 
         # stack up in first dim except for the segmentations as they have
         # different resolutions
