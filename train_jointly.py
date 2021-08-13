@@ -64,6 +64,7 @@ for fbp_folder in fbp_folders:
                                          model2=seg_model,
                                          trn_dl=data.trn_dl,
                                          model_path=model_path,
+                                         num_epochs=1000,
                                          loss_weight=loss_weight,
                                          val_dl=data.val_dl,
                                          opt1_params=opt_params,
