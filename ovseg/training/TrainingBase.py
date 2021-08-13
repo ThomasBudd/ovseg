@@ -121,7 +121,7 @@ class TrainingBase():
         self.print_and_log('Epoch:%d' % self.epochs_done)
         self.epoch_start_time = time.time()
 
-    def do_trn_step(self, data_tpl):
+    def do_trn_step(self, data_tpl, step):
 
         raise NotImplementedError('\'do_trn_step\' must be overloaded in the child class.\n It has '
                                   'a data tpl as input and performs one optimisation step.')

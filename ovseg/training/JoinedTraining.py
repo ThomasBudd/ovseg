@@ -309,7 +309,7 @@ class JoinedTraining(TrainingBase):
         self.scaler.update()
         return loss
 
-    def do_trn_step(self, data_tpl):
+    def do_trn_step(self, data_tpl, step):
 
         loss = self._trn_step(data_tpl)
         # detach and to cpu
