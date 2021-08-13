@@ -7,7 +7,8 @@ class JoinedRestSegTraining(JoinedTraining):
     def _eval_data_tpl(self, batch):
         # changed naming conventions, data_tpl is batch now
         fbp, im, seg = batch
-        fbp, im, seg = fbp.to(self.dev), im.to(self.dev), seg.to(self.dev)
+        # pytorch dataloaders add this additional axis, let's remove it
+        fbp, im, seg = fbp[0].to(self.dev), im[0].to(self.dev), seg[0].to(self.dev)
         rest = self.model1.network(fbp)
         
         # get the clean image aka restauration and the segmentation together

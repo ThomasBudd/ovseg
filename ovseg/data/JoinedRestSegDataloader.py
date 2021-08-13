@@ -158,9 +158,7 @@ def JoinedRestSegDataloader(vol_ds, batch_size, num_workers=None,
     if num_workers is None:
         num_workers = 0 if os.name == 'nt' else 8
     worker_init_fn = lambda _: np.random.seed()
-    sampler = torch.utils.data.SequentialSampler(range(batch_size * epoch_len))
     return torch.utils.data.DataLoader(dataset,
-                                       sampler=sampler,
                                        pin_memory=pin_memory,
                                        num_workers=num_workers,
                                        worker_init_fn=worker_init_fn)
