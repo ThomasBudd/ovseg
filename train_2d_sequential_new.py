@@ -19,7 +19,7 @@ model_params['training']['opt_params'] = {'lr': 10**-4}
 model_name = '2d_sequential_new_'+im_folder[14:]
 
 for i in range(3):
-    model = SegmentationModel(val_fold=5+str(i),
+    model = SegmentationModel(val_fold=5+i,
                               data_name='OV04',
                               model_name=model_name,
                               model_parameters=model_params,
