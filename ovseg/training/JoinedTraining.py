@@ -34,8 +34,8 @@ class JoinedTraining(TrainingBase):
         self.loss_weight = loss_weight
         self.dev = dev
         self.nu_ema_trn = nu_ema_trn
-        self.lr1_params = lr1_params
-        self.lr2_params = lr2_params
+        self.lr1_params = lr1_params if lr1_params is not None else default_lr_params
+        self.lr2_params = lr2_params if lr2_params is not None else default_lr_params
         self.opt1_params = opt1_params
         self.opt2_params = opt2_params
         self.opt1_name = opt1_name

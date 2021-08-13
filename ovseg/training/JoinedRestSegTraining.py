@@ -15,9 +15,9 @@ class JoinedRestSegTraining(JoinedTraining):
         batch = torch.cat([rest, seg], 1)
 
         # augment
-        batch = self.model2.training.augmentation(batch)
+        batch_aug = self.model2.training.augmentation(batch)
         # print('batch_aug device: '+str(batch.device))
-        rest_aug, seg_aug = batch[:, :-1], batch[:, -1:]
+        rest_aug, seg_aug = batch_aug[:, :-1], batch_aug[:, -1:]
         pred = self.model2.network(rest_aug)
         # print('pred device: '+str(pred.device))
         return rest, pred, im, seg_aug
