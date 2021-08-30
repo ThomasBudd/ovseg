@@ -26,7 +26,7 @@ class NetworkTraining(TrainingBase):
                  augmentation=None, val_dl=None, dev='cuda', nu_ema_trn=0.99,
                  nu_ema_val=0.7, network_name='network', fp32=False,
                  p_plot_list=[1, 0.5, 0.2], opt_name='SGD', lr_schedule='almost_linear',
-                 no_bias_weight_decay=False):
+                 no_bias_weight_decay=False, save_additional_weights_after_epochs=[]):
         super().__init__(trn_dl, num_epochs, model_path)
 
         self.network = network
@@ -43,7 +43,9 @@ class NetworkTraining(TrainingBase):
         self.opt_name = opt_name
         self.lr_schedule = lr_schedule
         self.no_bias_weight_decay = no_bias_weight_decay
+        self.save_additional_weights_after_epochs = save_additional_weights_after_epochs
         assert self.lr_schedule in ['almost_linear', 'lin_ascent_cos_decay']
+        assert isinstance(self.save_additional_weights_after_epochs, list)
 
         self.checkpoint_attributes.extend(['nu_ema_trn', 'network_name',
                                            'opt_params', 'fp32', 'lr_params',
@@ -187,6 +189,13 @@ class NetworkTraining(TrainingBase):
 
         self.print_and_log(self.network_name + ' parameters and opt parameters'
                            ' saved.')
+
+        # the additioal weights after the fixed amount of epochs
+        if self.epochs_done in self.save_additional_weights_after_epochs:
+            
+            torch.save(self.network.state_dict(), join(path,
+                                                       self.network_name +
+                                                       '_weights_{}'.format(self.epochs_done)))
 
     def load_last_checkpoint(self, path=None):
         if path is None:
