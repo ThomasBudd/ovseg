@@ -15,11 +15,11 @@ ens = SegmentationEnsemble(val_fold=list(range(5)),
                            data_name='OV04',
                            preprocessed_name=p_names[args.run],
                            model_name=model_names[args.run])
-ens.ens.eval_raw_dataset('BARTS', save_preds=True)
+ens.eval_raw_dataset('BARTS', save_preds=True)
 ens.clean()
 # %%
 ens = SegmentationEnsemble(val_fold=list(range(5)),
                            data_name='OV04',
                            preprocessed_name=p_names[args.run+4],
                            model_name=model_names[args.run+4])
-ens.ens.eval_raw_dataset('BARTS', save_preds=True)
+ens.eval_raw_dataset('BARTS', save_preds=True)
