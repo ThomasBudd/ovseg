@@ -13,6 +13,7 @@ model_params = get_model_params_2d_segmentation()
 model_params['network']['norm'] = 'inst'
 model_params['network']['norm_params'] = {'affine': True, 'eps': 1e-2}
 model_params['training']['stop_after_epochs'] = epochs
+model_params['training']['num_epochs'] = 2500
 model_params['training']['save_additional_weights_after_epochs'] = [2000]
 model_params['training']['opt_name'] = 'ADAM'
 model_params['training']['opt_params'] = {'lr': 10**-4}
