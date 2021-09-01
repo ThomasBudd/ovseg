@@ -141,6 +141,8 @@ class SegmentationPreprocessing(object):
     def initialise_preprocessing(self):
 
         if not self.check_parameters():
+            print('Not all required parameters were initialised, can not initialise '
+                  'preprocessing objects')
             return
 
         include_keys = ['apply_resizing', 'apply_pooling', 'apply_windowing', 'target_spacing', 
@@ -175,7 +177,7 @@ class SegmentationPreprocessing(object):
             else:
                 print_dict_diff(data_pkl, data, 'pkl paramters', 'given paramters')
                 print('Found some not matching prerpocessing parameters in '+outfolder+'.'
-                      'The currently used parameters will not overwrite the stored once.')
+                      'The currently used parameters will not overwrite the stored ones.')
         else:
             save_pkl(data, outfile)
             save_txt(data, outfile[:-4])
