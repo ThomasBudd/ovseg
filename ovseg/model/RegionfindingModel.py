@@ -43,6 +43,9 @@ class RegionfindingModel(SegmentationModel):
         # with the new update the prediction should be in classes as well instead of 
         # integer encoding as before. Let's hope that it works!
         seg = data_tpl['label']
+        if len(seg.shape) == 4:
+            seg = seg[0]
+
         if self.preprocessing.is_preprocessed_data_tpl(data_tpl):
             # if we have a preprocessed data_tpl we need to bring the segmentation back from
             # integer to class encoding

@@ -362,12 +362,20 @@ class SegmentationModel(ModelBase):
             im = im[np.newaxis]
         im = im.astype(float)
         n_ch = im.shape[0]
+        
+        pred = data_tpl[self.pred_key]
+        
+        if len(pred.shape) == 3:
+            pred = pred[np.newaxis]
+        labels.append(pred)
         if 'label' in data_tpl:
             # in case of raw data this only removes the lables that this model doesn't segment
-            labels.append(self.preprocessing.maybe_clean_label_from_data_tpl(data_tpl))
+            lb = self.preprocessing.maybe_clean_label_from_data_tpl(data_tpl)
+            if len(lb.shape) == 3:
+                lb = lb[np.newaxis]
+            labels.append(lb)
 
-        labels.append(data_tpl[self.pred_key])
-        labels = np.stack(labels)
+        labels = np.concatenate(labels)
         # sum over channel, x and y axis
         contains = np.where(np.sum(labels, (0, 2, 3)))[0]
         if len(contains) == 0:
@@ -408,6 +416,9 @@ class SegmentationModel(ModelBase):
         # with the new update the prediction should be in classes as well instead of 
         # integer encoding as before. Let's hope that it works!
         seg = data_tpl['label']
+        if len(seg.shape) == 4:
+            seg = seg[0]
+
         if self.preprocessing.is_preprocessed_data_tpl(data_tpl):
             # if we have a preprocessed data_tpl we need to bring the segmentation back from
             # integer to class encoding
@@ -415,20 +426,30 @@ class SegmentationModel(ModelBase):
             for i, c in enumerate(self.lb_classes):
                 seg_lb[seg == i+1] = c
             seg = seg_lb
+  
+        # results are returned as a dict
         results = {}
+        
+        # compute the bin dsc for multiple classes
+        if len(self.lb_classes) > 0:
+            bin_seg = (seg > 0).astype(float)
+            bin_pred = (pred > 0).astype(float)
+            results['bin_dice'] = 200 * np.sum(bin_seg * bin_pred) /  \
+                    np.sum(bin_seg + bin_pred)
+
         for c in self.lb_classes:
             seg_c = (seg == c).astype(float)
             pred_c = (pred == c).astype(float)
 
-            has_fg = seg_c.max() > 0
-            fg_pred = pred_c.max() > 0
+            # has_fg = seg_c.max() > 0
+            # fg_pred = pred_c.max() > 0
 
-            results.update({'has_fg_%d' % c: has_fg,
-                            'fg_pred_%d' % c: fg_pred})
+            # results.update({'has_fg_%d' % c: has_fg,
+            #                 'fg_pred_%d' % c: fg_pred})
             tp = np.sum(seg_c * pred_c)
             seg_c_vol = np.sum(seg_c)
             pred_c_vol = np.sum(pred_c)
-            if has_fg:
+            if seg_c.max() > 0:
                 dice = 200 * tp / (seg_c_vol + pred_c_vol)
             else:
                 dice = np.nan
@@ -463,6 +484,8 @@ class SegmentationModel(ModelBase):
         if 'label' not in data_tpl:
             return
         label = data_tpl['label']
+        if len(label.shape) == 4:
+            label = label[0]
         pred = data_tpl[self.pred_key]
 
         # volume of one voxel

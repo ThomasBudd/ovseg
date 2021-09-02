@@ -79,11 +79,13 @@ class cross_entropy_weighted_bg(nn.Module):
 
 class dice_loss_weighted(nn.Module):
 
-    def __init__(self, weight=0.5, eps=1):
+    def __init__(self, weight, eps=1):
+        # same as in the cross_entropy_weighted_bg: weight=1 means no weighting, weight < 1
+        # mean more sens less precision
         super().__init__()
         self.eps = eps
         self.weight = weight
-        self.w1 = (1-self.weight) * 0.5
+        self.w1 = (2-self.weight) * 0.5
         self.w2 = self.weight * 0.5
 
     def forward(self, logs, yb_oh, mask=None):

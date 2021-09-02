@@ -182,6 +182,7 @@ def seg_fg_dial_3d(seg, r, z_to_xy_ratio):
     circ = (np.sum(np.stack(np.meshgrid(*[np.linspace(-1, 1, 2*R+1) for R in [rz, r, r]], indexing='ij'))**2,0)<=1).astype(float)
     # seg to GPU and one hot encoding (excluding background)
     seg_gpu = torch.from_numpy(seg).cuda()
+    seg_gpu.requires_grad = False
     # now the z axis should be in the batch dimension and the classes are stacked in
     # the channel dimension
     seg_oh = torch.stack([seg_gpu==i for i in range(1, n_cl+1)], 0).type(torch.float).unsqueeze(0)
@@ -190,7 +191,7 @@ def seg_fg_dial_3d(seg, r, z_to_xy_ratio):
     
     # perform the convolution, the dialation can be obtained by thresholding
     seg_oh_conv = torch.nn.functional.conv3d(seg_oh, circ_gpu, padding=(rz,r,r), groups=n_cl)
-    seg_oh_dial = (seg_oh_conv > 0).type(torch.float).cpu().numpy()
+    seg_oh_dial = (seg_oh_conv.cpu().numpy() > 0).astype(float)
     
     # this dialation is done, but it is the "classical" one where original foreground can
     # be overlapped by the dialation of a closeby ROI

@@ -16,11 +16,14 @@ except ModuleNotFoundError:
 
 class RegionfindingPreprocessing(SegmentationPreprocessing):
 
-    def __init__(self, *args, r, z_to_xy_ratio, **kwargs):
+    def __init__(self, r, z_to_xy_ratio, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
         self.r = r
         self.z_to_xy_ratio = z_to_xy_ratio
+    
+        self.preprocessing_parameters.append('r')
+        self.preprocessing_parameters.append('z_to_xy_ratio')
     
     def __call__(self, data_tpl, preprocess_only_im=False, return_np=False):
         volume = super().__call__(data_tpl, preprocess_only_im, return_np=True)
