@@ -40,9 +40,26 @@ class RegionfindingModel(SegmentationModel):
         pred = data_tpl[self.pred_key]
         # in case of raw data this only removes the lables that this model doesn't segment
         # seg = self.preprocessing.maybe_clean_label_from_data_tpl(data_tpl)
+        # with the new update the prediction should be in classes as well instead of 
+        # integer encoding as before. Let's hope that it works!
         seg = data_tpl['label']
-        bin_seg = (seg > 0).astype(float)
+        if self.preprocessing.is_preprocessed_data_tpl(data_tpl):
+            # if we have a preprocessed data_tpl we need to bring the segmentation back from
+            # integer to class encoding
+            seg_lb = np.zeros_like(seg)
+            for i, c in enumerate(self.lb_classes):
+                seg_lb[seg == i+1] = c
+            seg = seg_lb
+        
+        # prec_0 is the amount of voxel that can be excluded with the method
         results = {'prec_0': 100*np.mean(pred == 0)}
+        if len(self.lb_classes) > 0:
+            bin_seg = (seg > 0).astype(float)
+            bin_pred = (pred > 0).astype(float)
+            bin_pred_mask = bin_pred * bin_seg
+            results['bp_bin_dice'] = 200 * np.sum(bin_seg * bin_pred_mask) /  \
+                    np.sum(bin_seg + bin_pred_mask)
+
         for c in self.lb_classes:
             seg_c = (seg == c).astype(float)
             pred_c = (pred == c).astype(float)
@@ -53,19 +70,13 @@ class RegionfindingModel(SegmentationModel):
             pred_c_vol = np.sum(pred_c_mask)
             if seg_c_vol > 0:
                 dice = 200 * tp / (seg_c_vol + pred_c_vol)
-                sens = 100 * np.sum(seg_c * pred_c) / np.sum(seg_c)
+                sens = 100 * np.sum(seg_c * pred_c) / seg_c_vol
             else:
                 dice = np.nan
                 sens = np.nan
-            if pred_c.max() > 0:
-                recall = 100 * np.sum(seg_c * pred_c)/np.sum(pred_c)
-            else:
-                recall = np.nan
                 
             results.update({'bp_dice_%d' % c: dice, 
-                            'sens_%d' % c: sens,
-                            'recall_%d' % c:recall,
-                            'prec_%d' % c: np.mean(pred_c)})
+                            'sens_%d' % c: sens})
 
         return results
 

@@ -434,17 +434,17 @@ class SegmentationModel(ModelBase):
                 dice = np.nan
             results.update({'dice_%d' % c: dice})
 
-            if has_fg:
-                sens = 100 * tp / seg_c_vol
-            else:
-                sens = np.nan
+            # if has_fg:
+            #     sens = 100 * tp / seg_c_vol
+            # else:
+            #     sens = np.nan
 
-            if fg_pred:
-                prec = 100 * tp / pred_c_vol
-            else:
-                prec = np.nan
+            # if fg_pred:
+            #     prec = 100 * tp / pred_c_vol
+            # else:
+            #     prec = np.nan
 
-            results.update({'sens_%d' % c: sens, 'prec_%d' % c: prec})
+            # results.update({'sens_%d' % c: sens, 'prec_%d' % c: prec})
         return results
 
     def _init_global_metrics(self):
