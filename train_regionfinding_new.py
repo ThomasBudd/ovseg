@@ -4,12 +4,12 @@ from ovseg.model.RegionfindingEnsemble import RegionfindingEnsemble
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--w", type=int)
+parser.add_argument("w", type=int)
 args = parser.parse_args()
 
 # w_list = 4*[0.01] + 2*[1e-3, 1e-4, 1e-5]
 w_list = [0.5, 0.4, 0.3, 0.2, 0.1, 0.05, 0.025, 0.01]
-w = 0.5#w_list[args.w]
+w = w_list[args.w]
 # vf_list = list(range(5)) + 4 * [0]
 vf = 0 #vf_list[args.w]
 
@@ -27,8 +27,13 @@ model_params['data']['keys'] = ['image', 'label', 'region']
 # we train using the regions as ground truht we're training for
 model_params['data']['trn_dl_params']['label_key'] = 'region'
 model_params['data']['val_dl_params']['label_key'] = 'region'
+# model_params['training']['num_epochs'] = 10
+# model_params['network']['filters'] = 8
+# model_params['data']['trn_dl_params']['epoch_len'] = 50
+# model_params['data']['val_dl_params']['epoch_len'] = 5
 
-model = RegionfindingModel(val_fold=vf, data_name='OV04',
+
+model = RegionfindingModel(val_fold=vf, data_name='OV04_test',
                            preprocessed_name='multiclass_reg',
                            model_name='regfinding_'+str(w), model_parameters=model_params)
 
