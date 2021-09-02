@@ -33,7 +33,7 @@ model_params['data']['val_dl_params']['label_key'] = 'region'
 # model_params['data']['val_dl_params']['epoch_len'] = 5
 
 
-model = RegionfindingModel(val_fold=vf, data_name='OV04_test',
+model = RegionfindingModel(val_fold=vf, data_name='OV04',
                            preprocessed_name='multiclass_reg',
                            model_name='regfinding_'+str(w), model_parameters=model_params)
 
