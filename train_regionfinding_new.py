@@ -39,7 +39,7 @@ model = RegionfindingModel(val_fold=vf, data_name='OV04',
 
 model.training.train()
 model.eval_validation_set(save_preds=True, save_plots=False)
-model.eval_raw_data('BARTS', save_preds=True)
+model.eval_raw_dataset('BARTS', save_preds=True)
 
 # # %%
 # import matplotlib.pyplot as plt
