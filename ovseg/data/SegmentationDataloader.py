@@ -33,6 +33,9 @@ class SegmentationBatchDataset(object):
         self.return_fp16 = return_fp16
         self.bias = bias
 
+        # hotfix for Training bug
+        self.pred_fps_key = None
+
         self.dtype = np.float16 if self.return_fp16 else np.float32
         if n_max_volumes is None:
             self.n_volumes = len(self.vol_ds)
