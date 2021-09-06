@@ -431,7 +431,7 @@ class SegmentationModel(ModelBase):
         results = {}
         
         # compute the bin dsc for multiple classes
-        if len(self.lb_classes) > 0:
+        if len(self.lb_classes) > 1:
             bin_seg = (seg > 0).astype(float)
             bin_pred = (pred > 0).astype(float)
             results['bin_dice'] = 200 * np.sum(bin_seg * bin_pred) /  \
@@ -466,6 +466,11 @@ class SegmentationModel(ModelBase):
             #     prec = np.nan
 
             # results.update({'sens_%d' % c: sens, 'prec_%d' % c: prec})
+
+        if len(self.lb_classes) > 1:
+            dscs = [results['dice_%d'%c] for c in self.lb_classes]
+            results['dice_mc'] = np.mean(dscs)
+
         return results
 
     def _init_global_metrics(self):
