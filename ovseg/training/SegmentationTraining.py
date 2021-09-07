@@ -214,32 +214,36 @@ class SegmentationTraining(NetworkTraining):
                         
                         self._rescale_and_save_arr(mask, scales, extensions, prepp,
                                                    mask_folder, scan, is_lb=True)
-                        if len(tpl) == 4:
-                            # in this case we're in the second stage and also resize the
-                            # prediction from the previous stage
-                            prd = tpl[1]
-                            prd_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)]
+                        
+                        # old code for cascade model
+                        # here the predictions from the previous stages have been 
+                        
+                        # if len(tpl) == 4:
+                        #     # in this case we're in the second stage and also resize the
+                        #     # prediction from the previous stage
+                        #     prd = tpl[1]
+                        #     prd_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)]
                             
-                            self._rescale_and_save_arr(prd, scales, extensions, prepp,
-                                                       prd_folder, scan, is_lb=True)
+                        #     self._rescale_and_save_arr(prd, scales, extensions, prepp,
+                        #                                prd_folder, scan, is_lb=True)
                     
-                    else:
-                        if len(tpl) == 3:
-                            # in this case we're in the second stage and also resize the
-                            # prediction from the previous stage
-                            prd = tpl[1]
-                            prd_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)]
+                    # else:
+                    #     if len(tpl) == 3:
+                    #         # in this case we're in the second stage and also resize the
+                    #         # prediction from the previous stage
+                    #         prd = tpl[1]
+                    #         prd_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)]
                             
-                            self._rescale_and_save_arr(prd, scales, extensions, prepp,
-                                                       prd_folder, scan, is_lb=True)
+                    #         self._rescale_and_save_arr(prd, scales, extensions, prepp,
+                    #                                    prd_folder, scan, is_lb=True)
 
         # now we need the new_keys and new_folders for each stage to update the datasets
         self.prg_trn_new_keys = [ds.image_key, ds.label_key]
         folders = [ds.vol_ds.folders[ds.vol_ds.keys.index(ds.image_key)],
                    ds.vol_ds.folders[ds.vol_ds.keys.index(ds.label_key)]]
-        if ds.pred_fps_key is not None:
-            self.prg_trn_new_keys.append(ds.pred_fps_key)
-            folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)])
+        # if ds.pred_fps_key is not None:
+        #     self.prg_trn_new_keys.append(ds.pred_fps_key)
+        #     folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)])
         if self.batches_have_masks:
             self.prg_trn_new_keys.append(ds.mask_key)
             folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.mask_key)])
