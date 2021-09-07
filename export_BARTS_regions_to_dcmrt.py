@@ -41,3 +41,31 @@ for case in os.listdir(predp):
         rtstruct.add_roi(mask=pred[..., ::-1] == c, name='{}-region'.format(int(c)))
     
     rtstruct.save(os.path.join(predp, '{}_regions.dcm'.format(pat_id)))
+
+# %% one more for lorena
+predp = os.path.join(os.environ['OV_DATA_BASE'], 'predictions', 'OV04', 'pod_067',
+                     'larger_res_encoder', 'BARTS_ensemble_0_1_2_3_4')
+
+case = 'case_276.nii.gz'
+i = int(case[5:8])
+pred = nib.load(os.path.join(predp, 'case_{}.nii.gz'.format(i))).get_fdata()
+scan_path = data_info[str(i)]['scan']
+pat_id = os.path.basename(scan_path)
+
+dcm_rts = [f for f in os.listdir(scan_path) if f.startswith('ID')]
+
+dcms = [f for f in os.listdir(scan_path) if not f.startswith('ID')]
+
+if len(dcms) != pred.shape[-1]:
+    print('Skipping, found slice thickness other than 5')
+dcm_rt = dcm_rts[0]
+
+rtstruct = RTStructBuilder.create_new(dicom_series_path=scan_path)
+
+classes = np.unique(pred)
+for c in classes:
+    if c == 0:
+        continue
+    rtstruct.add_roi(mask=pred[..., ::-1] == c, name='{}'.format(int(c)))
+
+rtstruct.save(os.path.join(predp, '{}_automated.dcm'.format(pat_id)))
