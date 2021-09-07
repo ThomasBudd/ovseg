@@ -68,7 +68,7 @@ else:
     model_params['training']['loss_params'] = {'loss_names': ['cross_entropy_weighted_bg',
                                                               'dice_loss_weighted'],
                                               'loss_kwargs': [{'weight_bg': 0.1,
-                                                               'n_fg_classes': 11},
+                                                               'n_fg_classes': 2},
                                                               {'eps': 1e-5,
                                                                'weight': 0.1}]}
     model_params['data']['folders'] = ['images', 'labels', 'regions']
