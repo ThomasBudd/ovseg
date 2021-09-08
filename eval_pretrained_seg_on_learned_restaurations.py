@@ -33,7 +33,7 @@ for f in range(5, 8):
                                    'OV04',
                                    'pod_2d',
                                    '2d_num_epochs_ADAM_long',
-                                   'fold_{}'.format(5),
+                                   'fold_{}'.format(f),
                                    'network_weights_2000')
 
     seg_model.network.load_state_dict(torch.load(path_to_weights,

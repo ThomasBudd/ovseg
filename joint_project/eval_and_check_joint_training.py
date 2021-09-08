@@ -7,13 +7,13 @@ import pickle
 
 mbp = 'D:\\PhD\\Data\\ov_data_base\\trained_models\\OV04\\pod_2d'
 C_list = [1.0, 0.9, 0.7, 0.6, 0.5, 0.4, 0.3, 0.1]
-
-
+#font size
+fs = 18
 
 # %%
 for k, dose in enumerate(['full', 'quater']):
     plt.subplot(1, 2, k+1)
-    plt.title(dose)
+    plt.title(dose, fontdict = {'fontsize' : fs})
     joint_full = [join(mbp, 'joint_rest_seg_{}_{}'.format(dose, c)) for c in C_list]
     
     mean_dscs = []
@@ -55,13 +55,17 @@ for k, dose in enumerate(['full', 'quater']):
         plt.ylim([30, 45])
     else:
         plt.ylim([25, 40])
-        plt.legend(['joint', 'sequential'], loc='lower right')
+        plt.legend(['joint', 'sequential'], loc='lower right', prop={'size': fs})
 
+    plt.xlabel('C', fontsize=fs)
+    plt.ylabel('mean DSC', fontsize=fs)
+    plt.xticks(fontsize=fs)
+    plt.yticks(fontsize=fs)
 # %%
 plt.figure()
 for k, dose in enumerate(['full', 'quater']):
     plt.subplot(1, 2, k+1)
-    plt.title(dose)
+    plt.title(dose, fontdict = {'fontsize' : fs})
     joint_full = [join(mbp, 'joint_rest_seg_refine_{}_{}'.format(dose, c)) for c in C_list]
     
     mean_dscs = []
@@ -78,7 +82,7 @@ for k, dose in enumerate(['full', 'quater']):
             tr_attr = pickle.load(open(join(trp, 'attribute_checkpoint.pkl'), 'rb'))
             if tr_attr['epochs_done'] < 500:
                 training_not_finished = True
-                print('training not finished for c={}, fold={}'.format(C_list[i], j))
+                print('training not finished for c={}, fold={}, dose={}'.format(C_list[i], j, dose))
             try:
                 res = pickle.load(open(join(trp, 'validation_results.pkl'), 'rb'))
                 mean_dsc += np.mean([res[key]['dice_9'] for key in res])
@@ -95,9 +99,11 @@ for k, dose in enumerate(['full', 'quater']):
     plt.plot(C_list, mean_dscs, 'b')
     
     # get the sequential DSC
-    seq_p = join(mbp, '2d_sequential_new_{}'.format(dose))
-    res = pickle.load(open(join(seq_p, 'validation_CV_results.pkl'), 'rb'))
-    mean_seq_dsc = np.mean([res[key]['dice_9'] for key in res])
+    seq_p = join(mbp, '2d_sequential_refine_{}'.format(dose))
+    res_list = [pickle.load(open(join(seq_p, 'fold_{}'.format(f),
+                                      'validation_results.pkl'), 'rb'))
+                for f in range(5,8)]
+    mean_seq_dsc = np.mean([np.mean([res[key]['dice_9'] for key in res]) for res in res_list])
     plt.plot([0.1, 1], [mean_seq_dsc, mean_seq_dsc], 'r')
     for i in range(len(C_list)):
         if i in not_finished:
@@ -107,4 +113,9 @@ for k, dose in enumerate(['full', 'quater']):
         plt.ylim([30, 45])
     else:
         plt.ylim([30, 45])
-        plt.legend(['joint', 'sequential'], loc='lower right')
+        plt.legend(['joint', 'sequential'], loc='lower right', prop={'size': fs})
+
+    plt.xlabel('C', fontsize=fs)
+    plt.ylabel('mean DSC', fontsize=fs)
+    plt.xticks(fontsize=fs)
+    plt.yticks(fontsize=fs)
