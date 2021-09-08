@@ -61,20 +61,6 @@ contains_pred = np.where(np.sum(pred_joint, (1,2)))[0]
 contains_both = [z for z in contains_gt if z in contains_pred]
 z2 = np.random.choice(contains_both)
 
-# for i, z in enumerate([z1, z2]):
-#     plt.subplot(2, 4, 1 + 4*i)
-#     plt.imshow(data_tpl['image_gt'][z], cmap='bone')
-#     plt.contour(data_tpl['label'][z], colors='red')
-#     plt.contour(pred_joint[z], colors='blue')
-#     plt.subplot(2, 4, 2 + 4*i)
-#     plt.imshow(data_tpl['image_gt'][z], cmap='bone')
-#     plt.subplot(2, 4, 3 + 4*i)
-#     plt.imshow(rest_joint[z], cmap='bone')
-#     plt.subplot(2, 4, 4 + 4*i)
-#     plt.imshow(data_tpl['recon_seq'][z], cmap='bone')
-
-# plt.savefig('~/example_joint.png')
-
 # %%
 
 ims_max = []
