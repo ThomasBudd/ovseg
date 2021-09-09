@@ -4,8 +4,8 @@ import os
 import numpy as np
 
 cvp = 'D:\\PhD\\Data\\ov_data_base\\trained_models\\OV04\\pod_2d\\2d_num_epochs_ADAM_long'
-pkl_files = [f for f in os.listdir(cvp) if f.startswith('v') and f.endswith('pkl')]
-
+pkl_files = [f for f in os.listdir(cvp) if f.startswith('v') and f.endswith('pkl') and f[11].isdigit()]
+fs= 18
 epochs = []
 cvdcs = []
 for f in pkl_files:
@@ -17,6 +17,12 @@ cvdcs = [d for e, d in sorted(zip(epochs, cvdcs))]
 epochs = sorted(epochs)
 
 plt.plot(epochs, cvdcs)
+plt.title('Segmentation pretraining', fontsize=fs)
+plt.xticks(fontsize=fs)
+plt.yticks(fontsize=fs)
+plt.xlabel('Num epochs (250 batches)', fontsize=fs)
+plt.ylabel('Mean val DSC', fontsize=fs)
+
 
 # %%
 tr_attr = pickle.load(open(os.path.join(cvp, 'fold_5', 'attribute_checkpoint.pkl'), 'rb'))

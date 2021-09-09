@@ -7,6 +7,7 @@ from os import listdir, environ
 from os.path import join
 import matplotlib.pyplot as plt
 
+# %%
 prep = join(environ['OV_DATA_BASE'], 'preprocessed', 'OV04', 'pod_2d')
 jointp = join(environ['OV_DATA_BASE'], 'trained_models', 'OV04', 'pod_2d',
               'joint_rest_seg_refine_quater_1.0')
@@ -106,40 +107,82 @@ np.save('ims_joint_rand', ims_rand)
 
 
 # %%
-
-ims_max = np.load('ims_joint_max')
-ims_rand = np.load('ims_joint_rand')
+plt.close()
+ims_max = np.load('ims_joint_max.npy')
+ims_rand = np.load('ims_joint_rand.npy')
 
 plt.figure()
-for j in len(ims_max):
+for j in range(len(ims_max)):
     plt.subplot(3, 4, 1 + 4*j)
-    plt.imhsow(ims_max[j, 0], cmap='bone')
+    plt.imshow(ims_max[j, 0], cmap='bone')
     plt.contour(ims_max[j, 1], colors='red')
     plt.contour(ims_max[j, 2], colors='blue')
     plt.axis('off')
     plt.subplot(3, 4, 2 + 4*j)
-    plt.imhsow(ims_max[j, 0], cmap='bone')
+    plt.imshow(ims_max[j, 0], cmap='bone')
+    if j == 0:
+        plt.title('vendor')
     plt.axis('off')
     plt.subplot(3, 4, 3 + 4*j)
     plt.imshow(ims_max[j, 3], cmap='bone')
+    if j == 0:
+        plt.title('joint')
     plt.axis('off')
     plt.subplot(3, 4, 4 + 4*j)
     plt.imshow(ims_max[j, 4], cmap='bone')
+    if j == 0:
+        plt.title('sequential')
     plt.axis('off')
 
 plt.figure()
-for j in len(ims_rand):
+for j in range(len(ims_rand)):
     plt.subplot(3, 4, 1 + 4*j)
-    plt.imhsow(ims_rand[j, 0], cmap='bone')
+    plt.imshow(ims_rand[j, 0], cmap='bone')
     plt.contour(ims_rand[j, 1], colors='red')
     plt.contour(ims_rand[j, 2], colors='blue')
     plt.axis('off')
     plt.subplot(3, 4, 2 + 4*j)
-    plt.imhsow(ims_rand[j, 0], cmap='bone')
+    plt.imshow(ims_rand[j, 0], cmap='bone')
     plt.axis('off')
+    if j == 0:
+        plt.title('vendor')
     plt.subplot(3, 4, 3 + 4*j)
     plt.imshow(ims_rand[j, 3], cmap='bone')
+    plt.axis('off')
+    if j == 0:
+        plt.title('joint')
     plt.axis('off')
     plt.subplot(3, 4, 4 + 4*j)
     plt.imshow(ims_rand[j, 4], cmap='bone')
     plt.axis('off')
+    if j == 0:
+        plt.title('sequential')
+
+# %%
+x = 200
+y = 160
+d = 200
+
+plt.figure()
+for j in range(len(ims_rand)):
+    plt.subplot(3, 4, 1 + 4*j)
+    plt.imshow(ims_rand[j, 0, x:x+d, y:y+d], cmap='bone')
+    plt.contour(ims_rand[j, 1, x:x+d, y:y+d], colors='red')
+    plt.contour(ims_rand[j, 2, x:x+d, y:y+d], colors='blue')
+    plt.axis('off')
+    plt.subplot(3, 4, 2 + 4*j)
+    plt.imshow(ims_rand[j, 0, x:x+d, y:y+d], cmap='bone')
+    plt.axis('off')
+    if j == 0:
+        plt.title('vendor')
+    plt.subplot(3, 4, 3 + 4*j)
+    plt.imshow(ims_rand[j, 3, x:x+d, y:y+d], cmap='bone')
+    plt.axis('off')
+    if j == 0:
+        plt.title('joint')
+    plt.axis('off')
+    plt.subplot(3, 4, 4 + 4*j)
+    plt.imshow(ims_rand[j, 4, x:x+d, y:y+d], cmap='bone')
+    plt.axis('off')
+    if j == 0:
+        plt.title('sequential')
