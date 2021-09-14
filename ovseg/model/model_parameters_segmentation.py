@@ -100,11 +100,12 @@ def get_model_params_2d_segmentation(n_fg_classes=1,
                          'mode': 'flip'}
     model_parameters['prediction'] = prediction_params
 
-    # now finally the training!
-    loss_params = {'eps': 1e-5,
-                   'dice_weight': 1.0,
-                   'ce_weight': 1.0,
-                   'pyramid_weight': 0.5}
+    # # now finally the training!
+    # loss_params = {'eps': 1e-5,
+    #                'dice_weight': 1.0,
+    #                'ce_weight': 1.0,
+    #                'pyramid_weight': 0.5}
+    loss_params = {'loss_names': ['cross_entropy', 'dice_loss']}
     opt_params = {'momentum': 0.99, 'weight_decay': 3e-5, 'nesterov': True,
                   'lr': 10**-2}
     lr_params = {'beta': 0.9, 'lr_min': 0}

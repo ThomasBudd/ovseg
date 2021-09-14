@@ -20,17 +20,20 @@ class cross_entropy(nn.Module):
 
     def __init__(self):
         super().__init__()
-        self.loss = torch.nn.CrossEntropyLoss()
+        self.loss = torch.nn.CrossEntropyLoss(reduction='none')
 
     def forward(self, logs, yb_oh, mask=None):
         assert logs.shape == yb_oh.shape
         yb_int = torch.argmax(yb_oh, 1)
-        return self.loss(logs, yb_int)
+        l = self.loss(logs, yb_int)
+        if mask is not None:
+            l = l * mask[:, 0]
+        return l.mean()
 
 
 class dice_loss(nn.Module):
 
-    def __init__(self, eps=1):
+    def __init__(self, eps=1e-5):
         super().__init__()
         self.eps = eps
 
@@ -49,12 +52,12 @@ class dice_loss(nn.Module):
             yb_oh = yb_oh * mask
         # now compute the metrics
         tp = torch.sum(yb_oh * pred, dim)
-        fn = torch.sum(yb_oh * (1 - pred), dim)
-        fp = torch.sum((1 - yb_oh) * pred, dim)
-        # now the dice score, excited?
-        dice = (2 * tp + self.eps) / (2*tp + fp + fn + self.eps)
-        return -1 * dice.mean()
-
+        yb_vol = torch.sum(yb_oh, dim)
+        pred_vol = torch.sum(pred, dim)
+        # the main formula
+        dice = (tp + self.eps) / (0.5 * yb_vol + 0.5 * pred_vol + self.eps)
+        # the mean is computed over the batch and channel axis (excluding background)
+        return 1 - 1 * dice.mean()
 
 class cross_entropy_weighted_bg(nn.Module):
 
@@ -79,7 +82,7 @@ class cross_entropy_weighted_bg(nn.Module):
 
 class dice_loss_weighted(nn.Module):
 
-    def __init__(self, weight, eps=1):
+    def __init__(self, weight, eps=1e-5):
         # same as in the cross_entropy_weighted_bg: weight=1 means no weighting, weight < 1
         # mean more sens less precision
         super().__init__()
