@@ -54,13 +54,13 @@ class SegmentationEnsemble(ModelBase):
         self.n_fg_classes = self.models[0].n_fg_classes
         if self.is_cascade():
             self.prev_stages = self.model_parameters['prev_stages'] 
-            # self.prev_stages_keys = []
-            # for prev_stage in self.prev_stages:
-            #     key = '_'.join(['prediction',
-            #                     prev_stage['data_name'],
-            #                     prev_stage['preprocessed_name'],
-            #                     prev_stage['model_name']])
-            #     self.prev_stages_keys.append(key)
+            self.prev_stages_keys = []
+            for prev_stage in self.prev_stages:
+                key = '_'.join(['prediction',
+                                prev_stage['data_name'],
+                                prev_stage['preprocessed_name'],
+                                prev_stage['model_name']])
+                self.prev_stages_keys.append(key)
 
 
     def create_model(self, fold):
