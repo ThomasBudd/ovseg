@@ -10,11 +10,11 @@ class SegmentationPostprocessing(object):
 
     def __init__(self, apply_small_component_removing=False,
                  volume_thresholds=None,
-                 mask_with_bin_pred=False,
+                 mask_with_reg=False,
                  lb_classes=None):
         self.apply_small_component_removing = apply_small_component_removing
         self.volume_thresholds = volume_thresholds
-        self.mask_with_bin_pred=mask_with_bin_pred
+        self.mask_with_reg=mask_with_reg
         self.lb_classes = lb_classes
 
         if self.apply_small_component_removing and \
@@ -23,7 +23,7 @@ class SegmentationPostprocessing(object):
         if not isinstance(self.volume_thresholds, (list, tuple, np.ndarray)):
             self.volume_thresholds = [self.volume_thresholds]
 
-    def postprocess_volume(self, volume, bin_pred=None, spacing=None, orig_shape=None):
+    def postprocess_volume(self, volume, reg=None, spacing=None, orig_shape=None):
         '''
         postprocess_volume(volume, orig_shape=None)
 
@@ -52,16 +52,16 @@ class SegmentationPostprocessing(object):
         if len(inpt_shape) != 4:
             raise ValueError('Expected 4d volume of shape '
                              '[n_channels, nx, ny, nz].')
-        if self.mask_with_bin_pred:
-            if bin_pred is None:
-                raise ValueError('Trying to multiply the prediction with the bin_pred of the '
+        if self.mask_with_reg:
+            if reg is None:
+                raise ValueError('Trying to multiply the prediction with the reg of the '
                                  'previous stages, but no such array was given.')
 
-            if len(bin_pred.shape) == 3:
-                if isinstance(bin_pred, np.ndarray):
-                    bin_pred = bin_pred[np.newaxis]
+            if len(reg.shape) == 3:
+                if isinstance(reg, np.ndarray):
+                    reg = reg[np.newaxis]
                 else:
-                    bin_pred = bin_pred.unsqueeze(0)
+                    reg = reg.unsqueeze(0)
         # first fun step: let's reshape to original size
         # before going to hard labels
         if orig_shape is not None:
@@ -75,10 +75,10 @@ class SegmentationPostprocessing(object):
                         volume = interpolate(volume.unsqueeze(0),
                                              size=size,
                                              mode='trilinear')[0]
-                        if self.mask_with_bin_pred:
-                            if isinstance(bin_pred, np.ndarray):
-                                bin_pred = torch.from_numpy(bin_pred).to('cuda').type(torch.float)
-                            bin_pred = interpolate(bin_pred.unsqueeze(0),
+                        if self.mask_with_reg:
+                            if isinstance(reg, np.ndarray):
+                                reg = torch.from_numpy(reg).to('cuda').type(torch.float)
+                            reg = interpolate(reg.unsqueeze(0),
                                                    size=size,
                                                    mode='nearest')[0, 0]
                 else:
@@ -86,24 +86,24 @@ class SegmentationPostprocessing(object):
                         volume = volume.cpu().numpy()
                     volume = np.stack([resize(volume[c], orig_shape, 1)
                                        for c in range(volume.shape[0])])
-                    if self.mask_with_bin_pred:
-                        if torch.is_tensor(bin_pred):
-                            bin_pred = bin_pred.cpu().numpy()
-                        bin_pred = np.stack([resize(bin_pred[c], orig_shape, 0)
-                                           for c in range(bin_pred.shape[0])])
+                    if self.mask_with_reg:
+                        if torch.is_tensor(reg):
+                            reg = reg.cpu().numpy()
+                        reg = np.stack([resize(reg[c], orig_shape, 0)
+                                           for c in range(reg.shape[0])])
 
         # now change from soft to hard labels 
         if torch.is_tensor(volume):
             volume = volume.cpu().numpy()
-        if self.mask_with_bin_pred:
-            if torch.is_tensor(bin_pred):
-                bin_pred = bin_pred.cpu().numpy()
+        if self.mask_with_reg:
+            if torch.is_tensor(reg):
+                reg = reg.cpu().numpy()
 
         # now change from soft to hard labels and multiply by the binary prediction
         volume = np.argmax(volume, 0)
-        if self.mask_with_bin_pred:
+        if self.mask_with_reg:
             # now we're finally doing what we're asking the whole time about!
-            volume *= bin_pred[0]
+            volume *= reg[0]
 
 
         if self.apply_small_component_removing:
@@ -121,7 +121,7 @@ class SegmentationPostprocessing(object):
 
         return volume
 
-    def postprocess_data_tpl(self, data_tpl, prediction_key, bin_pred=None):
+    def postprocess_data_tpl(self, data_tpl, prediction_key, reg=None):
 
         pred = data_tpl[prediction_key]
 
@@ -131,20 +131,20 @@ class SegmentationPostprocessing(object):
             # the data_tpl has preprocessed data.
             # predictions in both preprocessed and original shape will be added
             data_tpl[prediction_key] = self.postprocess_volume(pred,
-                                                               bin_pred=bin_pred,
+                                                               reg=reg,
                                                                spacing=spacing,
                                                                orig_shape=None)
             spacing = data_tpl['orig_spacing'] if 'orig_spacing' in data_tpl else None
             shape = data_tpl['orig_shape']
             data_tpl[prediction_key+'_orig_shape'] = self.postprocess_volume(pred,
-                                                                             bin_pred=bin_pred,
+                                                                             reg=reg,
                                                                              spacing=spacing,
                                                                              orig_shape=shape)
         else:
             # in this case the data is not preprocessed
             orig_shape = data_tpl['image'].shape
             data_tpl[prediction_key] = self.postprocess_volume(pred,
-                                                               bin_pred=bin_pred,
+                                                               reg=reg,
                                                                spacing=spacing,
                                                                orig_shape=orig_shape)
         return data_tpl
