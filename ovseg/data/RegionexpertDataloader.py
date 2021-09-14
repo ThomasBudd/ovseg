@@ -130,9 +130,9 @@ class RegionexpertBatchDataset(object):
                 reg_coords = np.stack(np.where(bin_reg[0] > 0)).astype(np.int16)
                 self.reg_coords_list.append(reg_coords)
             self.contains_bias_list = [ind for ind, coords in enumerate(self.bias_coords_list)
-                                    if len(coords) > 0]
+                                    if coords.shape[1] > 0]
             self.contains_reg_list = [ind for ind, coords in enumerate(self.reg_coords_list)
-                                      if len(coords) > 0]
+                                      if coords.shape[1] > 0]
             print('Done')
         else:
             # if we don't store them in ram we will compute them and store them as .npy files
@@ -179,7 +179,7 @@ class RegionexpertBatchDataset(object):
                     bias_coords = np.load(os.path.join(self.bias_coords_fol, case))
                 
                 # here the coords should be available
-                if len(bias_coords) > 0:
+                if bias_coords.shape[1] > 0:
                     self.contains_bias_list.append(ind)
                 
                 if case not in os.listdir(self.reg_coords_fol):
@@ -198,7 +198,7 @@ class RegionexpertBatchDataset(object):
                 else:
                     reg_coords = np.load(os.path.join(self.reg_coords_fol, case))
                 
-                if len(reg_coords) > 0:
+                if reg_coords.shape[1] > 0:
                     self.contains_reg_list.append(ind)
 
     def _maybe_clean_stored_data(self):
