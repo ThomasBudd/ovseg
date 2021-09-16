@@ -1,5 +1,6 @@
 import warnings
 warnings.simplefilter("ignore")
+from ovseg import OV_PREPROCESSED
 from ovseg.preprocessing.SegmentationPreprocessing import SegmentationPreprocessing
 from ovseg.preprocessing.ClassEnsemblePreprocessing import ClassEnsemblePreprocessing
 from ovseg.augmentation.SegmentationAugmentation import SegmentationAugmentation
@@ -542,7 +543,7 @@ class SegmentationModel(ModelBase):
             print('Doing the validation prediction now.\n')
             self.eval_validation_set(save_preds=True, save_plots=False, force_evaluation=True)
 
-        prep_folder_next_stage = join(environ['OV_DATA_BASE'], 'preprocessed', self.data_name,
+        prep_folder_next_stage = join(OV_PREPROCESSED, self.data_name,
                                       prep_name_next_stage)
         prep_pred_folder = join(prep_folder_next_stage,
                                 self.preprocessed_name + '_' + self.model_name)

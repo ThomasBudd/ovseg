@@ -2,6 +2,7 @@ from os.path import join, exists
 from ovseg.utils import io, path_utils
 from ovseg.utils.dict_equal import dict_equal, print_dict_diff
 from ovseg.data.Dataset import raw_Dataset
+from ovseg import OV_PREPROCESSED
 import os
 import torch
 from time import sleep, asctime
@@ -58,8 +59,7 @@ class ModelBase(object):
         self.dev = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
         if self.preprocessed_name is None:
-            path_to_preprocessed_data = join(self.ov_data_base,
-                                             'preprocessed',
+            path_to_preprocessed_data = join(OV_PREPROCESSED,
                                              self.data_name)
             if not exists(path_to_preprocessed_data):
                 raise FileNotFoundError('Path to preprocessed data doesn\'t exsist. Make sure '
@@ -76,8 +76,7 @@ class ModelBase(object):
                 self.preprocessed_name = preprocessed_folders[0]
 
         # set the path to the preprocessed data
-        self.preprocessed_path = join(self.ov_data_base,
-                                      'preprocessed',
+        self.preprocessed_path = join(OV_PREPROCESSED,
                                       self.data_name,
                                       self.preprocessed_name)
 
