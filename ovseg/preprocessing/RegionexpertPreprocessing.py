@@ -3,6 +3,7 @@ from ovseg.utils.label_utils import reduce_classes
 import numpy as np
 import torch
 from ovseg.data.Dataset import raw_Dataset
+from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 from os.path import join, exists
 from os import environ
 from ovseg.utils.path_utils import maybe_create_path
@@ -71,9 +72,7 @@ class RegionexpertPreprocessing(SegmentationPreprocessing):
         xb = data_tpl['image'].astype(float)
 
         # assuring the array is 4d
-        assert len(xb.shape) in [3, 4], 'image must be 3d or 4d'
-        if len(xb.shape) == 3:
-            xb = xb[np.newaxis]
+        xb = maybe_add_channel_dim(xb)
 
         key = self.region_finding_key
         assert key in data_tpl, 'prediction '+key+' from previous stage missing'

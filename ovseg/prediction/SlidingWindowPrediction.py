@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 from scipy.ndimage.filters import gaussian_filter
-from ovseg.utils.torch_np_utils import check_type
+from ovseg.utils.torch_np_utils import check_type, maybe_add_channel_dim
 
 
 class SlidingWindowPrediction(object):
@@ -203,8 +203,7 @@ class SlidingWindowPrediction(object):
             volume = torch.from_numpy(volume).to(self.dev)
 
         # check if inpt is 3d or 4d for the output
-        if len(volume.shape) == 3:
-            volume = volume.unsqueeze(0)
+        volume = maybe_add_channel_dim(volume)
 
         if mode.lower() == 'simple':
             pred = self._predict_volume_simple(volume, ROI)

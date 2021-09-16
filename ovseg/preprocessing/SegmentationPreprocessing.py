@@ -7,6 +7,7 @@ from ovseg.utils.dict_equal import dict_equal, print_dict_diff
 from ovseg.utils.io import load_pkl, save_pkl, save_txt
 from ovseg.utils.path_utils import maybe_create_path
 from ovseg.data.Dataset import raw_Dataset
+from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 from os.path import join, exists
 from os import environ
 import matplotlib.pyplot as plt
@@ -262,9 +263,7 @@ class SegmentationPreprocessing(object):
         xb = data_tpl['image'].astype(float)
 
         # assuring the array is 4d
-        assert len(xb.shape) in [3, 4], 'image must be 3d or 4d'
-        if len(xb.shape) == 3:
-            xb = xb[np.newaxis]
+        xb = maybe_add_channel_dim(xb)
 
         if self.is_cascade():
             # the cascade is only implemented with binary predictions so far --> overwrite
@@ -275,8 +274,8 @@ class SegmentationPreprocessing(object):
                 pred = data_tpl[key]
                 if torch.is_tensor(pred):
                     pred = pred.cpu().numpy()
-                if len(pred.shape) == 3:
-                    pred = pred[np.newaxis]
+                # ensure the array is 4d
+                pred = maybe_add_channel_dim(pred)
                 prev_preds.append(pred)
     
             bin_pred = (np.sum(prev_preds, 0) > 0).astype(float)

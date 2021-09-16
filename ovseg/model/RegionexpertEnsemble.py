@@ -2,7 +2,7 @@ from ovseg.model.SegmentationEnsemble import SegmentationEnsemble
 from ovseg.model.RegionexpertModel import RegionexpertModel
 import numpy as np
 import torch
-from ovseg.utils.torch_np_utils import check_type
+from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 from os import environ
 from os.path import join, exists
 
@@ -33,14 +33,9 @@ class RegionfindingEnsemble(SegmentationEnsemble):
         else:
             # the data_tpl is already preprocessed, let's just get the arrays
             im = data_tpl['image']
-            is_np,  _ = check_type(im)
-            if len(im.shape) == 3:
-                im = im[np.newaxis] if is_np else im.unsqueeze(0)
+            im = maybe_add_channel_dim(im)
             reg = data_tpl[self.prev_stages_keys[0]]
-            
-            is_np,  _ = check_type(reg)
-            if len(reg.shape) == 3:
-                reg = reg[np.newaxis] if is_np else reg.unsqueeze(0)
+            reg = maybe_add_channel_dim(reg)
 
         # now the importat part: the actual enembling of sliding window evaluations
         preds = []

@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from ovseg.data.utils import crop_and_pad_image
+from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 import os
 from time import sleep
 try:
@@ -76,20 +77,15 @@ class RegionexpertBatchDataset(object):
             sleep(1)
             for ind in tqdm(range(self.n_volumes)):
                 path_dict = self.vol_ds.path_dicts[ind]
-                labels = np.load(path_dict[self.label_key]).astype(np.uint8)
                 
-                if len(labels.shape) == 3:
-                    labels = labels[np.newaxis]
+                labels = np.load(path_dict[self.label_key]).astype(np.uint8)                
+                labels = maybe_add_channel_dim(labels)
                 
                 im = np.load(path_dict[self.image_key]).astype(self.dtype)
-                
-                if len(im.shape) == 3:
-                    im = im[np.newaxis]
+                im = maybe_add_channel_dim(im)
 
                 reg = np.load(path_dict[self.region_key]).astype(self.dtype)
-                
-                if len(reg.shape) == 3:
-                    reg = reg[np.newaxis]
+                reg = maybe_add_channel_dim(reg)
                 
                 self.data.append((im, reg, labels))
                     
@@ -105,21 +101,14 @@ class RegionexpertBatchDataset(object):
                     labels = self.data[ind][2]
                 else:
                     labels = np.load(self.vol_ds.path_dicts[ind][self.label_key])
+                labels = maybe_add_channel_dim(labels)
+
                 # get region
                 if self.store_data_in_ram:
                     reg = self.data[ind][1]
                 else:
                     reg = np.load(self.vol_ds.path_dicts[ind][self.region_key])
-
-                # maybe add fourth axis
-                if len(labels.shape) == 3:
-                    labels = labels[np.newaxis]
-                elif not len(labels.shape) == 4:
-                    raise ValueError('Got segmentation label that is neither 3d nor 4d.')
-                if len(reg.shape) == 3:
-                    reg = reg[np.newaxis]
-                elif not len(reg.shape) == 4:
-                    raise ValueError('Got region that is neither 3d nor 4d.')
+                reg = maybe_add_channel_dim(reg)
                 
                 # in contrast to the segmentation dataloader we're only considering
                 # labels inside a region for bias coordinates
@@ -156,18 +145,8 @@ class RegionexpertBatchDataset(object):
                 if case not in os.listdir(self.bias_coords_fol):
 
                     # load label and region from disk
-                    labels = np.load(d[self.label_key])
-                    reg = np.load(d[self.region_key])
-
-                    # maybe add fourth axis
-                    if len(labels.shape) == 3:
-                        labels = labels[np.newaxis]
-                    elif not len(labels.shape) == 4:
-                        raise ValueError('Got segmentation label that is neither 3d nor 4d.')
-                    if len(reg.shape) == 3:
-                        reg = reg[np.newaxis]
-                    elif not len(reg.shape) == 4:
-                        raise ValueError('Got region that is neither 3d nor 4d.')
+                    labels = maybe_add_channel_dim(np.load(d[self.label_key]))
+                    reg = maybe_add_channel_dim(np.load(d[self.region_key]))
                     
                     # in contrast to the segmentation dataloader we're only considering
                     # labels inside a region for bias coordinates
@@ -251,8 +230,7 @@ class RegionexpertBatchDataset(object):
 
         # maybe add an additional axis
         for i in range(len(volumes)):
-            if len(volumes[i].shape) == 3:
-                volumes[i] = volumes[i][np.newaxis]
+            volumes[i] = maybe_add_channel_dim(volumes[i])
         
         return volumes
 

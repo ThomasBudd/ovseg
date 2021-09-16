@@ -1,8 +1,7 @@
 from ovseg.model.SegmentationModel import SegmentationModel
 from ovseg.preprocessing.RegionexpertPreprocessing import RegionexpertPreprocessing
 from ovseg.data.RegionexpertData import RegionexpertData
-import numpy as np
-from ovseg.utils.torch_np_utils import check_type
+from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 
 class RegionexpertModel(SegmentationModel):
 
@@ -71,14 +70,9 @@ class RegionexpertModel(SegmentationModel):
         else:
             # the data_tpl is already preprocessed, let's just get the arrays
             im = data_tpl['image']
-            is_np,  _ = check_type(im)
-            if len(im.shape) == 3:
-                im = im[np.newaxis] if is_np else im.unsqueeze(0)
+            im = maybe_add_channel_dim(im)
             reg = data_tpl[self.prev_stages_keys[0]]
-            
-            is_np,  _ = check_type(reg)
-            if len(reg.shape) == 3:
-                reg = reg[np.newaxis] if is_np else reg.unsqueeze(0)
+            reg = maybe_add_channel_dim(reg)
 
         # now the importat part: the sliding window evaluation (or derivatives of it)
         pred = self.prediction(im, reg[0]>0)

@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from ovseg.data.utils import crop_and_pad_image
+from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 import os
 from time import sleep
 try:
@@ -77,13 +78,11 @@ class SegmentationBatchDataset(object):
                 path_dict = self.vol_ds.path_dicts[ind]
                 labels = np.load(path_dict[self.label_key]).astype(np.uint8)
                 
-                if len(labels.shape) == 3:
-                    labels = labels[np.newaxis]
+                labels = maybe_add_channel_dim(labels)
                 
                 im = np.load(path_dict[self.image_key]).astype(self.dtype)
                 
-                if len(im.shape) == 3:
-                    im = im[np.newaxis]
+                im = maybe_add_channel_dim(im)
                 
                 self.data.append((im, labels))
                     
@@ -97,10 +96,9 @@ class SegmentationBatchDataset(object):
                     labels = self.data[ind][1]
                 else:
                     labels = np.load(self.vol_ds.path_dicts[ind][self.label_key])
-                if len(labels.shape) == 3:
-                    labels = labels[np.newaxis]
-                elif not len(labels.shape) == 4:
-                    raise ValueError('Got segmentation label that is neither 3d nor 4d.')
+                
+                # ensure 4d array
+                labels = maybe_add_channel_dim(labels)
                 coords = self._get_bias_coords(labels)
                 self.coords_list.append(coords)
             self.contains_fg_list = [ind for ind, coords in enumerate(self.coords_list)
@@ -173,8 +171,7 @@ class SegmentationBatchDataset(object):
 
         # maybe add an additional axis
         for i in range(len(volumes)):
-            if len(volumes[i].shape) == 3:
-                volumes[i] = volumes[i][np.newaxis]
+            volumes[i] = maybe_add_channel_dim(volumes[i])
         
         return volumes
 

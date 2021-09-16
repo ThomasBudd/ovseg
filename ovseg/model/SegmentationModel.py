@@ -18,6 +18,7 @@ from ovseg.postprocessing.SegmentationPostprocessing import SegmentationPostproc
 from ovseg.postprocessing.ClassEnsemblingPostprocessing import ClassEnsemblingPostprocessing
 from ovseg.utils.io import save_nii_from_data_tpl, save_npy_from_data_tpl, load_pkl, read_nii
 from ovseg.data.Dataset import raw_Dataset
+from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 from ovseg.utils.dict_equal import dict_equal, print_dict_diff
 from skimage.measure import label
 import torch
@@ -275,9 +276,7 @@ class SegmentationModel(ModelBase):
         else:
             # the data_tpl is already preprocessed, let's just get the arrays
             im = data_tpl['image']
-            is_np,  _ = check_type(im)
-            if len(im.shape) == 3:
-                im = im[np.newaxis] if is_np else im.unsqueeze(0)
+            im = maybe_add_channel_dim(im)
             if self.is_cascade():
                 # if the data tpl is preprocessed we need to build the binary prediction here
                 # prev_preds = []
@@ -358,21 +357,17 @@ class SegmentationModel(ModelBase):
         im = data_tpl[image_key]
         if torch.is_tensor(im):
             im = im.cpu().numpy()
-        if len(im.shape) == 3:
-            im = im[np.newaxis]
-        im = im.astype(float)
+        im = maybe_add_channel_dim(im).astype(float)
         n_ch = im.shape[0]
         
         pred = data_tpl[self.pred_key]
+        pred = maybe_add_channel_dim(pred)
         
-        if len(pred.shape) == 3:
-            pred = pred[np.newaxis]
         labels.append(pred)
         if 'label' in data_tpl:
             # in case of raw data this only removes the lables that this model doesn't segment
             lb = self.preprocessing.maybe_clean_label_from_data_tpl(data_tpl)
-            if len(lb.shape) == 3:
-                lb = lb[np.newaxis]
+            lb = maybe_add_channel_dim(lb)
             labels.append(lb)
 
         labels = np.concatenate(labels)

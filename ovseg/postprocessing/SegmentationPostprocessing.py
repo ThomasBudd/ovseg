@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from ovseg.utils.torch_np_utils import check_type
+from ovseg.utils.torch_np_utils import check_type, maybe_add_channel_dim
 from skimage.measure import label
 from skimage.transform import resize
 from torch.nn.functional import interpolate
@@ -57,11 +57,7 @@ class SegmentationPostprocessing(object):
                 raise ValueError('Trying to multiply the prediction with the reg of the '
                                  'previous stages, but no such array was given.')
 
-            if len(reg.shape) == 3:
-                if isinstance(reg, np.ndarray):
-                    reg = reg[np.newaxis]
-                else:
-                    reg = reg.unsqueeze(0)
+            reg = maybe_add_channel_dim(reg)
         # first fun step: let's reshape to original size
         # before going to hard labels
         if orig_shape is not None:
