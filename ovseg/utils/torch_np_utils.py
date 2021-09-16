@@ -32,5 +32,7 @@ def maybe_add_channel_dim(inpt):
             return inpt[np.newaxis]
         else:
             return inpt.unsqueeze(0)
-    elif len(inpt.shape) != 4:
+    elif len(inpt.shape) == 4:
+        return inpt
+    else:
         raise ValueError('Expected input to be 3d or 4d, got {}d'.format(len(inpt.shape)))
