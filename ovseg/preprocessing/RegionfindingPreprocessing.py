@@ -3,6 +3,7 @@ from ovseg.utils.seg_fg_dial import seg_fg_dial
 import numpy as np
 import torch
 from ovseg.utils.path_utils import maybe_create_path
+from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 from ovseg.data.Dataset import raw_Dataset
 from os.path import join
 from os import environ

@@ -69,10 +69,8 @@ class RegionexpertModel(SegmentationModel):
             im, reg = vol[:-1], vol[-1:]
         else:
             # the data_tpl is already preprocessed, let's just get the arrays
-            im = data_tpl['image']
-            im = maybe_add_channel_dim(im)
-            reg = data_tpl[self.prev_stages_keys[0]]
-            reg = maybe_add_channel_dim(reg)
+            im = maybe_add_channel_dim(data_tpl['image'])
+            reg = maybe_add_channel_dim(data_tpl['region'])
 
         # now the importat part: the sliding window evaluation (or derivatives of it)
         pred = self.prediction(im, reg[0]>0)
