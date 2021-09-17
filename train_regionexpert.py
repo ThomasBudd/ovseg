@@ -37,7 +37,6 @@ model = RegionexpertModel(val_fold=0,
                           model_name='regionexpert_ft',
                           model_parameters=model_params)
 model.training.train()
-model.eval_validation_set()
-model.eval_training_set()
-model.eval_raw_dataset('BARTS')
-
+model.eval_validation_set(force_evaluation=True)
+model.eval_training_set(force_evaluation=True)
+model.eval_raw_dataset('BARTS', force_evaluation=True)

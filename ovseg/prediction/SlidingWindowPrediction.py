@@ -74,9 +74,9 @@ class SlidingWindowPrediction(object):
         
         nz, nx, ny = shape
         
-        if ROI is None:
+        # if ROI is None:
             # if the ROI
-            ROI = torch.ones((nz, nx, ny)) > 0
+        ROI = torch.ones((nz, nx, ny)) > 0
 
         n_patches = np.ceil((np.array([nz, nx, ny]) - self.patch_size) / 
                             (self.overlap * self.patch_size)).astype(int) + 1
