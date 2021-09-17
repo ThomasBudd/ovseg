@@ -99,8 +99,8 @@ class SlidingWindowPrediction(object):
                         z1, z2 = z, z+1
                     else:
                         z1, z2 = z+self.patch_size[0]//4, z+self.patch_size[0]*3//4
-                    x1, x2 = z+self.patch_size[1]//4, z+self.patch_size[1]*3//4
-                    y1, y2 = z+self.patch_size[2]//4, z+self.patch_size[2]*3//4
+                    x1, x2 = x+self.patch_size[1]//4, x+self.patch_size[1]*3//4
+                    y1, y2 = y+self.patch_size[2]//4, y+self.patch_size[2]*3//4
                     if ROI[z1:z2, x1:x2, y1:y2].any().item():
                         zxy_list.append((z, x, y))
 
