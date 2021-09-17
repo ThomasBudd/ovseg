@@ -130,7 +130,7 @@ class SlidingWindowPrediction(object):
                            dtype=torch.float)
         # this is for the voxel where we have no prediction in the end
         # for each of those the method will return the (1,0,..,0) vector
-        pred[0] = 1
+        # pred[0] = 1
         ovlp = torch.zeros((1, *shape),
                            device=self.dev,
                            dtype=torch.float)
@@ -181,7 +181,7 @@ class SlidingWindowPrediction(object):
             ovlp = ovlp[:, :shape_in[1], :shape_in[2], :shape_in[3]]
 
             # this should only have an effect when an ROI is used to prevent zero-division
-            ovlp[ovlp == 0] = 1
+            ovlp[ovlp == 0] = ovlp.min()
 
             # just to be sure
             if torch.cuda.is_available():
