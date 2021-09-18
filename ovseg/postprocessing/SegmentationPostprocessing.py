@@ -96,7 +96,7 @@ class SegmentationPostprocessing(object):
                 reg = reg.cpu().numpy()
 
         # now change from soft to hard labels and multiply by the binary prediction
-        volume = np.argmax(volume, 0)
+        volume = np.argmax(volume, 0).astype(float)
         if self.mask_with_reg:
             # now we're finally doing what we're asking the whole time about!
             volume *= reg[0]
