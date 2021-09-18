@@ -76,7 +76,7 @@ class SegmentationPostprocessing(object):
                                 reg = torch.from_numpy(reg).to('cuda').type(torch.float)
                             reg = interpolate(reg.unsqueeze(0),
                                                    size=size,
-                                                   mode='nearest')[0, 0]
+                                                   mode='nearest')[0]
                 else:
                     if not is_np:
                         volume = volume.cpu().numpy()
