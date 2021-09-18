@@ -30,12 +30,14 @@ model_params['training']['loss_params'] = {'loss_names': ['cross_entropy_weighte
 model_params['data']['folders'] = ['images', 'labels', 'regions']
 model_params['data']['keys'] = ['image', 'label', 'region']
 model_params['training']['batches_have_masks'] = True
+model_params['postprocessing']['mask_with_reg'] = True
 
 model = RegionexpertModel(val_fold=0,
                           data_name='OV04',
                           preprocessed_name=p_name, 
                           model_name='regionexpert_ft',
                           model_parameters=model_params)
+model.save_model_parameters()
 model.training.train()
 model.eval_validation_set(force_evaluation=True)
 model.eval_training_set(force_evaluation=True)
