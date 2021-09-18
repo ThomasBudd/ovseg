@@ -229,8 +229,7 @@ class RegionexpertBatchDataset(object):
             volumes = [im, reg, labels]
 
         # maybe add an additional axis
-        for i in range(len(volumes)):
-            volumes[i] = maybe_add_channel_dim(volumes[i])
+        volumes = [maybe_add_channel_dim(vol) for vol in volumes]
         
         return volumes
 
