@@ -8,7 +8,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("exp", type=int)
 args = parser.parse_args()
 
-w = [0.01, 0.03, 0.1, 0.3][0]
+w = [0.01, 0.03, 0.1, 0.3][3]
 
 for pref in ['pod', 'om']:
     p_name = pref+'_reg_expert_{}'.format(w)

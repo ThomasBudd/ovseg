@@ -7,7 +7,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("fold", type=int)
 args = parser.parse_args()
 
-w = 0.1
+w = 0.3
 vf = args.fold
 
 model_params = get_model_params_3d_res_encoder_U_Net([32, 216, 216], 5/0.8, n_fg_classes=11,
