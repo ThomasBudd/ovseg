@@ -55,7 +55,7 @@ model_params['data']['keys'] = ['image', 'label', 'region']
 model_params['training']['batches_have_masks'] = True
 model_params['postprocessing'] = {'mask_with_reg': True}
 
-model = RegionexpertModel(val_fold=1+args.exp,
+model = RegionexpertModel(val_fold=0,
                           data_name='OV04',
                           preprocessed_name=p_name, 
                           model_name=model_name,
