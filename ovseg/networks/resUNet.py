@@ -682,27 +682,32 @@ class UNetResEncoder(nn.Module):
         else:
             self.kernel_sizes_up = [(1, 3, 3) if z_to_xy >= 2 else 3 for z_to_xy in 
                                     self.z_to_xy_ratio_list]
-        self.init_stride_list = [get_stride(ks) for ks in self.kernel_sizes_up]
+        self.init_stride_list = [1] + [get_stride(ks) for ks in self.kernel_sizes_up]
 
 
         # blocks on the contracting path
         self.blocks_down = []
-        # we will do the first block slightly different: we're not using a residual block here
-        # as the skip connection might introduce additional memory
-        self.blocks_down.append(ConvNormNonlinBlock(in_channels=self.in_channels,
-                                                    out_channels=self.filters,
-                                                    is_2d=self.is_2d,
-                                                    kernel_size=3 if self.z_to_xy_ratio < 2 else (1, 3, 3),
-                                                    first_stride=1,
-                                                    conv_params=self.conv_params,
-                                                    norm=self.norm,
-                                                    norm_params=self.norm_params,
-                                                    nonlin_params=self.nonlin_params))
-        for n_blocks, in_ch, out_ch, init_stride, z_to_xy in zip(self.n_blocks_list[1:],
-                                                                 self.in_channels_down_list[1:],
-                                                                 self.out_channels_list[1:],
-                                                                 self.init_stride_list,
-                                                                 self.z_to_xy_ratio_list[1:]):
+        if self.n_blocks_list[0] == 1:
+            # we will do the first block slightly different: we're not using a residual block here
+            # as the skip connection might introduce additional memory
+            self.blocks_down.append(ConvNormNonlinBlock(in_channels=self.in_channels,
+                                                        out_channels=self.filters,
+                                                        is_2d=self.is_2d,
+                                                        kernel_size=3 if self.z_to_xy_ratio < 2 else (1, 3, 3),
+                                                        first_stride=1,
+                                                        conv_params=self.conv_params,
+                                                        norm=self.norm,
+                                                        norm_params=self.norm_params,
+                                                        nonlin_params=self.nonlin_params))
+            i_start = 1
+        else:
+            i_start = 0
+
+        for n_blocks, in_ch, out_ch, init_stride, z_to_xy in zip(self.n_blocks_list[i_start:],
+                                                                 self.in_channels_down_list[i_start:],
+                                                                 self.out_channels_list[i_start:],
+                                                                 self.init_stride_list[i_start:],
+                                                                 self.z_to_xy_ratio_list[i_start:]):
             self.blocks_down.append(stackedResBlocks(block=self.block,
                                                      n_blocks=n_blocks,
                                                      in_channels=in_ch,

@@ -31,5 +31,6 @@ model = RegionfindingModel(val_fold=vf, data_name='OV04',
                            model_name='regfinding_'+str(w), model_parameters=model_params)
 
 model.training.train()
-model.eval_validation_set(save_preds=True, save_plots=False)
-model.eval_raw_dataset('BARTS', save_preds=True)
+# model.eval_validation_set(save_preds=True, save_plots=False)
+# model.eval_raw_dataset('BARTS', save_preds=True)
+model.eval_raw_data_npz('BARTS')
