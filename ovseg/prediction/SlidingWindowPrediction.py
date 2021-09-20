@@ -76,7 +76,7 @@ class SlidingWindowPrediction(object):
         
         if ROI is None:
             # not ROI is given take all coordinates
-            ROI = torch.ones((nz, nx, ny)) > 0
+            ROI = torch.ones((1, nz, nx, ny)) > 0
 
         n_patches = np.ceil((np.array([nz, nx, ny]) - self.patch_size) / 
                             (self.overlap * self.patch_size)).astype(int) + 1
@@ -101,7 +101,7 @@ class SlidingWindowPrediction(object):
                         z1, z2 = z+self.patch_size[0]//4, z+self.patch_size[0]*3//4
                     x1, x2 = x+self.patch_size[1]//4, x+self.patch_size[1]*3//4
                     y1, y2 = y+self.patch_size[2]//4, y+self.patch_size[2]*3//4
-                    if ROI[z1:z2, x1:x2, y1:y2].any().item():
+                    if ROI[0, z1:z2, x1:x2, y1:y2].any().item():
                         zxy_list.append((z, x, y))
 
         return zxy_list
@@ -197,6 +197,9 @@ class SlidingWindowPrediction(object):
         if mode is None:
             mode = self.mode
 
+        if ROI is not None:
+            ROI = maybe_add_channel_dim(ROI)
+
         self.network.eval()
 
         # check the type and bring to device
@@ -224,13 +227,6 @@ class SlidingWindowPrediction(object):
         return self._sliding_window(volume, ROI)
 
     def _predict_volume_flip(self, volume, ROI=None):
-
-        if isinstance(ROI, np.ndarray):
-            ROI = torch.from_numpy(ROI)
-        elif not (torch.is_tensor(ROI) or ROI is None):
-            raise TypeError('Got unknown type for argument ROI. Expected torch.tensor, np.ndarray, '
-                            'or None, got {}'.format(type(ROI)))
-            
 
         flip_z_list = [False] if self.is_2d else [False, True]
 
