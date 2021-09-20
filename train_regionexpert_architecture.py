@@ -53,6 +53,7 @@ model_params['training']['loss_params'] = {'loss_names': ['cross_entropy_weighte
 model_params['data']['folders'] = ['images', 'labels', 'regions']
 model_params['data']['keys'] = ['image', 'label', 'region']
 model_params['training']['batches_have_masks'] = True
+model_params['training']['num_epochs'] = 500
 model_params['postprocessing'] = {'mask_with_reg': True}
 
 model = RegionexpertModel(val_fold=0,
