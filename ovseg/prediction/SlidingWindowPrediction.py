@@ -74,9 +74,9 @@ class SlidingWindowPrediction(object):
         
         nz, nx, ny = shape
         
-        # if ROI is None:
-            # if the ROI
-        ROI = torch.ones((nz, nx, ny)) > 0
+        if ROI is None:
+            # not ROI is given take all coordinates
+            ROI = torch.ones((nz, nx, ny)) > 0
 
         n_patches = np.ceil((np.array([nz, nx, ny]) - self.patch_size) / 
                             (self.overlap * self.patch_size)).astype(int) + 1
@@ -180,8 +180,10 @@ class SlidingWindowPrediction(object):
             pred = pred[:, :shape_in[1], :shape_in[2], :shape_in[3]]
             ovlp = ovlp[:, :shape_in[1], :shape_in[2], :shape_in[3]]
 
-            # this should only have an effect when an ROI is used to prevent zero-division
-            ovlp[ovlp == 0] = ovlp.min()
+            # set the prediction to background and prevent zero division where
+            # we did not evaluate the network
+            pred[0, ovlp[0] == 0] = 1
+            ovlp[ovlp == 0] = 1
 
             # just to be sure
             if torch.cuda.is_available():
