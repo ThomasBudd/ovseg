@@ -104,7 +104,6 @@ class SlidingWindowPrediction(object):
                     if ROI[0, z1:z2, x1:x2, y1:y2].any().item():
                         zxy_list.append((z, x, y))
 
-        print(len(zxy_list), len(z_list) * len(x_list) * len(y_list))
         return zxy_list
 
     def _sliding_window(self, volume, ROI=None):
@@ -222,7 +221,7 @@ class SlidingWindowPrediction(object):
         return pred
 
     def __call__(self, volume, ROI=None, mode=None):
-        return self.predict_volume(volume, mode)
+        return self.predict_volume(volume, ROI, mode)
 
     def _predict_volume_simple(self, volume, ROI=None):
         return self._sliding_window(volume, ROI)
