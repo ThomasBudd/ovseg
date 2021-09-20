@@ -229,6 +229,9 @@ class SlidingWindowPrediction(object):
     def _predict_volume_flip(self, volume, ROI=None):
 
         flip_z_list = [False] if self.is_2d else [False, True]
+        
+        if ROI is not None and isinstance(ROI, np.ndarray):
+            ROI = torch.from_numpy(ROI)
 
         # collect all combinations of flipping
         flip_list = []
