@@ -53,7 +53,7 @@ else:
     model_name = 'U-Net5_very_large_patches_prg_lrn'
     patch_size = [48, 384, 384]
     larger_res_encoder = True
-    out_shape = [[28, 244, 244],
+    out_shape = [[28, 224, 224],
                  [32, 256, 256],
                  [40, 320, 320],
                  [48, 384, 384]]
