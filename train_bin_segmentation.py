@@ -54,7 +54,8 @@ model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
                                                      z_to_xy_ratio=5.0/0.67,
                                                      use_prg_trn=use_prg_trn,
                                                      larger_res_encoder=larger_res_encoder,
-                                                     n_fg_classes=1)
+                                                     n_fg_classes=1,
+                                                     out_shape=out_shape)
 model_params['training']['loss_params'] = {'loss_names': ['cross_entropy_weighted_bg',
                                                           'dice_loss_weighted'],
                                           'loss_kwargs': [{'weight_bg': 1,
