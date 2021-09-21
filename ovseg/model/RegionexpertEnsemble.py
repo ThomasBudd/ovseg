@@ -6,7 +6,7 @@ from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 from os import environ
 from os.path import join, exists
 
-class RegionfindingEnsemble(SegmentationEnsemble):
+class RegionexpertEnsemble(SegmentationEnsemble):
     
     def create_model(self, fold):
         model = RegionexpertModel(val_fold=fold,
