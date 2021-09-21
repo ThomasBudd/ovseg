@@ -211,6 +211,8 @@ class SegmentationPreprocessing(object):
 
         if self.lb_classes is not None:
             lb = reduce_classes(lb, self.lb_classes, self.reduce_lb_to_single_class)
+        elif self.reduce_lb_to_single_class:
+            lb = (lb > 0).astype(lb.dtype)
 
         if self.lb_min_vol is not None:
             if len(lb.shape) > 3:

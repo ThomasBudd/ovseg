@@ -133,11 +133,14 @@ class SegmentationModel(ModelBase):
                                  'of foreground classes in the problem...')
         if self.preprocessing.lb_classes is None and hasattr(self.preprocessing, 'dataset_properties'):
             
-            self.lb_classes = list(range(1, self.n_fg_classes+1))
-            if self.n_fg_classes != self.preprocessing.dataset_properties['n_fg_classes']:
-                raise ValueError('There seems to be a missmatch between the number of forground '
-                                 'classes in the preprocessed data and the number of network '
-                                 'output channels.')
+            if self.preprocessing.reduce_lb_to_single_class:
+                self.lb_classes = [1]
+            else:
+                self.lb_classes = list(range(1, self.n_fg_classes+1))
+                if self.n_fg_classes != self.preprocessing.dataset_properties['n_fg_classes']:
+                    raise ValueError('There seems to be a missmatch between the number of forground '
+                                     'classes in the preprocessed data and the number of network '
+                                     'output channels.')
         else:
             self.lb_classes = self.preprocessing.lb_classes
 
@@ -422,7 +425,9 @@ class SegmentationModel(ModelBase):
             for i, c in enumerate(self.lb_classes):
                 seg_lb[seg == i+1] = c
             seg = seg_lb
-  
+        else:
+            if self.preprocessing.reduce_lb_to_single_class:
+                seg = (seg > 0).astype(seg.dtype)
         # results are returned as a dict
         results = {}
         
