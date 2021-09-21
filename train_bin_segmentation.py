@@ -17,20 +17,37 @@ if args.exp < 2:
     model_name = 'U-Net4'
     if use_prg_trn:
         model_name += '_prg_lrn'
+        out_shape = [[16, 136, 136], #4
+                     [20, 160, 160], #2.3
+                     [24, 192, 192], #1.26
+                     [28, 216, 216]] #1
+    else:
+        out_shape = None
     larger_res_encoder = False
 elif args.exp < 4:
     patch_size = [28, 216, 216]
     model_name = 'U-Net5'
     if use_prg_trn:
         model_name += '_prg_lrn'
+        out_shape = [[16, 136, 136], #4
+                     [20, 160, 160], #2.3
+                     [24, 192, 192], #1.26
+                     [28, 216, 216]] #1
+    else:
+        out_shape = None
     larger_res_encoder = True
 else:
     patch_size = [40, 320, 320]
     model_name = 'U-Net5_large_patches'
     if use_prg_trn:
         model_name += '_prg_lrn'
+        out_shape = [[24, 192, 192], #4
+                     [30, 240, 240], #2.3
+                     [36, 288, 288], #1.26
+                     [40, 320, 320]] #1
+    else:
+        out_shape = None
     larger_res_encoder = True
-    
 
 
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
