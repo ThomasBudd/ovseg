@@ -8,6 +8,7 @@ from ovseg.utils.io import load_pkl, save_pkl, save_txt
 from ovseg.utils.path_utils import maybe_create_path
 from ovseg.data.Dataset import raw_Dataset
 from ovseg.utils.torch_np_utils import maybe_add_channel_dim
+from ovseg import OV_PREPROCESSED
 from os.path import join, exists
 from os import environ
 import matplotlib.pyplot as plt
@@ -334,7 +335,7 @@ class SegmentationPreprocessing(object):
             data_name = '_'.join(sorted(raw_data))
 
         # root folder of all saved preprocessed data
-        outfolder = join(environ['OV_DATA_BASE'], 'preprocessed', data_name, preprocessed_name)
+        outfolder = join(OV_PREPROCESSED, data_name, preprocessed_name)
         plot_folder = join(environ['OV_DATA_BASE'], 'plots', data_name, preprocessed_name)
         print(outfolder, plot_folder)
         # now let's create the output folders

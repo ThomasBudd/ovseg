@@ -17,7 +17,7 @@ for vf in range(5):
     model_params['training']['loss_params'] = {'loss_names': ['cross_entropy_weighted_bg',
                                                               'dice_loss_weighted'],
                                               'loss_kwargs': [{'weight_bg': w,
-                                                               'n_fg_classes': 11},
+                                                               'n_fg_classes': 1},
                                                               {'eps': 1e-5,
                                                                'weight': w}]}
     model_params['data']['folders'] = ['images', 'labels', 'regions']
