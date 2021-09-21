@@ -1,5 +1,6 @@
 from ovseg.model.SegmentationEnsemble import SegmentationEnsemble
 from ovseg.model.RegionfindingEnsemble import RegionfindingEnsemble
+from ovseg.model.RegionexpertEnsemble import RegionexpertEnsemble
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -14,11 +15,17 @@ try:
                                preprocessed_name=args.preprocessed_name,
                                model_name=args.model_name)
 except TypeError:
-    print('Caught TypeError, is the model a Regionfinding model?')
-    ens = RegionfindingEnsemble(val_fold=list(range(5)), data_name=args.data_name,
-                               preprocessed_name=args.preprocessed_name,
-                               model_name=args.model_name)
-    
+    try:
+        print('Caught TypeError, is the model a Regionfinding model?')
+        ens = RegionfindingEnsemble(val_fold=list(range(5)), data_name=args.data_name,
+                                   preprocessed_name=args.preprocessed_name,
+                                   model_name=args.model_name)
+    except:
+        print('Caught another Error, is the model a Regionexpert?')
+        ens = RegionexpertEnsemble(val_fold=list(range(5)), data_name=args.data_name,
+                                   preprocessed_name=args.preprocessed_name,
+                                   model_name=args.model_name)
+        
 
 if not ens.all_folds_complete():
     raise FileNotFoundError('Some folds seem to be uninifished')
