@@ -25,14 +25,14 @@ if args.exp < 2:
         out_shape = None
     larger_res_encoder = False
 elif args.exp < 4:
-    patch_size = [28, 216, 216]
+    patch_size = [28, 224, 224]
     model_name = 'U-Net5'
     if use_prg_trn:
         model_name += '_prg_lrn'
-        out_shape = [[16, 136, 136], #4
+        out_shape = [[16, 128, 128], #4
                      [20, 160, 160], #2.3
                      [24, 192, 192], #1.26
-                     [28, 216, 216]] #1
+                     [28, 224, 224]] #1
     else:
         out_shape = None
     larger_res_encoder = True
