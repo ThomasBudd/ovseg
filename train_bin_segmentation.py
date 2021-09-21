@@ -36,7 +36,7 @@ elif args.exp < 4:
     else:
         out_shape = None
     larger_res_encoder = True
-else:
+elif args.exp < 6:
     patch_size = [40, 320, 320]
     model_name = 'U-Net5_large_patches'
     if use_prg_trn:
@@ -48,6 +48,15 @@ else:
     else:
         out_shape = None
     larger_res_encoder = True
+else:
+    use_prg_trn = True
+    model_name = 'U-Net5_very_large_patches_prg_lrn'
+    patch_size = [48, 384, 384]
+    
+    out_shape = [[28, 244, 244],
+                 [32, 256, 256],
+                 [40, 320, 320],
+                 [48, 384, 384]]
 
 
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
