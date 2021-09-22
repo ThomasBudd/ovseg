@@ -1,10 +1,120 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.functional import interpolate
 import numpy as np
 import random
 
-class torch_myRandAugment(nn.Module):
+
+# %%
+class torch_myRandAugment(torch.nn.Module):
+    '''
+    This is really just the nnU-Net gray value Augmentation but parametrised differently
+    '''
+
+    def __init__(self,
+                 P=0.15,
+                 M=15,
+                 n_im_channels: int = 1
+                 ):
+        super().__init__()
+        self.P = P
+        self.M = M
+        self.n_im_channels = n_im_channels
+
+    def _uniform(self, mm, device='cpu'):
+        return (mm[1] - mm[0]) * torch.rand([], device=device) + mm[0]
+
+    def _sign(self):
+        return np.random.choice([-1, 1])
+
+    def _noise(self, img, m):
+        var = self._uniform([0, 0.1*m/15], device=img.device)
+        sigma = torch.sqrt(var)
+        return img + sigma * torch.randn_like(img)
+
+    def _blur(self, img, m):
+        sigma = self._uniform([0.5 * m/15, 0.5 + m/15], device=img.device)
+        var = sigma ** 2
+        axes = torch.arange(-5, 6, device=img.device)
+        grid = torch.stack(torch.meshgrid([axes for _ in range(2)]))
+        gkernel = torch.exp(-1*torch.sum(grid**2, dim=0)/2.0/var)
+        gkernel = gkernel/gkernel.sum()
+        if len(img.shape) == 4:
+            # 2d case
+            gkernel = gkernel.view(1, 1, 11, 11).to(img.device).type(img.dtype)
+            return torch.nn.functional.conv2d(img, gkernel, padding=5)
+        else:
+            gkernel = gkernel.view(1, 1, 1, 11, 11).to(img.device).type(img.dtype)
+            return torch.nn.functional.conv3d(img, gkernel, padding=(0, 5, 5))
+
+    def _brightness(self, img, m):
+        fac = self._uniform([1 - 0.3 * m/15, 1 + 0.3 * m/15], device=img.device)
+        return img * fac
+
+    def _contrast(self, img, m):
+        fac = self._uniform([1 - 0.45 * m/15, 1 + 0.5 * m/15], device=img.device)
+        mean = img.mean()
+        mn = img.min().item()
+        mx = img.max().item()
+        img = (img - mean) * fac + mean
+        return img.clamp(mn, mx)
+
+    def _low_res(self, img, m):
+        size = img.size()[2:]
+        mode = 'bilinear' if len(size) == 2 else 'trilinear'
+        fac = np.random.uniform(*[1, 1 + m/15])
+        img = interpolate(img, scale_factor=1/fac)
+        return interpolate(img, size=size, mode=mode)
+
+    def _gamma(self, img, m):
+        with torch.cuda.amp.autocast(enabled=False):
+            mn, mx = img.min(), img.max()
+            img = (img - mn)/(mx - mn)
+            gamma = np.random.uniform(*[1 - 0.3 * m/15, 1 + 0.5 * m/15])
+            if np.random.rand() < self.P:
+                img = 1 - (1 - img) ** gamma
+            else:
+                img = img ** gamma
+
+            return (mx - mn) * img + mn
+
+    def _get_ops_mag_list(self):
+        ops_mag_list = []
+        if np.random.rand() < self.P:
+            ops_mag_list.append((self._noise, np.random.rand() * self.M))
+        if np.random.rand() < self.P:
+            ops_mag_list.append((self._blur, np.random.rand() * self.M))
+        if np.random.rand() < self.P:
+            ops_mag_list.append((self._brightness, np.random.rand() * self.M))
+        if np.random.rand() < self.P:
+            ops_mag_list.append((self._contrast, np.random.rand() * self.M))
+        if np.random.rand() < self.P:
+            ops_mag_list.append((self._low_res, np.random.rand() * self.M))
+        np.random.shuffle(ops_mag_list)
+
+        return ops_mag_list
+
+    def forward(self, xb):
+
+        c = self.n_im_channels
+
+        for b in range(xb.shape[0]):
+            for op, m in self._get_ops_list():
+                xb[b:b+1, :c] = op(xb[b:b+1, :c], m)
+        return xb
+
+    def update_prg_trn(self, param_dict, h, indx=None):
+
+        if 'M' in param_dict:
+            self.M = (1 - h) * param_dict['M'][0] + h * param_dict['M'][1]
+
+        if 'P' in param_dict:
+            self.P = (1 - h) * param_dict['P'][0] + h * param_dict['P'][1]
+
+
+# %%
+class torch_myRandAugment_old(nn.Module):
 
     def __init__(self, n, m, n_im_channels=1, use_3d_spatials=False):
         super().__init__()
