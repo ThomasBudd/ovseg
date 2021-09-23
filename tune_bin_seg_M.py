@@ -7,7 +7,7 @@ import argparse
 import os
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--exp", type=int, default=0)
+parser.add_argument("exp", type=int)
 args = parser.parse_args()
 
 p_name = 'bin_seg'

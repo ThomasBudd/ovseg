@@ -100,7 +100,7 @@ class torch_myRandAugment(torch.nn.Module):
         c = self.n_im_channels
 
         for b in range(xb.shape[0]):
-            for op, m in self._get_ops_list():
+            for op, m in self._get_ops_mag_list():
                 xb[b:b+1, :c] = op(xb[b:b+1, :c], m)
         return xb
 
