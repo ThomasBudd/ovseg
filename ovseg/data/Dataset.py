@@ -3,6 +3,7 @@ from os.path import basename, join, exists, isdir, split
 from os import listdir, environ
 from ovseg.utils.io import read_data_tpl_from_nii, read_dcms, read_nii
 import nibabel as nib
+import torch
 
 
 class Dataset(object):
@@ -99,7 +100,13 @@ class raw_Dataset(object):
 
         assert image_folder in ['images', 'imagesTr', 'imagesTs', None]
 
-        self.raw_path = raw_path
+        if not exists(raw_path):
+            p = join(environ['OV_DATA_BASE'], 'raw_data', raw_path)
+            if exists(p):
+                self.raw_path = p
+            else:
+                raise FileNotFoundError('Could not find {} or {}'.format(p, raw_path))
+
         all_im_folders = [imf for imf in listdir(self.raw_path) if imf.startswith('images')]
         all_lb_folders = [lbf for lbf in listdir(self.raw_path) if lbf.startswith('labels')]
 
@@ -240,6 +247,65 @@ class raw_Dataset(object):
         data_tpl['dataset'] = basename(self.raw_path)
         data_tpl['scan'] = scan
 
+        return data_tpl
+
+# %%
+class low_res_ds_wrapper(object):
+    # this is usefull when combining early stopping parameter tuning with
+    # progressive training
+    # this dataset returns downsampled images and labels to see how well the segmentation already
+    # worked on that resolution
+    def __init__(self, raw_name, scale):
+        self.raw_name = raw_name
+        self.scale = scale
+
+        self.ds = raw_Dataset(self.raw_name)
+        
+    def __len__(self):
+        return len(self.ds)
+
+    def _resize_volume(self, volume, mode):
+        
+        dtype = volume.dtype
+        is_3d = len(volume.shape) == 3
+        
+        # add batch (and channel) axes
+        if is_3d:
+            volume = volume[np.newaxis, np.newaxis]
+        else:
+            volume = volume[np.newaxis]
+        
+        # resize using torch
+        volume_gpu = torch.from_numpy(volume).cuda().type(torch.float)
+        volume_rsz = torch.nn.functional.interpolate(volume_gpu, scale_factor=self.scale,
+                                                     mode=mode).cpu().numpy()
+        
+        # remove batch (and channel) axes and cast
+        if is_3d:
+            return volume_rsz[0, 0].astype(dtype)
+        else:
+            return volume_rsz[0].astype(dtype)
+
+    def __getitem__(self, ind=None):
+
+        if self.__len__() == 0:
+            return
+
+        if ind is None:
+            ind = np.random.randint(len(self))
+        else:
+            ind = ind % len(self)
+
+        data_tpl = self.ds[ind]
+
+        data_tpl['image'] = self._resize_volume(data_tpl['image'], 'trilinear')
+        if 'label' in data_tpl:
+            data_tpl['label'] = self._resize_volume(data_tpl['label'], 'nearest')
+        
+        if self.ds.is_cascade:
+            for key in self.ds.keys_for_previous_stages:
+                data_tpl[key] = self._resize_volume(data_tpl[key], 'nearest')
+        
         return data_tpl
 
 # %%
