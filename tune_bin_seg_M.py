@@ -33,7 +33,8 @@ for M in M_list:
                                                          larger_res_encoder=larger_res_encoder,
                                                          n_fg_classes=1,
                                                          out_shape=out_shape)
-    model_params['training']['prg_trn_aug_params'] = {'M': [M/4, M]}
+    model_params['training']['prg_trn_aug_params'] = {'M': [M/4, M],
+                                                      'out_shape': out_shape}
     model_params['training']['prg_trn_resize_on_the_fly'] = False
     model_params['training']['loss_params'] = {'loss_names': ['cross_entropy_weighted_bg',
                                                               'dice_loss_weighted'],
