@@ -12,11 +12,11 @@ if args.exp == 0:
     w_list = 5 * [0.001]
     vf_list = list(range(4))
 elif args.exp == 1:
-    w_list = [0.5, 0.5, 0.5]
-    vf_list = [0, 1, 2]
+    w_list = [0.1, 0.1, 0.5, 0.5, 0.5]
+    vf_list = [1, 2, 0, 1, 2]
 elif args.exp == 2:
-    w_list = [0.5, 0.5, 0.001]
-    vf_list = [3, 4, 4]
+    w_list = [0.1, 0.1, 0.5, 0.5, 0.001]
+    vf_list = [3, 4, 3, 4, 4]
 
 patch_size = [40, 320, 320]
 model_name = 'U-Net5'
