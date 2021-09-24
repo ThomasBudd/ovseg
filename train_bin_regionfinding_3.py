@@ -21,10 +21,10 @@ elif args.exp == 2:
 patch_size = [40, 320, 320]
 model_name = 'U-Net5'
 use_prg_trn = True
-out_shape = [[24, 192, 192], #4
-             [28, 224, 224], #2.3
-             [36, 288, 288], #1.26
-             [40, 320, 320]] #1
+out_shape = [[24, 192, 192],
+             [28, 224, 224],
+             [36, 288, 288],
+             [40, 320, 320]]
 larger_res_encoder = True
 
 
