@@ -56,10 +56,16 @@ for M in M_list:
                               preprocessed_name=p_name, 
                               model_name='U-Net5_M_{}'.format(M),
                               model_parameters=model_params)
+    
+    # the code previously crashed we have to repeat the inference once before going on...
+    ed = model.training.epochs_done
+    model.eval_ds(BARTS_ds_dict[ed],
+                  'BARTS_{}'.format(ed),
+                  save_preds=False)
 
     while model.training.epochs_done < 1000:
         model.training.train()
-        ed = model.tranining.epochs_done
+        ed = model.training.epochs_done
         model.eval_ds(BARTS_ds_dict[ed],
                       'BARTS_{}'.format(ed),
                       save_preds=False)
