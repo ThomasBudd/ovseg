@@ -106,6 +106,8 @@ class raw_Dataset(object):
                 self.raw_path = p
             else:
                 raise FileNotFoundError('Could not find {} or {}'.format(p, raw_path))
+        else:
+            self.raw_path = raw_path
 
         all_im_folders = [imf for imf in listdir(self.raw_path) if imf.startswith('images')]
         all_lb_folders = [lbf for lbf in listdir(self.raw_path) if lbf.startswith('labels')]

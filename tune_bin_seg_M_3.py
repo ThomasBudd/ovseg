@@ -19,7 +19,7 @@ out_shape = [[24, 192, 192], #4
              [40, 320, 320]] #1
 larger_res_encoder = True
 
-N_PROC = 4
+N_PROC = 8
 
 M_list = np.arange(5, 21)[args.exp::N_PROC]
 scale250 = (np.array(out_shape[0]) / np.array(out_shape[-1])).tolist()
@@ -56,12 +56,6 @@ for M in M_list:
                               preprocessed_name=p_name, 
                               model_name='U-Net5_M_{}'.format(M),
                               model_parameters=model_params)
-    
-    # the code previously crashed we have to repeat the inference once before going on...
-    ed = model.training.epochs_done
-    model.eval_ds(BARTS_ds_dict[ed],
-                  'BARTS_{}'.format(ed),
-                  save_preds=False)
 
     while model.training.epochs_done < 1000:
         model.training.train()
