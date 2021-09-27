@@ -100,14 +100,14 @@ class raw_Dataset(object):
 
         assert image_folder in ['images', 'imagesTr', 'imagesTs', None]
 
-        if not exists(raw_path):
-            p = join(environ['OV_DATA_BASE'], 'raw_data', raw_path)
+        self.raw_path = raw_path
+        if not exists(self.raw_path):
+            p = join(environ['OV_DATA_BASE'], 'raw_data', self.raw_path)
             if exists(p):
                 self.raw_path = p
             else:
                 raise FileNotFoundError('Could not find {} or {}'.format(p, raw_path))
-        else:
-            self.raw_path = raw_path
+            
 
         all_im_folders = [imf for imf in listdir(self.raw_path) if imf.startswith('images')]
         all_lb_folders = [lbf for lbf in listdir(self.raw_path) if lbf.startswith('labels')]
