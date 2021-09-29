@@ -35,6 +35,9 @@ class RegionexpertBatchDataset(object):
         self.return_fp16 = return_fp16
         self.bias = bias
 
+        # this is only for the progressive training update in SegmentationTraining
+        self.mask_key = region_key
+
         self.dtype = np.float16 if self.return_fp16 else np.float32
         if n_max_volumes is None:
             self.n_volumes = len(self.vol_ds)
