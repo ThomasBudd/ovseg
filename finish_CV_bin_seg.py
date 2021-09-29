@@ -37,21 +37,22 @@ while not check_if_all_finished():
     s += 1
     print('Slept {} minutes'.format(s))
 
-for ep in [250, 500, 750, 1000]:
-    mdscs = []
-    for M in M_list:
-        p = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models', 'OV04', p_name, 
-                         'U-Net5_M_{}'.format(M), 'fold_0', 'BARTS_{}_results.pkl'.format(M))
+# for ep in [250, 500, 750, 1000]:
+#     mdscs = []
+#     for M in M_list:
+#         p = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models', 'OV04', p_name, 
+#                          'U-Net5_M_{}'.format(M), 'fold_0', 'BARTS_{}_results.pkl'.format(ep))
         
-        res = pickle.load(open(p, 'rb'))
-        mdscs.append(np.nanmean([res[key]['dice_1'] for key in res]))
+#         res = pickle.load(open(p, 'rb'))
+#         mdscs.append(np.nanmean([res[key]['dice_1'] for key in res]))
 
-    plt.plot(M_list, mdscs)
+#     plt.plot(M_list, mdscs)
 
-plt.legend([250, 500, 750, 1000])
-plt.savefig(os.path.join(os.environ['OV_DATA_BASE'], 'tune_M_bin_seg.png'))
+# plt.legend([250, 500, 750, 1000])
+# plt.savefig(os.path.join(os.environ['OV_DATA_BASE'], 'tune_M_bin_seg.png'))
 
-M = M_list[np.argmax(mdscs)]
+# M = M_list[np.argmax(mdscs)]
+M = 15
 
 for vf in vf_list:
     model = SegmentationModel(val_fold=vf,
