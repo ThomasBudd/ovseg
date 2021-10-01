@@ -116,6 +116,7 @@ class dice_loss_weighted(nn.Module):
 class SLDS_loss(nn.Module):
 
     def __init__(self, weight_bg, n_fg_classes, weight_ds=1, weight_sl=1, eps=1e-5):
+        super().__init__()
 
         self.weight_bg = weight_bg
         self.weight_ds = weight_ds
