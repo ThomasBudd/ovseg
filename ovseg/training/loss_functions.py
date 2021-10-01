@@ -134,7 +134,7 @@ class SLDS_loss(nn.Module):
 
         # for the segmentation of the large components we use the largest value in every channel 1 
         # as background and use channel 1 as foreground
-        logs_sl_bg = torch.cat([logs[:, 0:], logs[:, 2:]]).max(1, keepdim=True)[0]
+        logs_sl_bg = torch.cat([logs[:, 0:], logs[:, 2:]], 1).max(1, keepdim=True)[0]
         logs_sl = torch.cat([logs_sl_bg, logs[:, 1:2]], 1)
         yb_oh_sl = torch.cat([yb_oh[:, 0:] + yb_oh[:, 2:].sum(1, keepdim=True), yb_oh[:, 1:2]], 1)
         
