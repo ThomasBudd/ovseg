@@ -44,3 +44,24 @@ for case in sens_cases:
         cl_sens.append(100 * np.sum(p*gt)/np.sum(gt))
     print('{}, {}'.format(case, classes[np.argmax(cl_sens)]))
     
+    
+# %%
+gtp = join(environ['OV_DATA_BASE'], 'raw_data', 'BARTS', 'labels')
+predp = join(environ['OV_DATA_BASE'], 'predictions', 'OV04', 'diaph_reg_expert', 'U-Net2',
+             'BARTS_fold_0')
+
+fps = []
+tns = []
+for case in tqdm(listdir(gtp)):
+    gt = (nib.load(join(gtp, case)).get_fdata() == 15).astype(float)
+    
+    if gt.max() == 0:
+        pred = nib.load(join(predp, case)).get_fdata()
+        if pred.max() > 0:
+            fps.append(case)
+        else:
+            tns.append(case)
+
+n = len(fps) + len(tns)
+
+print('{} out out {} cases had false positives ({:.1f}%)'.format(len(fps), n, 100*len(fps)/n))
