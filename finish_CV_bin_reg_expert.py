@@ -11,10 +11,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("exp", type=int)
 args = parser.parse_args()
 
-model_name_ps = 'bin_reg_expert_regfinding_U-Net5_0.001'
+p_name = 'bin_reg_expert_regfinding_U-Net5_0.001'
 model_name = 'U-Net5'
-
-p_name = 'bin_reg_expert_'+model_name_ps
 
 
 model = RegionexpertModel(val_fold=args.exp + 1,
