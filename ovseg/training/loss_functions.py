@@ -112,3 +112,39 @@ class dice_loss_weighted(nn.Module):
         dice = (tp + self.eps) / (self.w1 * yb_vol + self.w2 * pred_vol + self.eps)
         # the mean is computed over the batch and channel axis (excluding background)
         return 1 - 1 * dice.mean()
+
+class SLDS_loss(nn.Module):
+
+    def __init__(self, weight_bg, n_fg_classes, weight_ds=1, weight_sl=1, eps=1e-5):
+
+        self.weight_bg = weight_bg
+        self.weight_ds = weight_ds
+        self.weight_sl = weight_sl
+        self.n_fg_classes = n_fg_classes
+        self.eps = eps        
+
+        self.ce_loss = cross_entropy()
+        self.dice_loss = dice_loss(eps=self.eps)
+
+        self.ce_loss_weighted = cross_entropy_weighted_bg(self.weight_bg, self.n_fg_classes-1)
+        self.dice_loss_weighted = dice_loss_weighted(self.weight_bg)
+
+    def forward(self, logs, yb_oh, mask=None):
+
+        # for the segmentation of the large components we use the largest value in every channel 1 
+        # as background and use channel 1 as foreground
+        logs_sl_bg = torch.cat([logs[:, 0:], logs[:, 2:]]).max(1, keepdim=True)[0]
+        logs_sl = torch.cat([logs_sl_bg, logs[:, 1:2]], 1)
+        yb_oh_sl = torch.cat([yb_oh[:, 0:] + yb_oh[:, 2:].sum(1, keepdim=True), yb_oh[:, 1:2]], 1)
+        
+        
+        # for the detection of small lesions we use the first two channels as background and the
+        # others as foreground
+        logs_ds_bg = logs[:, :2].max(1, keepdim=True)[0]
+        logs_ds = torch.cat([logs_ds_bg, logs[:, 2:]], 1)
+        yb_oh_ds = torch.cat([yb_oh[:, :2].sum(1, keepdim=True), yb_oh[:, 2:]], 1)
+        
+        loss_sl = self.ce_loss(logs_sl, yb_oh_sl, mask) + self.dice_loss(logs_sl, yb_oh_sl, mask)
+        loss_ds = self.ce_loss_weighted(logs_ds, yb_oh_ds, mask) + self.dice_loss_weighted(logs_ds, yb_oh_ds, mask)
+        
+        return self.weight_sl * loss_sl + self.weight_ds * loss_ds

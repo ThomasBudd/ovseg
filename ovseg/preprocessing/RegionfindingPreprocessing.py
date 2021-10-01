@@ -26,6 +26,9 @@ class RegionfindingPreprocessing(SegmentationPreprocessing):
     
         self.preprocessing_parameters.append('r')
         self.preprocessing_parameters.append('z_to_xy_ratio')
+
+    def seg_to_region(self, seg):
+        return seg_fg_dial(seg, r=self.r, z_to_xy_ratio=self.z_to_xy_ratio)
     
     def __call__(self, data_tpl, preprocess_only_im=False, return_np=False):
         volume = super().__call__(data_tpl, preprocess_only_im, return_np=True)
@@ -38,7 +41,7 @@ class RegionfindingPreprocessing(SegmentationPreprocessing):
             return volume
 
         # now let's add the region to the preprocessed volumes
-        region = seg_fg_dial(volume[-1], r=self.r, z_to_xy_ratio=self.z_to_xy_ratio)
+        region = self.seg_to_region(volume[-1])
         volume = np.concatenate([volume, region[np.newaxis]])
 
         if not return_np:

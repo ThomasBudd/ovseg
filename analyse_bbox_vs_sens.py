@@ -7,12 +7,15 @@ from skimage.measure import label
 from tqdm import tqdm
 
 gtp = join(environ['OV_DATA_BASE'], 'raw_data', 'BARTS', 'labels')
-predp = join(environ['OV_DATA_BASE'], 'predictions', 'OV04', 'new_multiclass_v1', 'new_loss',
+predp = join(environ['OV_DATA_BASE'], 'predictions', 'OV04', 'bin_seg', 'U-Net5_M_15',
              'BARTS_ensemble_0_1_2_3_4')
 
 cases = listdir(gtp)
 case = cases[0]
 
+sens_list = []
+vol_list = []
+bbox_list = []
 for case in tqdm(cases):    
     img = nib.load(join(gtp, case))
     sp = img.header['pixdim'][1:4]
@@ -21,9 +24,6 @@ for case in tqdm(cases):
     
     lb = label(gt)
     
-    sens_list = []
-    vol_list = []
-    bbox_list = []
     
     for c in range(1, lb.max() + 1):
         comp = (lb == c).astype(float)
