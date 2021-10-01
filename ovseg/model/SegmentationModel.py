@@ -138,9 +138,9 @@ class SegmentationModel(ModelBase):
             else:
                 self.lb_classes = list(range(1, self.n_fg_classes+1))
                 if self.n_fg_classes != self.preprocessing.dataset_properties['n_fg_classes']:
-                    raise ValueError('There seems to be a missmatch between the number of forground '
-                                     'classes in the preprocessed data and the number of network '
-                                     'output channels.')
+                    print('There seems to be a missmatch between the number of forground '
+                          'classes in the preprocessed data and the number of network '
+                          'output channels....')
         else:
             self.lb_classes = self.preprocessing.lb_classes
 
