@@ -3,7 +3,7 @@ from ovseg.preprocessing.SLDSPreprocessing import SLDSPreprocessing
 import numpy as np
 from skimage.measure import label
 
-class RegionfindingModel(RegionfindingModel):
+class SLDSModel(RegionfindingModel):
 
     
     def _create_preprocessing_object(self):
