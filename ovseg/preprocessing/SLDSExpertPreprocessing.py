@@ -54,7 +54,6 @@ class SLDSExpertPreprocessing(RegionexpertPreprocessing):
             if (reg_lb + 1) in self.lb_classes:
                 small_lesions[comp] = 1
 
-
         return small_lesions
 
 

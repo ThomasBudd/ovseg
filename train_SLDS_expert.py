@@ -1,4 +1,4 @@
-from ovseg.model.RegionexpertModel import RegionexpertModel
+from ovseg.model.SLDSExpertModel import SLDSExpertModel
 from ovseg.model.model_parameters_segmentation import get_model_params_3d_res_encoder_U_Net
 from ovseg.data.Dataset import raw_Dataset
 import os
@@ -10,7 +10,7 @@ args = parser.parse_args()
 
 p_name = 'SLDS_reg_expert_0.01'
 
-vf_list = [[0, 1, 2], [3, 4]][args.exp]
+vf_list = [[0], [1, 2], [3, 4]][args.exp]
 model_name = 'U-Net2'
 
 for vf in vf_list:
@@ -38,11 +38,11 @@ for vf in vf_list:
     model_params['postprocessing'] = {'mask_with_reg': True}
     
     
-    model = RegionexpertModel(val_fold=vf,
-                              data_name='OV04',
-                              preprocessed_name=p_name, 
-                              model_name=model_name,
-                              model_parameters=model_params)
+    model = SLDSExpertModel(val_fold=vf,
+                            data_name='OV04',
+                            preprocessed_name=p_name, 
+                            model_name=model_name,
+                            model_parameters=model_params)
     
     while model.training.epochs_done < 900:
         model.training.train()
