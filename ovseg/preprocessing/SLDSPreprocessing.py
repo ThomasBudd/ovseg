@@ -25,7 +25,7 @@ class SLDSPreprocessing(RegionfindingPreprocessing):
             
         self.preprocessing_parameters.append('vol_tr')
         
-        self.n_fg_classes = len(self.vol_tr) + 1
+        self.n_fg_classes = len(self.vol_tr)
 
     def seg_to_region(self, seg):
         
