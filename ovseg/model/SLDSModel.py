@@ -26,6 +26,8 @@ class SLDSModel(RegionfindingModel):
         seg = (seg > 0).astype(float)
         if self.preprocessing.is_preprocessed_data_tpl(data_tpl):
             region = data_tpl['region']
+            if len(region.shape) == 4:
+                region = region[0]
             lesions = region * seg
             small_lesions = np.zeros_like(seg)
             small_lesions[lesions > 1] = lesions[lesions > 1]
