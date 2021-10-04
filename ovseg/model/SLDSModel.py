@@ -37,7 +37,7 @@ class SLDSModel(RegionfindingModel):
             small_lesions = np.zeros_like(seg)
             large_lesions = np.zeros_like(seg)
             
-            fac = np.prod(self.target_spacing)
+            fac = np.prod(self.preprocessing.target_spacing)
             
             for c in range(1, ccomps.max() +1 ):
                 comp = (ccomps == c)

@@ -80,4 +80,20 @@ for case in tqdm(listdir(gtp)):
     if gt.max() > 0:
         pred = nib.load(join(predp, case)).get_fdata()
         sens.append(100 * np.sum(gt * pred) / np.sum(gt))
+print(np.mean(sens))
+# %%
+gtp = join(environ['OV_DATA_BASE'], 'raw_data', 'BARTS', 'labels')
+predp = join(environ['OV_DATA_BASE'], 'predictions', 'OV04',
+             'bin_reg_expert_regfinding_U-Net5_0.001',
+             'U-Net5',
+             'BARTS_ensemble_0_1_2_3_4')
+sens = []
+for case in tqdm(listdir(gtp)):
+    gt = (nib.load(join(gtp, case)).get_fdata() == 15).astype(float)
+    
+    if gt.max() > 0:
+        pred = nib.load(join(predp, case)).get_fdata()
+        sens.append(100 * np.sum(gt * pred) / np.sum(gt))
 
+
+print(np.mean(sens))
