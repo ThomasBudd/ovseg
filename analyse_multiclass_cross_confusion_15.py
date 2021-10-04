@@ -4,9 +4,12 @@ from os import listdir, environ
 from os.path import join
 from tqdm import tqdm
 
+
+# %%
 gtp = join(environ['OV_DATA_BASE'], 'raw_data', 'BARTS', 'labels')
 predp = join(environ['OV_DATA_BASE'], 'predictions', 'OV04', 'new_multiclass_v1', 'new_loss',
              'BARTS_ensemble_0_1_2_3_4')
+
 
 bin_sens = []
 sens_15 = []
@@ -65,3 +68,16 @@ for case in tqdm(listdir(gtp)):
 n = len(fps) + len(tns)
 
 print('{} out out {} cases had false positives ({:.1f}%)'.format(len(fps), n, 100*len(fps)/n))
+
+# %%
+gtp = join(environ['OV_DATA_BASE'], 'raw_data', 'BARTS', 'labels')
+predp = join(environ['OV_DATA_BASE'], 'predictions', 'OV04', 'bin_seg', 'U-Net5_M_15',
+             'BARTS_ensemble_0_1_2_3_4')
+sens = []
+for case in tqdm(listdir(gtp)):
+    gt = (nib.load(join(gtp, case)).get_fdata() == 15).astype(float)
+    
+    if gt.max() > 0:
+        pred = nib.load(join(predp, case)).get_fdata()
+        sens.append(100 * np.sum(gt * pred) / np.sum(gt))
+
