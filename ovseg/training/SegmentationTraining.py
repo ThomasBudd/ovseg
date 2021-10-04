@@ -169,10 +169,17 @@ class SegmentationTraining(NetworkTraining):
         # first let's get all the folder pathes of where we want to store the resized volumes
         ds = dl_list[0].dataset
 
-        # maybe create the folders
+        # here we might create the folders
         prepp = ds.vol_ds.preprocessed_path
+        # these are the folders we're considering for the training
+        folders = [ds.vol_ds.folders[ds.vol_ds.keys.index(ds.image_key)],
+                   ds.vol_ds.folders[ds.vol_ds.keys.index(ds.label_key)]]
+        if self.batches_have_masks:
+            self.prg_trn_new_keys.append(ds.mask_key)
+            folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.mask_key)])
+        # folders with all downsampled data
         all_fols = []
-        for fol in ds.vol_ds.folders:
+        for fol in folders:
             for ext in extensions:
                 path_to_fol = os.path.join(prepp, fol+'_'+ext)
                 all_fols.append(path_to_fol)
