@@ -1,7 +1,7 @@
 from ovseg.model.RegionexpertModel import RegionexpertModel
 from ovseg.preprocessing.SLDSExpertPreprocessing import SLDSExpertPreprocessing
 
-class RegionexpertModel(RegionexpertModel):
+class SLDSExpertModel(RegionexpertModel):
     
     def _create_preprocessing_object(self):
         
