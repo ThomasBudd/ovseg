@@ -47,4 +47,4 @@ for w in w_list:
     
     model.training.train()
     model.eval_validation_set()
-    model.eval_raw_dataset('BARTS')
+    model.eval_raw_dat_npz('BARTS')
