@@ -17,8 +17,8 @@ for w in w_list:
     n_fg_reg = 0
     sleep(0.5)
     for case in tqdm(listdir(predp)):
-        gt = (nib.load(gtp, case).get_fdata() > 0).astype(float)
-        regs = (nib.load(predp).get_fdata() == 2).astype(float)
+        gt = (nib.load(join(gtp, case)).get_fdata() > 0).astype(float)
+        regs = (nib.load(join(predp, case)).get_fdata() == 2).astype(float)
         comps = label(regs)
         n_reg += comps.max()
         for c in range(1, comps.max() + 1):
