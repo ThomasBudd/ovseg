@@ -5,6 +5,8 @@ from skimage.measure import label
 import nibabel as nib
 from time import sleep
 from tqdm import tqdm
+import torch
+
 
 w_list = [0.001, 0.01, 0.1]
 
@@ -20,10 +22,12 @@ for w in w_list:
         gt = (nib.load(join(gtp, case)).get_fdata() > 0).astype(float)
         regs = (nib.load(join(predp, case)).get_fdata() == 2).astype(float)
         comps = label(regs)
+        comps_gpu = torch.from_numpy(comps).cuda()
+        gt_gpu = torch.from_numpy(gt).cuda()
         n_reg += comps.max()
         for c in range(1, comps.max() + 1):
-            comp = (comps == c).astype(float)
-            n_fg_reg += (comp * gt).max()
+            comp = (comps_gpu == c).type(torch.float)
+            n_fg_reg += (comp * gt_gpu).max().item()
     
     print('w:{}, produces {} regions of which {:.2f}% showed fg'.format(w,
                                                                         n_reg,
