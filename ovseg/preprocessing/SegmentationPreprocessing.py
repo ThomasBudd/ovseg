@@ -3,6 +3,8 @@ import torch
 from torch.nn.functional import interpolate
 from ovseg.utils.label_utils import remove_small_connected_components_from_batch, reduce_classes, \
     remove_small_connected_components
+from ovseg.utils.label_utils import remove_connected_components_by_volume_from_batch, \
+    remove_connected_components_by_volume
 from ovseg.utils.dict_equal import dict_equal, print_dict_diff
 from ovseg.utils.io import load_pkl, save_pkl, save_txt
 from ovseg.utils.path_utils import maybe_create_path
@@ -50,6 +52,7 @@ class SegmentationPreprocessing(object):
                  lb_classes=None,
                  reduce_lb_to_single_class=False,
                  lb_min_vol=None,
+                 lb_max_vol=None,
                  n_im_channels: int = 1,
                  do_nn_img_interp=False,
                  save_only_fg_scans=True,
@@ -67,6 +70,7 @@ class SegmentationPreprocessing(object):
         self.lb_classes = lb_classes
         self.reduce_lb_to_single_class = reduce_lb_to_single_class
         self.lb_min_vol = lb_min_vol
+        self.lb_max_vol = lb_max_vol
         self.n_im_channels = n_im_channels
         self.do_nn_img_interp = do_nn_img_interp
         self.prev_stages = prev_stages
@@ -215,11 +219,17 @@ class SegmentationPreprocessing(object):
         elif self.reduce_lb_to_single_class:
             lb = (lb > 0).astype(lb.dtype)
 
-        if self.lb_min_vol is not None:
+        if self.lb_min_vol is not None or self.lb_max_vol is not None:
             if len(lb.shape) > 3:
-                lb = remove_small_connected_components_from_batch(lb, self.lb_min_vol, spacing)
+                lb = remove_connected_components_by_volume_from_batch(lb, 
+                                                                      self.lb_min_vol, 
+                                                                      self.lb_max_vol,
+                                                                      spacing)
             else:
-                lb = remove_small_connected_components(lb, self.lb_min_vol, spacing)
+                lb = remove_connected_components_by_volume(lb,
+                                                           self.lb_min_vol,
+                                                           self.lb_max_vol,
+                                                           spacing)
 
         return lb
     
