@@ -102,7 +102,7 @@ class SegmentationBatchDataset(object):
                 coords = self._get_bias_coords(labels)
                 self.coords_list.append(coords)
             self.contains_fg_list = [ind for ind, coords in enumerate(self.coords_list)
-                                    if len(coords) > 0]
+                                    if coords.shape[1] > 0]
             print('Done')
         else:
             # if we don't store them in ram we will compute them and store them as .npy files
@@ -123,7 +123,7 @@ class SegmentationBatchDataset(object):
                     np.save(os.path.join(self.bias_coords_fol, case), coords)
                 else:
                     coords = np.load(os.path.join(self.bias_coords_fol, case))
-                if len(coords) > 0:
+                if coords.shape[1] > 0:
                     self.contains_fg_list.append(ind)
 
     def _maybe_clean_stored_data(self):

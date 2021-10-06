@@ -22,7 +22,7 @@ prep = RegionfindingPreprocessing(apply_resizing=True,
                                   reduce_lb_to_single_class=True,
                                   save_only_fg_scans=False)
 
-prep.plan_preprocessing_raw_data('OV04_test')
+prep.plan_preprocessing_raw_data('OV04')
 
 prep.preprocess_raw_data('OV04', 'small_reg')
 
