@@ -1,102 +1,32 @@
-from ovseg.preprocessing.SegmentationPreprocessing import SegmentationPreprocessing
-from ovseg.utils.label_utils import reduce_classes
+from ovseg.preprocessing.RegionfindingPreprocessing import RegionfindingPreprocessing
+from ovseg.utils.seg_fg_dial import seg_fg_dial, seg_eros
 import numpy as np
 import torch
-from ovseg.data.Dataset import raw_Dataset
-from ovseg.utils.torch_np_utils import maybe_add_channel_dim
-from os.path import join, exists
-from os import environ
 from ovseg.utils.path_utils import maybe_create_path
+from ovseg.utils.torch_np_utils import maybe_add_channel_dim
+from ovseg.data.Dataset import raw_Dataset
 from ovseg import OV_PREPROCESSED
-from time import sleep
+from os.path import join
+from os import environ
 import matplotlib.pyplot as plt
+from time import sleep
 try:
     from tqdm import tqdm
-except:
-    tqdm = lambda x:x
+except ModuleNotFoundError:
+    print('No tqdm found, using no pretty progressing bars')
+    tqdm = lambda x: x
 
-
-class RegionexpertPreprocessing(SegmentationPreprocessing):
-
-    def __init__(self, *args, region_finding_model:dict, **kwargs):
-        super().__init__(*args, **kwargs)
-        
-        self.region_finding_model = region_finding_model
-        
-        for key in ['data_name', 'preprocessed_name', 'model_name']:
-            assert key in self.region_finding_model
-        self.region_finding_key = '_'.join(['prediction',
-                                            self.region_finding_model['data_name'],
-                                            self.region_finding_model['preprocessed_name'],
-                                            self.region_finding_model['model_name']])
-
-        self.prev_stages = [self.region_finding_model]
-
-        self.preprocessing_parameters = ['apply_resizing',
-                                         'apply_pooling',
-                                         'apply_windowing',
-                                         'target_spacing',
-                                         'pooling_stride',
-                                         'window',
-                                         'scaling',
-                                         'lb_classes',
-                                         'reduce_lb_to_single_class',
-                                         'lb_min_vol',
-                                         'n_im_channels',
-                                         'do_nn_img_interp',
-                                         'save_only_fg_scans',
-                                         'prev_stages',
-                                         'dataset_properties',
-                                         'region_finding_model']
-
+class SensPrecPreprocessing(RegionfindingPreprocessing):
     
-    
-    def maybe_clean_region_from_data_tpl(self, data_tpl):
-
-        if self.region_finding_key not in data_tpl:
-            raise ValueError('Can\'t clean region from data tpl, none was found!')
-
-        reg = data_tpl[self.region_finding_key]
-
-        if self.is_preprocessed_data_tpl(data_tpl):
-            return reg
-
-        if self.lb_classes is not None:
-            # get only the relevant classes from the region (and reduce to a binary label)
-            reg = reduce_classes(reg, self.lb_classes, False)
-
+    def seg_to_region(self, seg):
+        
+        sens_reg = seg_fg_dial(np.copy(seg), r=self.r, z_to_xy_ratio=self.z_to_xy_ratio)
+        prec_reg = seg_eros(np.copy(seg), r=self.r, z_to_xy_ratio=self.z_to_xy_ratio)
+        
+        reg = np.zeros_like(sens_reg)
+        reg[sens_reg > 0] = 1
+        reg[prec_reg > 0] = 2
         return reg
-    
-    def get_xb_from_data_tpl(self, data_tpl, get_only_im=False):
-        
-        # getting the image
-        xb = data_tpl['image'].astype(float)
-
-        # assuring the array is 4d
-        xb = maybe_add_channel_dim(xb)
-
-        key = self.region_finding_key
-        assert key in data_tpl, 'prediction '+key+' from previous stage missing'
-        
-        # all regions from the data_tpl
-        reg = self.maybe_clean_region_from_data_tpl(data_tpl)
-        if len(reg.shape) == 3:
-            reg = reg[np.newaxis]
-        reg = reg.astype(float)
-        xb = np.concatenate([xb, reg])
-
-        if 'label' in data_tpl and not get_only_im:     
-            # get the label from the data_tpl and clean if applicable
-            lb = self.maybe_clean_label_from_data_tpl(data_tpl)
-
-            assert len(lb.shape) == 3, 'label must be 3d'
-            lb = lb[np.newaxis].astype(float)
-            xb = np.concatenate([xb, lb])
-        
-        # finally add batch axis
-        xb = xb[np.newaxis]
-
-        return xb
 
     def preprocess_raw_data(self,
                             raw_data,
@@ -121,7 +51,7 @@ class RegionexpertPreprocessing(SegmentationPreprocessing):
                                  image_folder=image_folder,
                                  dcm_revers=dcm_revers,
                                  dcm_names_dict=dcm_names_dict,
-                                 prev_stages=[self.region_finding_model])
+                                 prev_stages=self.prev_stages if self.is_cascade() else None)
             raw_ds_list.append(raw_ds)
 
         if not self.is_initalised:
@@ -139,9 +69,7 @@ class RegionexpertPreprocessing(SegmentationPreprocessing):
         plot_folder = join(environ['OV_DATA_BASE'], 'plots', data_name, preprocessed_name)
         print(outfolder, plot_folder)
         # now let's create the output folders
-        # reg_folder = self.region_finding_key[:10] + 's' + self.region_finding_key[10:]
-        reg_folder = 'regions'
-        for f in ['images', 'labels', 'fingerprints', reg_folder]:
+        for f in ['images', 'labels', 'fingerprints', 'regions']:
             maybe_create_path(join(outfolder, f))
         maybe_create_path(plot_folder)
 
@@ -154,12 +82,7 @@ class RegionexpertPreprocessing(SegmentationPreprocessing):
             sleep(1)
             for i in tqdm(range(len(raw_ds))):
                 # read files
-                try:
-                    # sometimes we will have no region file for the scan, in this case
-                    # we're skipping (doesn't make a difference if save_only_fg_scans is true)
-                    data_tpl = raw_ds[i]
-                except FileNotFoundError:
-                    continue
+                data_tpl = raw_ds[i]
 
                 im, spacing = data_tpl['image'], data_tpl['spacing']
 
@@ -173,15 +96,10 @@ class RegionexpertPreprocessing(SegmentationPreprocessing):
                 # get the preprocessed volumes from the data_tpl
                 xb = self.__call__(data_tpl, return_np=True)
                 im = xb[:self.n_im_channels].astype(im_dtype)
-                reg = xb[self.n_im_channels:self.n_im_channels+1].astype(np.uint8)
-                lb = xb[self.n_im_channels+1:self.n_im_channels+2].astype(np.uint8)
+                lb = xb[self.n_im_channels:self.n_im_channels+1].astype(np.uint8)
+                reg = xb[self.n_im_channels+1:self.n_im_channels+2].astype(np.uint8)
 
                 if lb.max() == 0 and self.save_only_fg_scans:
-                    continue
-                
-                if reg.max() == 0:
-                    # we don't need to save images without foreground, there is nothing to do
-                    # here
                     continue
 
                 spacing = self.target_spacing if self.apply_resizing else spacing
@@ -206,7 +124,7 @@ class RegionexpertPreprocessing(SegmentationPreprocessing):
                 # predictions from previous stages
                 np.save(join(outfolder, 'images', scan), im)
                 np.save(join(outfolder, 'labels', scan), lb)
-                np.save(join(outfolder, reg_folder, scan), reg)
+                np.save(join(outfolder, 'regions', scan), reg)
                 np.save(join(outfolder, 'fingerprints', scan), fingerprint)
 
                 # additionally do some plots
@@ -232,11 +150,16 @@ class RegionexpertPreprocessing(SegmentationPreprocessing):
                             # interrupt the beautiful beautiful tqdm bar
                             plt.contour(lb[0, z] > 0,
                                         linewidths=0.5,
-                                        colors='red',
+                                        colors='blue',
                                         linestyles='solid')
                             
-                        if reg[0, z].max() > 0:
-                            plt.contour(reg[0, z] > 0,
+                        if reg[0, z].max() > 1:
+                            plt.contour(reg[0, z] == 2,
+                                        linewidths=0.25,
+                                        colors='red',
+                                        linestyles='dashed')
+                        if reg[0, z].max() > 0:                        
+                            plt.contour(reg[0, z] == 1,
                                         linewidths=0.25,
                                         colors='red',
                                         linestyles='dashed')
@@ -244,7 +167,3 @@ class RegionexpertPreprocessing(SegmentationPreprocessing):
                         plt.axis('off')
                     plt.savefig(join(plot_folder, scan + s + '.png'))
                     plt.close(fig)
-
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        print('Preprocessing done!')

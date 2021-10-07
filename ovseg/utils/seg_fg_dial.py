@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 
-def seg_fg_dial(seg, r, z_to_xy_ratio=1, use_3d_ops=True):
+def seg_fg_dial(seg, r, z_to_xy_ratio=1, use_3d_ops=False):
     assert isinstance(seg, np.ndarray), "Input must be nd array"
 
     if len(seg.shape) == 2:
@@ -15,8 +15,45 @@ def seg_fg_dial(seg, r, z_to_xy_ratio=1, use_3d_ops=True):
     else:
         raise ValueError('Input shape must be 2d or 3d.')
 
+def seg_eros(seg, r, z_to_xy_ratio=1, use_3d_ops=False):
+    assert isinstance(seg, np.ndarray), "Input must be nd array"
+    
+    if len(seg.shape) == 2:
+        return seg_eros_2d(seg, r)
+    elif len(seg.shape) == 3:
+        if use_3d_ops:
+            return seg_eros_3d(seg, r, z_to_xy_ratio)
+        else:
+            return seg_eros_2d_stacked(seg, r)
+    else:
+        raise ValueError('Input shape must be 2d or 3d.')
+    
+    
 
 # %%
+def seg_eros_2d(seg, r):
+    n_cl = int(seg.max())
+    if n_cl == 0:
+        return seg
+    nx, ny = seg.shape
+    
+    # define the 2d circle used for the dialation
+    circ = (np.sum(np.stack(np.meshgrid(np.linspace(-1, 1, 2*r+1), np.linspace(-1, 1, 2*r+1)))**2,0)<=1).astype(float)
+    # seg to GPU and one hot encoding (excluding background)
+    seg_gpu = torch.from_numpy(seg).cuda()
+    seg_oh = torch.stack([seg_gpu==i for i in range(1, n_cl+1)], 0).unsqueeze(0).type(torch.float)
+    # weight for convolution
+    circ_gpu = torch.stack(n_cl*[torch.from_numpy(circ).cuda().unsqueeze(0)]).type(torch.float)
+    
+    # perform the convolution, the dialation can be obtained by thresholding
+    seg_oh_conv = torch.nn.functional.conv2d(seg_oh, circ_gpu, padding=(r,r), groups=n_cl)
+    seg_oh_eros = (seg_oh_conv[0] == 1).cpu().numpy()
+    
+    seg_eros = np.zeros((nx, ny))
+    for c in range(n_cl):
+        seg_eros[seg_oh_eros[c]] = c+1 
+    return seg_eros
+
 def seg_fg_dial_2d(seg, r):
     # performs the segmentation foreground dilation. All labels are dialated, if two original
     # ROIs are close original ROI will be kept and not overlapped by another class. If the
@@ -87,6 +124,41 @@ def seg_fg_dial_2d(seg, r):
     return seg_dial
 
 # %%
+def seg_eros_2d_stacked(seg, r):
+    # performs the segmentation foreground dilation for each slice. Expects the z axis
+    # to be in first dimension
+    # optimized for multiple slices
+    
+    # number of fg classes in the segmentation
+    n_cl = int(seg.max())
+    if n_cl == 0:
+        return seg
+    nz, nx, ny = seg.shape
+    
+    if nx != ny:
+        print('Warning! nx != ny, expected tomographic image with z-axis first.')
+    
+    # define the 2d circle used for the dialation
+    circ = (np.sum(np.stack(np.meshgrid(np.linspace(-1, 1, 2*r+1), np.linspace(-1, 1, 2*r+1)))**2,0)<=1).astype(float)
+    circ /= circ.sum()
+    # seg to GPU and one hot encoding (excluding background)
+    seg_gpu = torch.from_numpy(seg).cuda()
+    # now the z axis should be in the batch dimension and the classes are stacked in
+    # the channel dimension
+    seg_oh = torch.stack([seg_gpu==i for i in range(1, n_cl+1)], 1).type(torch.float)
+    # weight for convolution
+    circ_gpu = torch.stack(n_cl*[torch.from_numpy(circ).cuda().unsqueeze(0)]).type(torch.float)
+    
+    # perform the convolution, the dialation can be obtained by thresholding
+    seg_oh_conv = torch.nn.functional.conv2d(seg_oh, circ_gpu, padding=(r,r), groups=n_cl)
+    seg_oh_eros = (seg_oh_conv >= 1).cpu().numpy()
+    
+    seg_eros = np.zeros((nz, nx, ny))
+    for c in range(n_cl):
+        seg_eros[seg_oh_eros[:, c]] = c+1 
+    return seg_eros
+
+
 def seg_fg_dial_2d_stacked(seg, r):
     # performs the segmentation foreground dilation for each slice. Expects the z axis
     # to be in first dimension
@@ -167,6 +239,39 @@ def seg_fg_dial_2d_stacked(seg, r):
     return seg_dial
 
 # %%
+def seg_eros_3d(seg, r, z_to_xy_ratio):
+    # full 3d version where 3d operations are used for the dialation
+    n_cl = int(seg.max())
+    if n_cl == 0:
+        return seg
+    nz, nx, ny = seg.shape
+    
+    if nx != ny:
+        print('Warning! nx != ny, expected tomographic image with z-axis first.')
+    
+    # define the 2d circle used for the dialation
+    rz = int(r/z_to_xy_ratio + 0.5)
+    circ = (np.sum(np.stack(np.meshgrid(*[np.linspace(-1, 1, 2*R+1) for R in [rz, r, r]], indexing='ij'))**2,0)<=1).astype(float)
+    circ /= circ.sum()
+    # seg to GPU and one hot encoding (excluding background)
+    seg_gpu = torch.from_numpy(seg).cuda()
+    seg_gpu.requires_grad = False
+    # now the z axis should be in the batch dimension and the classes are stacked in
+    # the channel dimension
+    seg_oh = torch.stack([seg_gpu==i for i in range(1, n_cl+1)], 0).type(torch.float).unsqueeze(0)
+    # weight for convolution
+    circ_gpu = torch.stack(n_cl*[torch.from_numpy(circ).cuda().unsqueeze(0)]).type(torch.float)
+    
+    # perform the convolution, the dialation can be obtained by thresholding
+    seg_oh_conv = torch.nn.functional.conv3d(seg_oh, circ_gpu, padding=(rz,r,r), groups=n_cl)
+    seg_oh_eros = (seg_oh_conv[0] >= 1).cpu().numpy()
+    
+    seg_eros = np.zeros((nz, nx, ny))
+    for c in range(n_cl):
+        seg_eros[seg_oh_eros[c]] = c+1 
+    return seg_eros
+
+
 def seg_fg_dial_3d(seg, r, z_to_xy_ratio):
     # full 3d version where 3d operations are used for the dialation
     n_cl = int(seg.max())
