@@ -32,6 +32,7 @@ model_params['data']['keys'] = ['image', 'label', 'region']
 model_params['training']['batches_have_masks'] = True
 model_params['training']['num_epochs'] = 500
 model_params['postprocessing'] = {'mask_with_reg': True}
+model_params['prediction']['batch_size'] = 3
 
 model = RegionexpertModel(val_fold=0,
                           data_name='OV04',
@@ -61,6 +62,7 @@ model_params['data']['keys'] = ['image', 'label', 'region']
 model_params['training']['batches_have_masks'] = True
 model_params['training']['num_epochs'] = 500
 model_params['postprocessing'] = {'mask_with_reg': True}
+model_params['prediction']['batch_size'] = 3
 
 model = RegionexpertModel(val_fold=0,
                           data_name='OV04',
