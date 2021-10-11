@@ -129,23 +129,27 @@ class SegmentationEnsemble(ModelBase):
     def __call__(self, data_tpl):
         if not self.all_folds_complete():
             print('WARNING: Ensemble is used without all training folds being completed!!')
-        im = data_tpl['image']
         scan = data_tpl['scan']
-        is_np,  _ = check_type(im)
-        if is_np:
-            im = torch.from_numpy(im).to(self.dev)
-        else:
-            im = im.to(self.dev)
 
-        # the preprocessing will only do something if the image is not preprocessed yet
-        if not self.preprocessing.is_preprocessed_data_tpl(data_tpl):
-            im = self.preprocessing(data_tpl, preprocess_only_im=True)
-
-        # now the importat part: the actual enembling of sliding window evaluations
-        preds = []
         # also the path where we will look for already executed npz prediction
         pred_npz_path = join(environ['OV_DATA_BASE'], 'npz_predictions', self.data_name,
                              self.preprocessed_name, self.model_name)
+        
+        # the preprocessing will only do something if the image is not preprocessed yet
+        if not self.preprocessing.is_preprocessed_data_tpl(data_tpl):
+            for model in self.models:
+                # try find the npz file if there was already a prediction.
+                path_to_npz = join(pred_npz_path, model.val_fold_str, scan+'.npz')
+                path_to_npy = join(pred_npz_path, model.val_fold_str, scan+'.npy')
+                
+                if exists(path_to_npy) or exists(path_to_npz):
+                    continue
+                else:
+                    im = self.preprocessing(data_tpl, preprocess_only_im=True)
+                    break
+
+        # now the importat part: the actual enembling of sliding window evaluations
+        preds = []
         with torch.no_grad():
             for model in self.models:
                 # try find the npz file if there was already a prediction.
