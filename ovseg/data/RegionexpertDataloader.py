@@ -308,8 +308,8 @@ class RegionexpertBatchDataset(object):
 
         # cast to fp32 or fp 16
         volume = volume.astype(self.dtype)
-        # regions will be passed as binary labels
-        volume[1] = (volume[1] > 0).astype(self.dtype)
+        # regions and labels will be passed binary
+        volume[-2:] = (volume[-2:] > 0).astype(self.dtype)
 
         return volume
 
