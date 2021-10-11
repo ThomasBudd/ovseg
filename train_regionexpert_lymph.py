@@ -23,7 +23,7 @@ model_params = get_model_params_3d_res_encoder_U_Net(patch_size=[8, 48, 48],
 model_params['network']['filters'] = 32
 model_params['network']['n_blocks_list'] = [4, 2, 1]
 model_params['architecture'] = 'UResNet'
-
+model_params['training']['lr_params']['lr_max'] = 0.01
 model_params['training']['loss_params'] = {'loss_names': ['cross_entropy',
                                                           'dice_loss']}
 
