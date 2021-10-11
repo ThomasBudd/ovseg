@@ -306,7 +306,12 @@ class RegionexpertBatchDataset(object):
             # the label augmentation expects integer valued predictions as input
             volume = self.augmentation(volume[np.newaxis])[0]
 
-        return volume.astype(self.dtype)
+        # cast to fp32 or fp 16
+        volume = volume.astype(self.dtype)
+        # regions will be passed as binary labels
+        volume[1] = (volume[1] > 0).astype(self.dtype)
+
+        return volume
 
 
 

@@ -152,12 +152,12 @@ class SegmentationEnsemble(ModelBase):
                 path_to_npz = join(pred_npz_path, model.val_fold_str, scan+'.npz')
                 path_to_npy = join(pred_npz_path, model.val_fold_str, scan+'.npy')
                 if exists(path_to_npy):
-                    pred = torch.from_numpy(np.load(path_to_npy)).to(self.dev)
+                    pred = np.load(path_to_npy)
                 elif exists(path_to_npz):
-                    pred = torch.from_numpy(np.load(path_to_npz)['arr_0']).to(self.dev)
+                    pred = np.load(path_to_npz)['arr_0']
                 else:
-                    pred = model.prediction(im)
-                preds.append(pred.cpu().numpy())
+                    pred = model.prediction(im).cpu().numpy()
+                preds.append(pred)
             ens_pred = np.stack(preds).mean(0)
             data_tpl[self.pred_key] = ens_pred
 

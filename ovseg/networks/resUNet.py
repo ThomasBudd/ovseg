@@ -838,10 +838,198 @@ class UNetResEncoder(nn.Module):
 
         print('Done! Loaded {} and skipped {} modules'.format(transfered, not_transfered))
 
+# %%
+class UResNet(nn.Module):
+
+    def __init__(self, in_channels, out_channels, is_2d, z_to_xy_ratio, block='res',
+                 n_blocks_list=[4, 2, 1], filters=32, filters_max=384,
+                 conv_params=None, norm=None, norm_params=None, nonlin_params=None,  
+                 bottleneck_ratio=2, stochdepth_rate=0.0, p_dropout_logits=0.0, use_se=False):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.is_2d = is_2d
+        self.block = block
+        self.z_to_xy_ratio = z_to_xy_ratio
+        self.n_blocks_list = n_blocks_list
+        self.filters = filters
+        self.filters_max = filters_max
+        self.conv_params = conv_params
+        self.norm = norm
+        self.norm_params = norm_params
+        self.nonlin_params = nonlin_params
+        self.p_dropout_logits = p_dropout_logits
+        self.stochdepth_rate = stochdepth_rate
+        self.bottleneck_ratio = bottleneck_ratio
+        self.use_se = use_se
+        # we double the amount of channels every downsampling step
+        # up to a max of filters_max
+        self.n_stages = len(n_blocks_list)
+        self.filters_list = [min([self.filters*2**i, self.filters_max])
+                             for i in range(self.n_stages)]
+
+        # first let's make the lists for the blocks on both pathes
+        # number of input and output channels of the blocks on the contracting path
+        self.in_channels_down_list = [self.in_channels] + self.filters_list[:-1]
+        self.in_channels_up_list = [2*f for f in self.filters_list[:-1]]
+        self.out_channels_list = self.filters_list
+        self.z_to_xy_ratio_list = [max([self.z_to_xy_ratio / 2**i, 1])
+                                   for i in range(self.n_stages)]
+        if self.is_2d:
+            self.kernel_sizes_up = (self.n_stages-1) * [3]
+        else:
+            self.kernel_sizes_up = [(1, 3, 3) if z_to_xy >= 2 else 3 for z_to_xy in 
+                                    self.z_to_xy_ratio_list]
+        self.init_stride_list = [1] + [get_stride(ks) for ks in self.kernel_sizes_up]
+
+
+        # blocks on the contracting path
+        self.blocks_down = []
+        for n_blocks, in_ch, out_ch, init_stride, z_to_xy in zip(self.n_blocks_list,
+                                                                 self.in_channels_down_list,
+                                                                 self.out_channels_list,
+                                                                 self.init_stride_list,
+                                                                 self.z_to_xy_ratio_list):
+            self.blocks_down.append(stackedResBlocks(block=self.block,
+                                                     n_blocks=n_blocks,
+                                                     in_channels=in_ch,
+                                                     out_channels=out_ch,
+                                                     init_stride=init_stride,
+                                                     is_2d=self.is_2d,
+                                                     z_to_xy_ratio=z_to_xy,
+                                                     conv_params=self.conv_params,
+                                                     norm=self.norm,
+                                                     norm_params=self.norm_params,
+                                                     nonlin_params=self.nonlin_params,
+                                                     bottleneck_ratio=self.bottleneck_ratio,
+                                                     stochdepth_rate=self.stochdepth_rate,
+                                                     use_se=self.use_se))
+
+        # blocks on the upsampling path
+        self.blocks_up = []
+        for n_blocks, in_ch, out_ch, z_to_xy in zip(self.n_blocks_list[:-1],
+                                                    self.in_channels_up_list,
+                                                    self.out_channels_list[:-1],
+                                                    self.z_to_xy_ratio_list[:-1]):
+            self.blocks_up.append(stackedResBlocks(block=self.block,
+                                                   n_blocks=n_blocks,
+                                                   in_channels=in_ch,
+                                                   out_channels=out_ch,
+                                                   init_stride=1,
+                                                   is_2d=self.is_2d,
+                                                   z_to_xy_ratio=z_to_xy,
+                                                   conv_params=self.conv_params,
+                                                   norm=self.norm,
+                                                   norm_params=self.norm_params,
+                                                   nonlin_params=self.nonlin_params,
+                                                   bottleneck_ratio=self.bottleneck_ratio,
+                                                   stochdepth_rate=self.stochdepth_rate,
+                                                   use_se=self.use_se))
+
+        # upsaplings
+        self.upsamplings = []
+        for in_channels, out_channels, kernel_size in zip(self.out_channels_list[1:],
+                                                          self.out_channels_list[:-1],
+                                                          self.kernel_sizes_up):
+            self.upsamplings.append(UpConv(in_channels=in_channels,
+                                           out_channels=out_channels,
+                                           is_2d=self.is_2d,
+                                           kernel_size=get_stride(kernel_size)))
+        # logits
+        self.all_logits = []
+        for in_channels in self.out_channels_list:
+            self.all_logits.append(Logits(in_channels=in_channels,
+                                          out_channels=self.out_channels,
+                                          is_2d=self.is_2d,
+                                          p_dropout=self.p_dropout_logits))
+
+        # now important let's turn everything into a module list
+        self.blocks_down = nn.ModuleList(self.blocks_down)
+        self.blocks_up = nn.ModuleList(self.blocks_up)
+        self.upsamplings = nn.ModuleList(self.upsamplings)
+        self.all_logits = nn.ModuleList(self.all_logits)
+
+    def forward(self, xb):
+        # keep all out tensors from the contracting path
+        xb_list = []
+        logs_list = []
+        # contracting path
+        for block in self.blocks_down[:-1]:
+            xb = block(xb)
+            xb_list.append(xb)
+
+        # bottom block
+        xb = self.blocks_down[-1](xb)
+        logs_list.append(self.all_logits[-1](xb))
+
+        # expanding path with logits
+        for i in range(self.n_stages - 2, -1, -1):
+            xb = self.upsamplings[i](xb)
+            xb = torch.cat([xb, xb_list[i]], 1)
+            del xb_list[i]
+            xb = self.blocks_up[i](xb)
+            logs = self.all_logits[i](xb)
+            logs_list.append(logs)
+
+        # as we iterate from bottom to top we have to flip the logits list
+        return logs_list[::-1]
+
+    def update_prg_trn(self, param_dict, h, indx=None):
+        if 'p_dropout_logits' in param_dict:
+            p = (1 - h) * param_dict['p_dropout_logits'][0] + h * param_dict['p_dropout_logits'][1]
+            for l in self.all_logits:
+                l.dropout.p = p
+
+    def load_matching_weights_from_pretrained_model(self, data_name, preprocessed_name, model_name,
+                                                    fold, model_params_name='model_parameters',
+                                                    network_name='network'):
+        model_CV_path = os.path.join(os.environ['OV_DATA_BASE'], 'trained_models', data_name,
+                                     preprocessed_name, model_name)
+        model_path = os.path.join(model_CV_path, 'fold_{}'.format(fold))
+        model_params = pickle.load(open(os.path.join(model_CV_path,
+                                                     model_params_name+'.pkl'),
+                                        'rb'))
+        net_params = model_params['network']
+        # if this entry of the model paramters is wrong, the model has the wrong 
+        # architecture
+        assert model_params['architecture'] == 'unetresencoder'
+        # create the network and load the weights
+        print('Creating network to load from')
+        net = UNetResEncoder(**net_params)
+        path_to_weights = os.path.join(model_path, network_name+'_weights')
+        print('load weights...')
+        net.load_state_dict(torch.load(path_to_weights,
+                                          map_location=torch.device('cpu')))
+
+        # now we iterate over all module lists and try to transfere the weights
+        print('start transfering weights')
+        transfered, not_transfered = 0, 0
+        for m1, m2 in zip([self.blocks_down, self.blocks_up, self.upsamplings, self.all_logits],
+                          [net.blocks_down, net.blocks_up, net.upsamplings, net.all_logits]):
+            for b1, b2 in zip(m1, m2):
+                # iterate over all blocks
+                if isinstance(b1, stackedResBlocks):
+                    for rb1, rb2 in zip(b1.res_blocks, b2.res_blocks):
+                        for c1, c2 in zip(b1.children(), b2.children()):
+                            try:
+                                c1.load_state_dict(c2.state_dict())
+                                transfered += 1
+                            except RuntimeError:
+                                not_transfered += 1
+                else:
+                    for c1, c2 in zip(b1.children(), b2.children()):
+                        try:
+                            c1.load_state_dict(c2.state_dict())
+                            transfered += 1
+                        except RuntimeError:
+                            not_transfered += 1
+
+        print('Done! Loaded {} and skipped {} modules'.format(transfered, not_transfered))
+
 
 # %%
 if __name__ == '__main__':
-    net = UNetResDecoder(1, 2, False, 4)
+    net = UResNet(1, 2, False, 4)
     xb = torch.randn((2, 1, 32, 128, 128))
     print(net)
     yb = net(xb)

@@ -62,7 +62,9 @@ class RegionexpertPreprocessing(SegmentationPreprocessing):
             return reg
 
         if self.lb_classes is not None:
-            # get only the relevant classes from the region (and reduce to a binary label)
+            # get only the relevant classes from the region
+            # don't reduce the region to binary labels, this is happening in the dataloader
+            # otherwise we can't restore the classes from the binary level
             reg = reduce_classes(reg, self.lb_classes, False)
 
         return reg
