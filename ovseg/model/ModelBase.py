@@ -458,7 +458,7 @@ class ModelBase(object):
                      save_preds=save_preds, save_plots=save_plots,
                      force_evaluation=force_evaluation)
 
-    def eval_raw_dataset(self, data_name, save_preds=False, save_plots=False,
+    def eval_raw_dataset(self, data_name, save_preds=True, save_plots=False,
                          force_evaluation=False, scans=None, image_folder=None, dcm_revers=True,
                          dcm_names_dict=None):
         ds = raw_Dataset(join(os.environ['OV_DATA_BASE'], 'raw_data', data_name),
