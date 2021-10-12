@@ -1,6 +1,7 @@
 from ovseg.model.RegionfindingModel import RegionfindingModel
 from ovseg.model.model_parameters_segmentation import get_model_params_3d_res_encoder_U_Net
 from ovseg.model.RegionfindingEnsemble import RegionfindingEnsemble
+from ovseg.preprocessing.RegionexpertPreprocessing import RegionexpertPreprocessing
 from time import sleep
 
 import argparse
@@ -45,10 +46,23 @@ for w in w_list:
     model.eval_raw_data_npz('BARTS', save_preds=True)
 
 # w = w_list[vf]
-# ens = RegionfindingEnsemble(val_fold=list(range(5)), 
-#                             data_name='OV04',
-#                             preprocessed_name=p_name,
-#                             model_name='regfinding_'+str(w))
-# while not ens.all_folds_complete():
-#     sleep(60)
-# ens.eval_raw_dataset('BARTS')
+    ens = RegionfindingEnsemble(val_fold=list(range(5)), 
+                                data_name='OV04',
+                                preprocessed_name=p_name,
+                                model_name='regfinding_'+str(w))
+    if ens.all_folds_complete():
+        ens.eval_raw_dataset('BARTS', save_preds=True)
+    
+    prep = RegionexpertPreprocessing(apply_resizing=True,
+                                     apply_pooling=False,
+                                     apply_windowing=True,
+                                     region_finding_model={'data_name': 'OV04',
+                                                           'preprocessed_name': 'lymph_reg',
+                                                           'model_name': 'regfinding_'+str(w)},
+                                     lb_classes=[13, 15, 17],
+                                     target_spacing=[5.0, 0.67, 0.67],
+                                     save_only_fg_scans=False)
+    
+    prep.plan_preprocessing_raw_data('OV04')
+    prep.preprocess_raw_data('OV04', 'lymph_reg_expert_'+str(w))
+
