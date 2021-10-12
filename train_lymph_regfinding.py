@@ -6,9 +6,10 @@ from time import sleep
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("vf", type=int)
+parser.add_argument("exp", type=int)
 args = parser.parse_args()
 
-w_list = [2/3, 2/5, 2/9, 2/17, 2/33] 
+w_list = [[2/67], [2/129]][args.exp]#[2/3, 2/5, 2/9, 2/17, 2/33] 
 vf = args.vf
 
 
@@ -41,13 +42,13 @@ for w in w_list:
     
     model.training.train()
     model.eval_validation_set(save_preds=True, save_plots=False)
-    # model.eval_raw_dataset('BARTS', save_preds=True)
+    model.eval_raw_data_npz('BARTS', save_preds=True)
 
-w = w_list[vf]
-ens = RegionfindingEnsemble(val_fold=list(range(5)), 
-                            data_name='OV04',
-                            preprocessed_name=p_name,
-                            model_name='regfinding_'+str(w))
-while not ens.all_folds_complete():
-    sleep(60)
-ens.eval_raw_dataset('BARTS')
+# w = w_list[vf]
+# ens = RegionfindingEnsemble(val_fold=list(range(5)), 
+#                             data_name='OV04',
+#                             preprocessed_name=p_name,
+#                             model_name='regfinding_'+str(w))
+# while not ens.all_folds_complete():
+#     sleep(60)
+# ens.eval_raw_dataset('BARTS')
