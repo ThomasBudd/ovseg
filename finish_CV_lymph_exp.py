@@ -7,7 +7,7 @@ w = 2/33
 p_name =  'lymph_reg_expert_'+str(w)
 
 
-model_name = 'U-Res-Net'
+model_name = 'U-Res-Net_1000'
 
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size=[8, 48, 48],
                                                      z_to_xy_ratio=5.0/0.67,
@@ -24,7 +24,7 @@ model_params['training']['loss_params'] = {'loss_names': ['cross_entropy',
 model_params['data']['folders'] = ['images', 'labels', 'regions']
 model_params['data']['keys'] = ['image', 'label', 'region']
 model_params['training']['batches_have_masks'] = True
-model_params['training']['num_epochs'] = 500
+model_params['training']['num_epochs'] = 1000
 model_params['postprocessing'] = {'mask_with_reg': True}
 model_params['prediction']['batch_size'] = 3
 
@@ -36,6 +36,8 @@ for vf in range(5):
                               model_name=model_name,
                               model_parameters=model_params)
     model.training.train()
+    if vf == 0:
+        model.eval_raw_dataset('BARTS')
 
 ens = RegionexpertEnsemble(val_fold=list(range(5)),
                            data_name='OV04',
