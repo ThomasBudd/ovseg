@@ -6,7 +6,7 @@ parser.add_argument("w", type=int)
 args = parser.parse_args()
 
 
-w_list = [2/3, 2/5, 2/9, 2/17, 2/33] 
+w_list = [2/67, 2/129]#[2/3, 2/5, 2/9, 2/17, 2/33] 
 w = w_list[args.w]
 
 prep = RegionexpertPreprocessing(apply_resizing=True,
