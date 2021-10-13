@@ -27,7 +27,8 @@ model_params['data']['folders'] = ['images', 'labels', 'prev_preds']
 model_params['data']['keys'] = ['image', 'label', 'prev_pred']
 model_params['training']['batches_have_masks'] = True
 model_params['postprocessing'] = {'mask_with_reg': True}
-
+model_params['data']['val_dl_params']['n_fg_classes'] = 6
+model_params['data']['trn_dl_params']['n_fg_classes'] = 6
 
 model = ClassSegmentationModel(val_fold=args.vf,
                                data_name='OV04',
