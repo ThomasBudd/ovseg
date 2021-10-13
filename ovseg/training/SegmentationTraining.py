@@ -175,7 +175,6 @@ class SegmentationTraining(NetworkTraining):
         folders = [ds.vol_ds.folders[ds.vol_ds.keys.index(ds.image_key)],
                    ds.vol_ds.folders[ds.vol_ds.keys.index(ds.label_key)]]
         if self.batches_have_masks:
-            self.prg_trn_new_keys.append(ds.mask_key)
             folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.mask_key)])
         # folders with all downsampled data
         all_fols = []

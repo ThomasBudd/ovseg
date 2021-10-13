@@ -37,6 +37,8 @@ class ClassSegmentationBatchDataset(object):
         self.n_fg_classes = n_fg_classes
         self.prev_pred_key = prev_pred_key
         
+        # this is for the progressive training in SegmentationTraining
+        self.mask_key = prev_pred_key
         if self.bias == 'cl_fg':
             assert isinstance(self.n_fg_classes, int)
             assert self.n_fg_classes > 0
