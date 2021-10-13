@@ -351,6 +351,8 @@ class SegmentationPreprocessing(object):
         # now let's create the output folders
         for f in ['images', 'labels', 'fingerprints']:
             maybe_create_path(join(outfolder, f))
+        if self.is_cascade():
+            maybe_create_path(join(outfolder, 'prev_preds'))
         maybe_create_path(plot_folder)
 
         # Let's quickly store the parameters so we can check later
@@ -378,6 +380,10 @@ class SegmentationPreprocessing(object):
                 im = xb[:self.n_im_channels].astype(im_dtype)
                 lb = xb[self.n_im_channels:].astype(np.uint8)
 
+                if self.is_cascade():
+                    prev_pred = lb[:-1]
+                    lb = lb[-1:]
+
                 if lb.max() == 0 and self.save_only_fg_scans:
                     continue
 
@@ -402,6 +408,8 @@ class SegmentationPreprocessing(object):
                 # remeber that the label carries all labels incl. potential masks or
                 # predictions from previous stages
                 np.save(join(outfolder, 'images', scan), im)
+                if self.is_cascade():
+                    np.save(join(outfolder, 'prev_preds', scan), prev_pred)
                 np.save(join(outfolder, 'labels', scan), lb)
                 np.save(join(outfolder, 'fingerprints', scan), fingerprint)
 
