@@ -43,7 +43,7 @@ for w in w_list:
     
     model.training.train()
     model.eval_validation_set(save_preds=True, save_plots=False)
-    model.eval_raw_data_npz('BARTS', save_preds=True)
+    model.eval_raw_data_npz('BARTS')
 
 # w = w_list[vf]
     ens = RegionfindingEnsemble(val_fold=list(range(5)), 
