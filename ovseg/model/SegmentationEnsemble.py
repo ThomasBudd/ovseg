@@ -16,12 +16,13 @@ class SegmentationEnsemble(ModelBase):
     It is always called in inference mode!
     '''
 
-    def __init__(self, data_name: str, model_name: str, preprocessed_name=None, val_fold=None,
+    def __init__(self, data_name: str, model_name: str, preprocessed_name: str, val_fold=None,
                  network_name='network', fmt_write='{:.4f}',
                  model_parameters_name='model_parameters'):
         self.model_cv_path = join(environ['OV_DATA_BASE'],
                                   'trained_models',
                                   data_name,
+                                  preprocessed_name,
                                   model_name)
         if val_fold is None:
             fold_folders = [f for f in listdir(self.model_cv_path)

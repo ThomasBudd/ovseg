@@ -8,7 +8,7 @@ prep = RegionfindingPreprocessing(apply_resizing=True,
                                   lb_classes=[1, 2, 9, 13, 15, 17],
                                   save_only_fg_scans=False)
 
-prep.plan_preprocessing_raw_data('OV04_test')
+prep.plan_preprocessing_raw_data('OV04')
 
-prep.preprocess_raw_data('OV04_test', 'multiclass_reg')
+prep.preprocess_raw_data('OV04', 'multiclass_reg')
 
