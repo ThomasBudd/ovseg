@@ -17,7 +17,7 @@ class SegmentationBatchDataset(object):
                  min_biased_samples=1, augmentation=None, padded_patch_size=None,
                  n_im_channels: int = 1, store_coords_in_ram=True, memmap='r', image_key='image',
                  label_key='label', store_data_in_ram=False, return_fp16=True, n_max_volumes=None,
-                 bias='fg', *args, **kwargs):
+                 bias='fg', n_fg_classes=None, *args, **kwargs):
         self.vol_ds = vol_ds
         self.patch_size = np.array(patch_size)
         self.batch_size = batch_size
@@ -33,6 +33,14 @@ class SegmentationBatchDataset(object):
         self.n_im_channels = n_im_channels
         self.return_fp16 = return_fp16
         self.bias = bias
+        self.n_fg_classes = n_fg_classes
+        
+        if self.bias == 'cl_fg':
+            assert isinstance(self.n_fg_classes, int)
+            assert self.n_fg_classes > 0
+        else:
+            # does not need to be true, but makes our life easier
+            self.n_fg_classes = 1
 
         self.dtype = np.float16 if self.return_fp16 else np.float32
         if n_max_volumes is None:
@@ -62,9 +70,12 @@ class SegmentationBatchDataset(object):
     def _get_bias_coords(self, volume):
 
         if self.bias == 'fg':
-            return np.stack(np.where(volume[-1] > 0)).astype(np.int16)
+            return [np.stack(np.where(volume[-1] > 0)).astype(np.int16)]
+        elif self.bias == 'cl_fg':
+            return [np.stack(np.where(volume[-1] == cl)).astype(np.int16)
+                    for cl in range(1, self.n_fg_classes + 1)]
         elif self.bias == 'mask':
-            return np.stack(np.where(volume[-2] > 0)).astype(np.int16)
+            return [np.stack(np.where(volume[-2] > 0)).astype(np.int16)]
 
     def _maybe_store_data_in_ram(self):
         # maybe cleaning first, just to be sure
@@ -90,6 +101,7 @@ class SegmentationBatchDataset(object):
         if self.store_coords_in_ram:
             print('Precomputing bias coordinates to store them in RAM.\n')
             self.coords_list = []
+            self.contains_fg_list = [[] for _ in range(self.n_fg_classes)]
             sleep(1)
             for ind in tqdm(range(self.n_volumes)):
                 if self.store_data_in_ram:
@@ -101,13 +113,16 @@ class SegmentationBatchDataset(object):
                 labels = maybe_add_channel_dim(labels)
                 coords = self._get_bias_coords(labels)
                 self.coords_list.append(coords)
-            self.contains_fg_list = [ind for ind, coords in enumerate(self.coords_list)
-                                    if coords.shape[1] > 0]
+
+                # save which index has which fg class
+                for i in range(self.n_fg_classes):
+                    if coords[i].shape[1] > 0:
+                        self.contains_fg_list[i].append(ind)
             print('Done')
         else:
             # if we don't store them in ram we will compute them and store them as .npy files
             # in the preprocessed path
-            self.contains_fg_list = []
+            self.contains_fg_list = [[] for _ in range(self.n_fg_classes)]
             self.bias_coords_fol = os.path.join(self.vol_ds.preprocessed_path,
                                                 'bias_coordinates_'+self.bias)
             if not os.path.exists(self.bias_coords_fol):
@@ -123,8 +138,21 @@ class SegmentationBatchDataset(object):
                     np.save(os.path.join(self.bias_coords_fol, case), coords)
                 else:
                     coords = np.load(os.path.join(self.bias_coords_fol, case))
-                if coords.shape[1] > 0:
-                    self.contains_fg_list.append(ind)
+                
+                # save which index has which fg class
+                for i in range(self.n_fg_classes):
+                    if coords[i].shape[1] > 0:
+                        self.contains_fg_list[i].append(ind)
+        
+        # available classes start from 0
+        self.availble_classes = [i for i, l in enumerate(self.contains_fg_list) if len(l) > 0]
+        
+        assert len(self.availble_classes) > 0, 'no fg classes found!'
+        if len(self.availble_classes) < self.n_fg_classes:
+            missing_classes = [i+1 for i, l in enumerate(self.contains_fg_list) if len(l) == 0]
+            print('Warning! Some fg classes were not found in this dataset. '
+                  'Missing classes: {}'.format(missing_classes))
+            
 
     def _maybe_clean_stored_data(self):
         # delte stuff we stored in RAM
@@ -139,6 +167,8 @@ class SegmentationBatchDataset(object):
         # now for the bias coordinates
         if hasattr(self, 'coords_list'):
             for coord in self.coords_list:
+                for crds in coord:
+                    del crds
                 del coord
             del self.coords_list
 
@@ -178,9 +208,10 @@ class SegmentationBatchDataset(object):
         if biased_sampling:
             # when we do biased sampling we have to make sure that the
             # volume we're sampling actually has fg
-            return np.random.choice(self.contains_fg_list)
+            cl = np.random.choice(self.availble_classes)
+            return np.random.choice(self.contains_fg_list[cl]), cl
         else:
-            return np.random.randint(self.n_volumes)
+            return np.random.randint(self.n_volumes), 0
 
     def __len__(self):
         return self.epoch_len * self.batch_size
@@ -192,7 +223,7 @@ class SegmentationBatchDataset(object):
         else:
             biased_sampling = np.random.rand() < self.p_bias_sampling
 
-        ind = self._get_random_volume_ind(biased_sampling)
+        ind, cl = self._get_random_volume_ind(biased_sampling)
         volumes = self._get_volume_tuple(ind)
         shape = np.array(volumes[0].shape)[1:]
 
@@ -200,11 +231,11 @@ class SegmentationBatchDataset(object):
             # let's get the list of bias coordinates
             if self.store_coords_in_ram:
                 # loading from RAM
-                coords = self.coords_list[ind]
+                coords = self.coords_list[ind][cl]
             else:
                 # or hard drive
                 case = os.path.basename(self.vol_ds.path_dicts[ind][self.label_key])
-                coords = np.load(os.path.join(self.bias_coords_fol, case))
+                coords = np.load(os.path.join(self.bias_coords_fol, case))[cl]
 
             # pick a random item from the list and compute the upper left corner of the patch
             n_coords = coords.shape[1]

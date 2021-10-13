@@ -460,13 +460,13 @@ class UpLinear(nn.Module):
 # %% now simply the logits
 class Logits(nn.Module):
 
-    def __init__(self, in_channels, out_channels, is_2d, p_dropout=0):
+    def __init__(self, in_channels, out_channels, is_2d, p_dropout=0, use_bias=False):
         super().__init__()
         if is_2d:
-            self.logits = nn.Conv2d(in_channels, out_channels, 1, bias=False)
+            self.logits = nn.Conv2d(in_channels, out_channels, 1, bias=use_bias)
             self.dropout = nn.Dropout2d(p_dropout, inplace=True)
         else:
-            self.logits = nn.Conv3d(in_channels, out_channels, 1, bias=False)
+            self.logits = nn.Conv3d(in_channels, out_channels, 1, bias=use_bias)
             self.dropout = nn.Dropout3d(p_dropout, inplace=True)
         nn.init.kaiming_normal_(self.logits.weight)
 
@@ -480,7 +480,8 @@ class UNetResDecoder(nn.Module):
     def __init__(self, in_channels, out_channels, is_2d, z_to_xy_ratio, block='res',
                  n_blocks_list=[1, 2, 6, 3], filters=32, filters_max=384,
                  conv_params=None, norm=None, norm_params=None, nonlin_params=None, 
-                 bottleneck_ratio=2, stochdepth_rate=0.0, p_dropout_logits=0.0, use_se=False):
+                 bottleneck_ratio=2, stochdepth_rate=0.0, p_dropout_logits=0.0, use_se=False,
+                 use_logit_bias=False):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -498,6 +499,7 @@ class UNetResDecoder(nn.Module):
         self.bottleneck_ratio = bottleneck_ratio
         self.stochdepth_rate = stochdepth_rate
         self.use_se = use_se
+        self.use_logit_bias = use_logit_bias
         # we double the amount of channels every downsampling step
         # up to a max of filters_max
         self.n_stages = len(n_blocks_list)
@@ -601,7 +603,8 @@ class UNetResDecoder(nn.Module):
             self.all_logits.append(Logits(in_channels=in_channels,
                                           out_channels=self.out_channels,
                                           is_2d=self.is_2d,
-                                          p_dropout=self.p_dropout_logits))
+                                          p_dropout=self.p_dropout_logits,
+                                          use_bias=self.use_logit_bias))
 
         # now important let's turn everything into a module list
         self.blocks_down = nn.ModuleList(self.blocks_down)
@@ -646,7 +649,8 @@ class UNetResEncoder(nn.Module):
     def __init__(self, in_channels, out_channels, is_2d, z_to_xy_ratio, block='res',
                  n_blocks_list=[1, 2, 6, 3], filters=32, filters_max=384,
                  conv_params=None, norm=None, norm_params=None, nonlin_params=None,  
-                 bottleneck_ratio=2, stochdepth_rate=0.0, p_dropout_logits=0.0, use_se=False):
+                 bottleneck_ratio=2, stochdepth_rate=0.0, p_dropout_logits=0.0, use_se=False,
+                 use_logit_bias=False):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -664,6 +668,7 @@ class UNetResEncoder(nn.Module):
         self.stochdepth_rate = stochdepth_rate
         self.bottleneck_ratio = bottleneck_ratio
         self.use_se = use_se
+        self.use_logit_bias = use_logit_bias
         # we double the amount of channels every downsampling step
         # up to a max of filters_max
         self.n_stages = len(n_blocks_list)
@@ -753,7 +758,8 @@ class UNetResEncoder(nn.Module):
             self.all_logits.append(Logits(in_channels=in_channels,
                                           out_channels=self.out_channels,
                                           is_2d=self.is_2d,
-                                          p_dropout=self.p_dropout_logits))
+                                          p_dropout=self.p_dropout_logits,
+                                          use_bias=self.use_logit_bias))
 
         # now important let's turn everything into a module list
         self.blocks_down = nn.ModuleList(self.blocks_down)
