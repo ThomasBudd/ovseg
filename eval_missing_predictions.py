@@ -7,8 +7,8 @@ parser.add_argument('vf', type=int)
 args = parser.parse_args()
 
 
-p_names = ['om_067', 'multiclass_1_2_9']
-model_names = ['larger_res_encoder', 'U-Net5']
+p_names = ['om_067']#, 'multiclass_1_2_9']
+model_names = ['larger_res_encoder']#, 'U-Net5']
 
 for p_name, model_name in zip(p_names, model_names):
     
@@ -16,12 +16,14 @@ for p_name, model_name in zip(p_names, model_names):
                               data_name='OV04',
                               preprocessed_name=p_name,
                               model_name=model_name)
-    model.eval_raw_data_npz('BARTS')
+    # model.eval_raw_data_npz('BARTS')
+    model.eval_validation_set(force_evaluation=True)
 
-if args.vf <= 1:
+if args.vf <= 0:
     ens = SegmentationEnsemble(val_fold=list(range(5)),
-                               data_name='OV04',
-                               preprocessed_name=p_names[args.vf],
-                               model_name=model_names[args.vf])
-    ens.eval_raw_dataset('BARTS', save_preds=True)
+                                data_name='OV04',
+                                preprocessed_name=p_names[args.vf],
+                                model_name=model_names[args.vf])
+    # ens.eval_raw_dataset('BARTS', save_preds=True)
+    ens.fill_cross_validation()
 
