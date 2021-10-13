@@ -108,7 +108,7 @@ class ClassSegmentationBatchDataset(object):
         # store coords in ram
         if self.store_coords_in_ram:
             print('Precomputing bias coordinates to store them in RAM.\n')
-            self.coords_list = []
+            self.bias_coords_list = []
             self.pp_coords_list = []
             self.contains_fg_list = [[] for _ in range(self.n_fg_classes)]
             self.contains_pp_list = []
@@ -122,7 +122,7 @@ class ClassSegmentationBatchDataset(object):
                 # ensure 4d array
                 labels = maybe_add_channel_dim(labels)
                 coords = self._get_bias_coords(labels)
-                self.coords_list.append(coords)
+                self.bias_coords_list.append(coords)
             
                 # save which index has which fg class
                 for i in range(self.n_fg_classes):
@@ -138,7 +138,7 @@ class ClassSegmentationBatchDataset(object):
                 # ensure 4d array
                 prev_pred = maybe_add_channel_dim(prev_pred)[0]
                 coords = np.stack(np.where(prev_pred > 0)).astype(np.int16)
-                self.coords_list.append(coords)
+                self.pp_coords_list.append(coords)
                 if coords.shape[1] > 0:
                     self.contains_pp_list.append(ind)
             print('Done')
@@ -270,7 +270,7 @@ class ClassSegmentationBatchDataset(object):
             # let's get the list of bias coordinates
             if self.store_coords_in_ram:
                 # loading from RAM
-                coords = self.coords_list[ind][cl]
+                coords = self.bias_coords_list[ind][cl]
             else:
                 # or hard drive
                 case = os.path.basename(self.vol_ds.path_dicts[ind][self.label_key])
