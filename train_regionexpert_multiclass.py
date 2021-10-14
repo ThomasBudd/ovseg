@@ -1,7 +1,7 @@
 from ovseg.model.RegionexpertModel import RegionexpertModel
 from ovseg.model.model_parameters_segmentation import get_model_params_3d_res_encoder_U_Net
 from ovseg.model.RegionexpertEnsemble import RegionexpertEnsemble
-import sleep
+from time import sleep
 
 import argparse
 parser = argparse.ArgumentParser()
