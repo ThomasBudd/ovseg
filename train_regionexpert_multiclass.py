@@ -11,7 +11,7 @@ args = parser.parse_args()
 w = 0
 vf = args.vf
 
-p_name = 'multiclass_reg_expert'
+p_name = 'om_reg_expert_0'
 patch_size = [40, 320, 320]
 use_prg_trn = True
 out_shape = [[24, 192, 192],

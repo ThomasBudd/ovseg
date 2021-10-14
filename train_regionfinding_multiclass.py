@@ -66,7 +66,7 @@ model.eval_raw_data_npz('BARTS')
 ens = RegionfindingEnsemble(val_fold=list(range(5)), 
                             data_name='OV04',
                             preprocessed_name=p_name,
-                            model_name='regfinding_'+str(w))
+                            model_name='regfinding_0')
 if ens.all_folds_complete():
     ens.eval_raw_dataset('BARTS', save_preds=True)
 
