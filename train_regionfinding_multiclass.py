@@ -49,14 +49,14 @@ model = RegionfindingModel(val_fold=vf,
                            model_name='regfinding_'+str(w),
                            model_parameters=model_params)
 
-# manually set the logits to 0 and biases to -50 for all background outputs
-for log_layer in model.network.all_logits:
-    w = log_layer.logits.weight.clone()
-    w[0] = 0
-    log_layer.logits.weight = torch.nn.Parameter(w)
-    b = log_layer.logits.bias.clone()
-    b[0] = -50
-    log_layer.logits.bias = torch.nn.Parameter(b)
+# # manually set the logits to 0 and biases to -50 for all background outputs
+# for log_layer in model.network.all_logits:
+#     w = log_layer.logits.weight.clone()
+#     w[0] = 0
+#     log_layer.logits.weight = torch.nn.Parameter(w)
+#     b = log_layer.logits.bias.clone()
+#     b[0] = -50
+#     log_layer.logits.bias = torch.nn.Parameter(b)
 
 model.training.train()
 model.eval_validation_set(save_preds=True, save_plots=False)
