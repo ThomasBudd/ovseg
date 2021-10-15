@@ -19,16 +19,20 @@ dl1 = SegmentationDataloader(vol_ds, patch_size, batch_size)
 dl2 = SegmentationDataloader(vol_ds, patch_size, batch_size, bias='cl_fg', n_fg_classes=6)
 
 
-def count_classes(dl):
+def count_classes(dl, reps=4):
     f = np.zeros(6)
-    for batch in dl:
-        batch = batch[:, -1].numpy()
-        
-        for b in range(batch_size):
-            classes = np.array([c for c in np.unique(batch[b]) if c >0]) - 1
-            f[classes] += 1
+    for _ in range(reps):
+        for batch in dl:
+            batch = batch[:, -1].numpy()
+            
+            for b in range(batch_size):
+                classes = np.array([c for c in np.unique(batch[b]) if c >0]) - 1
+                f[classes.astype(int)] += 1
     return f
 
-print(count_classes(dl1))
-print(count_classes(dl2))
-        
+f1 = count_classes(dl1) / 10
+
+f2 = count_classes(dl2) / 10
+
+print('bias sampling: ' + ' '.join(['{:.1f}'.format(f) for f in f1]))
+print('class bias sampling: ' + ' '.join(['{:.1f}'.format(f) for f in f2]))
