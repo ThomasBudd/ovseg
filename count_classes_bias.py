@@ -4,7 +4,7 @@ from ovseg.data.SegmentationDataloader import SegmentationDataloader
 from os import listdir, environ
 from os.path import join
 
-preprocessed_path = join(environ['OV_DATA_BASE'], 'preprocessed', 'OV04', 'multiclass_1_2_9_13_15_17')
+preprocessed_path = join(environ['OV_PREPROCESSED'], 'OV04', 'multiclass_1_2_9_13_15_17')
 scans = listdir(join(preprocessed_path, 'images'))
 keys = ['image', 'label']
 folders = ['images', 'labels']
@@ -16,7 +16,7 @@ batch_size = 1
 
 
 dl1 = SegmentationDataloader(vol_ds, patch_size, batch_size)
-dl2 = SegmentationDataloader(vol_ds, patch_size, batch_size, bias='cl_fg')
+dl2 = SegmentationDataloader(vol_ds, patch_size, batch_size, bias='cl_fg', n_fg_classes=6)
 
 
 def count_classes(dl):
