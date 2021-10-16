@@ -28,12 +28,14 @@ for lb_classes in lb_classes_list:
                                                          z_to_xy_ratio=5.0/0.67,
                                                          use_prg_trn=use_prg_trn,
                                                          larger_res_encoder=larger_res_encoder,
-                                                         n_fg_classes=len(lb_classes),
+                                                         n_fg_classes=1,
                                                          out_shape=out_shape)
     model_params['training']['loss_params'] = {'loss_names': ['cross_entropy',
                                                               'dice_loss']}
-    model_params['data']['val_dl_params']['n_fg_classes'] = len(lb_classes)
-    model_params['data']['trn_dl_params']['n_fg_classes'] = len(lb_classes)
+    model_params['data']['folders'] = ['images', 'labels', 'regions']
+    model_params['data']['keys'] = ['image', 'label', 'region']
+    model_params['training']['batches_have_masks'] = True
+    model_params['postprocessing'] = {'mask_with_reg': True}
     model_params['data']['val_dl_params']['bias'] = 'cl_fg'
     model_params['data']['trn_dl_params']['bias'] = 'cl_fg'
     
