@@ -17,7 +17,8 @@ dscs = np.zeros(3)
 fps = np.zeros(3)
 has_fgs = np.zeros(3)
 
-for case in tqdm(listdir(predp)):
+nii_files = [nii_file for nii_file in listdir(predp) if nii_file.endswith('.nii.gz')]
+for case in tqdm(nii_files):
     
     gt = nib.load(join(gtp, case)).get_fdata()
     pred = nib.load(join(predp, case)).get_fdata()
@@ -48,13 +49,15 @@ for i in range(3):
 data_info = pickle.load(open(join(environ['OV_DATA_BASE'], 'raw_data', 'BARTS', 'data_info.pkl'), 'rb'))
 
 gtp_dcm = join(environ['OV_DATA_BASE'], 'raw_data', 'BARTS_dcm')
-for case in tqdm(listdir(predp)):
+nii_files = [nii_file for nii_file in listdir(predp) if nii_file.endswith('.nii.gz')]
+
+for case in tqdm(nii_files):
     pred = nib.load(join(predp, case)).get_fdata()
     if pred.max() == 0:
         continue
     
     pred = reduce_classes(pred, [13, 15, 17])
-    pred = np.swapaxes(pred, -1, 0)
+    pred = np.moveaxis(pred, -1, 0)
     info = data_info[case[5:8]]
     data_tpl = read_dcms(join(gtp_dcm, info['scan']))
     
@@ -62,7 +65,7 @@ for case in tqdm(listdir(predp)):
         pred = resize(pred, data_tpl['label'].shape, order=0)
     
     data_tpl['prediction'] = pred
-    out_file = join(predp, 'dcmrt', basename(data_tpl['raw_label_file']))
+    out_file = join(predp, 'dcmrt_13_15_17', basename(data_tpl['raw_label_file']))
     save_dcmrt_from_data_tpl(data_tpl, out_file, key='prediction', names=['13', '15', '17'])
     
     

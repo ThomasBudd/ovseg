@@ -10,5 +10,5 @@ prep = RegionfindingPreprocessing(apply_resizing=True,
 
 prep.plan_preprocessing_raw_data('OV04')
 
-prep.preprocess_raw_data('OV04', 'multiclass_reg')
+prep.preprocess_raw_data('OV04', 'multiclass_reg_1_2_9_13_15_17')
 
