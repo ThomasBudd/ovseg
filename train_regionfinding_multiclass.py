@@ -12,7 +12,7 @@ args = parser.parse_args()
 w = 0.001
 vf = args.vf
 
-p_name = 'multiclass_reg'
+p_name = 'multiclass_reg_1_2_9_13_15_17'
 patch_size = [40, 320, 320]
 use_prg_trn = True
 out_shape = [[24, 192, 192],
