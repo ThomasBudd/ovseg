@@ -144,6 +144,7 @@ class SegmentationEnsemble(ModelBase):
                 path_to_npy = join(pred_npz_path, model.val_fold_str, scan+'.npy')
                 
                 if exists(path_to_npy) or exists(path_to_npz):
+                    im = None
                     continue
                 else:
                     im = self.preprocessing(data_tpl, preprocess_only_im=True)
@@ -160,11 +161,16 @@ class SegmentationEnsemble(ModelBase):
                     try:
                         pred = np.load(path_to_npy)
                     except ValueError:
+                        
+                        if im is None:
+                            im = self.preprocessing(data_tpl, preprocess_only_im=True)
                         pred = model.prediction(im).cpu().numpy()
                 elif exists(path_to_npz):
                     try:
                         pred = np.load(path_to_npz)['arr_0']
                     except ValueError:
+                        if im is None:
+                            im = self.preprocessing(data_tpl, preprocess_only_im=True)
                         pred = model.prediction(im).cpu().numpy()
                         
                 else:
