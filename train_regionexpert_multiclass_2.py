@@ -21,22 +21,23 @@ larger_res_encoder = True
 
 # %%
 n_proc = 7
-i = args.vf
+# i = args.vf
+
 all_lb_classes = []
-for lb_classes in [[1], [9], [13, 15, 17], [1, 2, 9], [2]]:
+for lb_classes in [[9], [13, 15, 17], [1, 2, 9], [2]]:
     for _ in range(5):
         all_lb_classes.append(lb_classes)
 
 all_vf = []
-for _ in range(5):
+for _ in range(4):
     for vf in range(5):
         all_vf.append(vf)
 
-
-vf_list = all_vf[i::n_proc]
-lb_classes_list = all_lb_classes[i::n_proc]
-print(vf_list)
-print(lb_classes_list)
+for i in range(7):
+    vf_list = all_vf[i::n_proc]
+    lb_classes_list = all_lb_classes[i::n_proc]
+    print(vf_list)
+    print(lb_classes_list)
 sleep(3)
 # %%
 
@@ -69,7 +70,7 @@ for vf, lb_classes in zip(vf_list, lb_classes_list):
     model.training.train()
     model.eval_validation_set()
 
-lb_classes = lb_classes_list[args.vf]
+lb_classes = [[1], [9], [1, 2, 9], [13,15,17], [2]][args.vf]
 p_name = 'reg_expert_'+'_'.join([str(c) for c in lb_classes])
 
 ens = RegionexpertEnsemble(val_fold=list(range(5)),
