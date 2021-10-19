@@ -20,10 +20,10 @@ larger_res_encoder = True
 
 
 # %%
-n_proc = 9
-i = args.vf
+n_proc = 7
+# i = args.vf
 all_lb_classes = []
-for lb_classes in [[1], [9], [13, 15, 17], [2], [1, 2, 9]]:
+for lb_classes in [[1], [9], [13, 15, 17], [1, 2, 9], [2]]:
     for _ in range(5):
         all_lb_classes.append(lb_classes)
 
@@ -32,10 +32,12 @@ for _ in range(5):
     for vf in range(5):
         all_vf.append(vf)
 
-vf_list = all_vf[i::n_proc]
-lb_classes_list = all_lb_classes[i::n_proc]
-print(vf_list)
-print(lb_classes_list)
+
+for i in range(7):
+    vf_list = all_vf[i::n_proc]
+    lb_classes_list = all_lb_classes[i::n_proc]
+    print(vf_list)
+    print(lb_classes_list)
 sleep(3)
 # %%
 
