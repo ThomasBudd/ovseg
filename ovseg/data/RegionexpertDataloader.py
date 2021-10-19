@@ -109,7 +109,7 @@ class RegionexpertBatchDataset(object):
         if self.store_coords_in_ram:
             print('Precomputing bias coordinates to store them in RAM.\n')
             self.bias_coords_list = []
-            self.contains_bias_list = [[] for _ in range(self.n_fg_classes)]
+            self.contains_fg_list = [[] for _ in range(self.n_fg_classes)]
             self.reg_coords_list = []
             sleep(1)
             for ind in tqdm(range(self.n_volumes)):
