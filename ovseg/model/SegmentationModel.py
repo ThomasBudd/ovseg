@@ -631,7 +631,7 @@ class SegmentationModel(ModelBase):
             data_tpl = ds[i]
             # first let's try to find the name
             scan = data_tpl['scan']
-            if exists(join(pred_npz_path, scan+'.npz')):
+            if exists(join(pred_npz_path, scan+'.npz')) or exists(join(pred_npz_path, scan+'.npy')):
                 continue
             # now let's do (almost the full) prediction
             pred = self.__call__(data_tpl, do_postprocessing=False)
