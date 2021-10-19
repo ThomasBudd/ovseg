@@ -68,7 +68,7 @@ ens = RegionfindingEnsemble(val_fold=list(range(5)),
 if ens.all_folds_complete():
     ens.eval_raw_dataset('BARTS', save_preds=True)
 
-    for lb_classes in [[1], [2], [9], [13, 15, 17]]:
+    for lb_classes in [[1], [2], [9], [13, 15, 17], [1, 2, 9]]:
         prep = RegionexpertPreprocessing(apply_resizing=True,
                                          apply_pooling=False,
                                          apply_windowing=True,

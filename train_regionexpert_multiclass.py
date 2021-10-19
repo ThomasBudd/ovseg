@@ -20,7 +20,7 @@ out_shape = [[24, 192, 192],
 larger_res_encoder = True
 
 
-lb_classes_list = [[1], [2], [9], [13, 15, 17]]
+lb_classes_list = [[1], [9], [13, 15, 17], [1, 2, 9], [2]]
 
 for lb_classes in lb_classes_list:
 
@@ -38,6 +38,8 @@ for lb_classes in lb_classes_list:
     model_params['postprocessing'] = {'mask_with_reg': True}
     model_params['data']['val_dl_params']['bias'] = 'cl_fg'
     model_params['data']['trn_dl_params']['bias'] = 'cl_fg'
+    model_params['data']['val_dl_params']['n_fg_classes'] = len(lb_classes)
+    model_params['data']['trn_dl_params']['n_fg_classes'] = len(lb_classes)
     
     model_name = 'U-Net5'
     p_name = 'reg_expert_'+'_'.join([str(c) for c in lb_classes])
