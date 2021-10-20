@@ -5,7 +5,7 @@ from time import sleep
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("vf", type=int)
+parser.add_argument("exp", type=int)
 args = parser.parse_args()
 
 w = 0.001
@@ -21,7 +21,7 @@ larger_res_encoder = True
 
 # %%
 n_proc = 7
-i = args.vf
+i = args.exp
 
 all_lb_classes = []
 for lb_classes in [[9], [13, 15, 17], [1, 2, 9], [2]]:
@@ -61,7 +61,7 @@ for vf, lb_classes in zip(vf_list, lb_classes_list):
     
     model_name = 'U-Net5'
     p_name = 'reg_expert_'+'_'.join([str(c) for c in lb_classes])
-    model = RegionexpertModel(val_fold=args.vf,
+    model = RegionexpertModel(val_fold=vf,
                               data_name='OV04',
                               preprocessed_name=p_name, 
                               model_name=model_name,
