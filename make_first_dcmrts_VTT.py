@@ -27,3 +27,7 @@ for i, case in enumerate(cases):
     save_dcmrt_from_data_tpl(data_tpl, out_file, key='prediction', names=['1-HGSOC'])
     
 np.save(join(predp, 'VTT_test_1', 'automated_labels.npy'), automated_labels)
+# %%
+
+
+automated_labels = np.load(join(predp, 'VTT_test_1', 'automated_labels.npy'))

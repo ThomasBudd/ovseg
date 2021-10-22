@@ -2,17 +2,17 @@ import numpy as np
 import nibabel as nib
 from ovseg.utils.io import read_dcms, save_dcmrt_from_data_tpl
 from ovseg.utils.label_utils import reduce_classes
-from os import environ, listdir
-from os.path import join, basename
+from os import environ, listdir, mkdir
+from os.path import join, basename, exists
 from tqdm import tqdm
 import pickle
 from skimage.transform import resize
 # %%
-predp = join(environ['OV_DATA_BASE'], 'predictions', 'OV04', 'multiclass_13_15_17', 'U-Net5',
+predp = join(environ['OV_DATA_BASE'], 'predictions', 'OV04', 'new_multiclass_v1', 'new_loss',
              'BARTS_ensemble_0_1_2_3_4')
 gtp = join(environ['OV_DATA_BASE'], 'raw_data', 'BARTS', 'labels')
 
-lb_classes = [13, 15, 17]
+lb_classes = [1, 2, 9]
 dscs = np.zeros(3)
 fps = np.zeros(3)
 has_fgs = np.zeros(3)
@@ -51,12 +51,17 @@ data_info = pickle.load(open(join(environ['OV_DATA_BASE'], 'raw_data', 'BARTS', 
 gtp_dcm = join(environ['OV_DATA_BASE'], 'raw_data', 'BARTS_dcm')
 nii_files = [nii_file for nii_file in listdir(predp) if nii_file.endswith('.nii.gz')]
 
+dcmrtp = join(predp, 'dcmrt_1_2_9')
+
+if not exists(dcmrtp):
+    mkdir(dcmrtp)
+
 for case in tqdm(nii_files):
     pred = nib.load(join(predp, case)).get_fdata()
     if pred.max() == 0:
         continue
     
-    pred = reduce_classes(pred, [13, 15, 17])
+    pred = reduce_classes(pred, [1, 2, 9])
     pred = np.moveaxis(pred, -1, 0)
     info = data_info[case[5:8]]
     data_tpl = read_dcms(join(gtp_dcm, info['scan']))
@@ -65,8 +70,8 @@ for case in tqdm(nii_files):
         pred = resize(pred, data_tpl['label'].shape, order=0)
     
     data_tpl['prediction'] = pred
-    out_file = join(predp, 'dcmrt_13_15_17', basename(data_tpl['raw_label_file']))
-    save_dcmrt_from_data_tpl(data_tpl, out_file, key='prediction', names=['13', '15', '17'])
+    out_file = join(dcmrtp, basename(data_tpl['raw_label_file']))
+    save_dcmrt_from_data_tpl(data_tpl, out_file, key='prediction', names=['1', '2', '9'])
     
     
     

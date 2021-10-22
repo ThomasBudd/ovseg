@@ -144,15 +144,19 @@ class SegmentationBatchDataset(object):
                     if coords[i].shape[1] > 0:
                         self.contains_fg_list[i].append(ind)
         
+        # print how many scans we have with which class
+        for c in range(self.n_fg_classes):
+            print('Found {} scans with fg {}'.format(len(self.contains_fg_list[c]), c))
+
         # available classes start from 0
         self.availble_classes = [i for i, l in enumerate(self.contains_fg_list) if len(l) > 0]
         
-        assert len(self.availble_classes) > 0, 'no fg classes found!'
         if len(self.availble_classes) < self.n_fg_classes:
             missing_classes = [i+1 for i, l in enumerate(self.contains_fg_list) if len(l) == 0]
             print('Warning! Some fg classes were not found in this dataset. '
                   'Missing classes: {}'.format(missing_classes))
-            
+        
+        sleep(1)
 
     def _maybe_clean_stored_data(self):
         # delte stuff we stored in RAM
@@ -208,10 +212,13 @@ class SegmentationBatchDataset(object):
         if biased_sampling:
             # when we do biased sampling we have to make sure that the
             # volume we're sampling actually has fg
-            cl = np.random.choice(self.availble_classes)
-            return np.random.choice(self.contains_fg_list[cl]), cl
+            if len(self.availble_classes) > 0:
+                cl = np.random.choice(self.availble_classes)
+                return np.random.choice(self.contains_fg_list[cl]), cl
+            else:
+                return np.random.randint(self.n_volumes), -1
         else:
-            return np.random.randint(self.n_volumes), 0
+            return np.random.randint(self.n_volumes), -1
 
     def __len__(self):
         return self.epoch_len * self.batch_size
@@ -227,7 +234,7 @@ class SegmentationBatchDataset(object):
         volumes = self._get_volume_tuple(ind)
         shape = np.array(volumes[0].shape)[1:]
 
-        if biased_sampling:
+        if biased_sampling and cl >= 0:
             # let's get the list of bias coordinates
             if self.store_coords_in_ram:
                 # loading from RAM

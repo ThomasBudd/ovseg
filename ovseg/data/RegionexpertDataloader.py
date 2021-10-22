@@ -214,6 +214,8 @@ class RegionexpertBatchDataset(object):
             print('Warning! Some fg classes were not found in this dataset. '
                   'Missing classes: {}'.format(missing_classes))
 
+        sleep(1)
+
     def _maybe_clean_stored_data(self):
         # delte stuff we stored in RAM
         # first for the full volumes
