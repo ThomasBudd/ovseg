@@ -33,10 +33,10 @@ model_params['data']['val_dl_params']['batches_have_masks'] = False
 model_params['data']['trn_dl_params']['batches_have_masks'] = False
 
 model = ClassSegmentationModelV2(val_fold=args.vf,
-                               data_name='OV04',
-                               preprocessed_name='ClassSegmentation',
-                               model_name='U-Net5_v2',
-                               model_parameters=model_params)
+                                 data_name='OV04',
+                                 preprocessed_name='ClassSegmentation',
+                                 model_name='U-Net5_v2',
+                                 model_parameters=model_params)
 
 model.training.train()
 model.eval_validation_set()
