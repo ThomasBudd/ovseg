@@ -5,6 +5,23 @@ import numpy as np
 
 class ClassSegmentationModelV2(ClassSegmentationModel):
 
+    def initialise_training(self):
+        if 'training' not in self.model_parameters:
+            raise AttributeError('model_parameters must have key '
+                                 '\'training\'. These must contain the '
+                                 'dict of training paramters.')
+        if 'batches_have_masks' in self.model_parameters['training']:
+            if self.model_parameters['training']['batches_have_masks']:
+                raise ValueError('batches_have_masks was set to True, but should always be False')
+        else:
+            self.model_parameters['training']['batches_have_masks'] = False
+            
+            if self.parameters_match_saved_ones:
+                print('Added \'batches_have_masks\'=True to training params. Saving paramters')
+                self.save_model_parameters()
+
+        super().initialise_training()    
+
     def __call__(self, data_tpl, do_postprocessing=True):
         '''
         This function just predict the segmentation for the given data tpl
