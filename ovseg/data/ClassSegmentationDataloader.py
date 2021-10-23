@@ -18,6 +18,7 @@ class ClassSegmentationBatchDataset(object):
                  n_im_channels: int = 1, store_coords_in_ram=True, memmap='r', image_key='image',
                  label_key='label', store_data_in_ram=False, return_fp16=True, n_max_volumes=None,
                  bias='cl_fg', n_fg_classes=None, prev_pred_key='prev_pred',
+                 batches_have_masks=True,
                  *args, **kwargs):
         self.vol_ds = vol_ds
         self.patch_size = np.array(patch_size)
@@ -36,6 +37,7 @@ class ClassSegmentationBatchDataset(object):
         self.bias = bias
         self.n_fg_classes = n_fg_classes
         self.prev_pred_key = prev_pred_key
+        self.batches_have_masks = batches_have_masks
         
         # this is for the progressive training in SegmentationTraining
         self.mask_key = prev_pred_key
@@ -310,16 +312,17 @@ class ClassSegmentationBatchDataset(object):
             # the label augmentation expects integer valued predictions as input
             volume = self.augmentation(volume[np.newaxis])[0]
 
-        # now this seems weird, but we attach the previous predictions twice!
-        # once for the input and once as the mask for the loss function.
-        volume = np.concatenate([volume[:-1], volume[-2:-1], volume[-1:]])
+        if self.batches_have_masks:
+            # now this seems weird, but we attach the previous predictions twice!
+            # once for the input and once as the mask for the loss function.
+            volume = np.concatenate([volume[:-1], volume[-2:-1], volume[-1:]])
 
         return volume.astype(self.dtype)
 
 
 
 def ClassSegmentationDataloader(vol_ds, patch_size, batch_size, num_workers=None,
-                           pin_memory=True, epoch_len=250, *args, **kwargs):
+                                pin_memory=True, epoch_len=250, *args, **kwargs):
     dataset = ClassSegmentationBatchDataset(vol_ds=vol_ds,
                                             patch_size=patch_size,
                                             batch_size=batch_size,
