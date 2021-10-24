@@ -247,6 +247,12 @@ class SegmentationTraining(NetworkTraining):
         self.prg_trn_new_keys = [ds.image_key, ds.label_key]
         folders = [ds.vol_ds.folders[ds.vol_ds.keys.index(ds.image_key)],
                    ds.vol_ds.folders[ds.vol_ds.keys.index(ds.label_key)]]
+        
+        if hasattr(ds, 'prev_pred_key'):
+            if ds.prev_pred_key is not None:
+                self.prg_trn_new_keys.append(ds.prev_pred_key)
+                folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.prev_pred_key)])
+                
         # if ds.pred_fps_key is not None:
         #     self.prg_trn_new_keys.append(ds.pred_fps_key)
         #     folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)])
