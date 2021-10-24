@@ -42,7 +42,7 @@ class ClassSegmentationModel(SegmentationModel):
                                  'dict of training paramters.')
         if 'batches_have_masks' in self.model_parameters['training']:
             if not self.model_parameters['training']['batches_have_masks']:
-                raise ValueError('batches_have_masks was set to False, but should always be true')
+                print('batches_have_masks was set to False, but should always be true')
         else:
             self.model_parameters['training']['batches_have_masks'] = True
             
