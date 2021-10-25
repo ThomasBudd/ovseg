@@ -79,7 +79,7 @@ p_name = 'reg_expert_'+'_'.join([str(c) for c in lb_classes])
 ens = RegionexpertEnsemble(val_fold=list(range(5)),
                            data_name='OV04',
                            preprocessed_name=p_name, 
-                           model_name=model_name)
+                           model_name='U-Net5')
 
 while not ens.all_folds_complete():
     sleep(60)
