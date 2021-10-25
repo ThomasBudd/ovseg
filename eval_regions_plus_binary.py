@@ -76,9 +76,9 @@ for i in tqdm(range(len(ds))):
         pred_c = (pred == c).astype(float)
         
         if seg_c.max() > 0:
-            dscs[i] = 200 * np.sum(seg_c * pred_c) / np.sum(seg_c + pred_c)
+            dscs[j] = 200 * np.sum(seg_c * pred_c) / np.sum(seg_c + pred_c)
         else:
-            dscs[i] = np.nan
+            dscs[j] = np.nan
         
     dscs_list.append(dscs)
 
