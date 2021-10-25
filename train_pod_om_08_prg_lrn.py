@@ -9,12 +9,12 @@ parser.add_argument("vf", type=int)
 args = parser.parse_args()
 
 patch_size = [32, 216, 216]
-model_name = 'U-Net4_prg_lrn'
-use_prg_trn = True
-out_shape = [[20, 128, 128],
-             [22, 152, 152],
-             [30, 192, 192],
-             [32, 216, 216]]
+model_name = 'U-Net4_no_prg_lrn'
+use_prg_trn = False
+out_shape = None#[[20, 128, 128],
+             #[22, 152, 152],
+             #[30, 192, 192],
+             #[32, 216, 216]]
 larger_res_encoder = False
 
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
