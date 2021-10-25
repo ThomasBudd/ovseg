@@ -1,10 +1,17 @@
 from ovseg.model.SegmentationModel import SegmentationModel    
+from ovseg.postprocessing.ClassCascadePostprocessing import ClassCascadePostprocessing
+from ovseg.preprocessing.ClassCascadePreprocessing import ClassCascadePreprocessing
 import numpy as np
 from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 from ovseg.data.ClassCascadeData import ClassCascadeData
 
 
 class ClassCascadeModel(SegmentationModel):
+
+
+    def _create_preprocessing_object(self):
+        
+        self.preprocessing = ClassCascadePreprocessing(**self.model_parameters['preprocessing'])    
 
     def initialise_data(self):
         # the data object holds the preprocessed data (training and validation)
@@ -29,6 +36,18 @@ class ClassCascadeModel(SegmentationModel):
                                      **params)
         print('Data initialised')    
 
+    def initialise_postprocessing(self):
+        try:
+            params = self.model_parameters['postprocessing'].copy()
+        except KeyError:
+            params = {}
+        # the SegmentationPostprocessing is relatively uninteresting, what happens here
+        # is the resizing to the original volume, applying argmax, maybe removing some small
+        # connected components
+        params.update({'lb_classes': self.preprocessing.lb_classes})
+        
+        self.postprocessing = ClassCascadePostprocessing(**params)
+
     def __call__(self, data_tpl, do_postprocessing=True):
         '''
         This function just predict the segmentation for the given data tpl
@@ -43,21 +62,24 @@ class ClassCascadeModel(SegmentationModel):
         # the preprocessing will only do something if the image is not preprocessed yet
         if not self.preprocessing.is_preprocessed_data_tpl(data_tpl):
             # the image already contains the binary prediction as additional channel
-            im = self.preprocessing(data_tpl, preprocess_only_im=True)
-            mask = 1 - im[-1:]
+            volume = self.preprocessing(data_tpl, preprocess_only_im=True)
+            im, prev_pred = volume[:-1], volume[-1:]
         else:
             # the data_tpl is already preprocessed, let's just get the arrays
-            im = data_tpl['image']
-            im = maybe_add_channel_dim(im)
-            bin_pred = data_tpl['bin_pred'][np.newaxis]
-            im = np.concatenate([im, bin_pred])
-            mask = 1 - bin_pred
+            im = maybe_add_channel_dim(data_tpl['image'])
+            prev_pred = maybe_add_channel_dim(data_tpl['prev_pred'])
+
+        # the input to the network (predicion object) must be with binarised
+        # previous prediction
+        im = np.concatenate([im, (prev_pred > 0).asptype(im.dtype)])
         # now the importat part: the sliding window evaluation (or derivatives of it)
         pred = self.prediction(im)
         data_tpl[self.pred_key] = pred
 
         # inside the postprocessing the result will be attached to the data_tpl
+        # now for the postprocessing we need to input the non binary previous
+        # prediction
         if do_postprocessing:
-            self.postprocessing.postprocess_data_tpl(data_tpl, self.pred_key, mask)
+            self.postprocessing.postprocess_data_tpl(data_tpl, self.pred_key, prev_pred)
 
         return data_tpl[self.pred_key]

@@ -9,10 +9,10 @@ class ClassCascadeBatchDataset(ClassSegmentationBatchDataset):
         
         volume = super().__getitem__(index)
         
-        # binary prediction from previous stage
-        pp = volume[-2:-1]
-        mask = 1 - pp
-        return np.concatenate([volume[:-1], mask, volume[-1:]])
+        # prediction from previous stage and binarise it
+        bin_pred = (volume[-2:-1] > 0).astype(volume.dtype)
+        mask = 1 - bin_pred
+        return np.concatenate([volume[:-2], bin_pred, mask, volume[-1:]])
 
 
 def ClassCascadeDataloader(vol_ds, patch_size, batch_size, num_workers=None,
