@@ -38,6 +38,10 @@ lb_classes_list = all_lb_classes[i::n_proc]
 print(vf_list)
 print(lb_classes_list)
 sleep(3)
+
+# just for inference!
+vf_list, lb_classes_list = [], []
+
 # %%
 
 for vf, lb_classes in zip(vf_list, lb_classes_list):
@@ -69,7 +73,7 @@ for vf, lb_classes in zip(vf_list, lb_classes_list):
     model.training.train()
     model.eval_validation_set()
 
-lb_classes = [[1], [9], [1, 2, 9], [13,15,17], [2]][args.vf]
+lb_classes = [[1], [9], [1, 2, 9], [13,15,17], [2]][args.exp]
 p_name = 'reg_expert_'+'_'.join([str(c) for c in lb_classes])
 
 ens = RegionexpertEnsemble(val_fold=list(range(5)),
