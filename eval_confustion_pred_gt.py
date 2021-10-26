@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import argparse
 import pickle
 
+# %%
 parser = argparse.ArgumentParser()
 parser.add_argument("--debug", default=False, action='store_true')
 args = parser.parse_args()
@@ -74,7 +75,7 @@ def eval_confusion(lbs, preds):
         has_fg[i] = lbs[i].max()
         
         for j in range(6):
-            conf[i, j] = (lbs[i] * preds[i]).max()
+            conf[i, j] = (lbs[i] * preds[j]).max()
     
     return conf, has_fg
         
@@ -103,3 +104,14 @@ np.save(join(environ['OV_DATA_BASE'], 'fgs_BARTS.npy'), fgs)
 # %%
 confusion = np.load(join(environ['OV_DATA_BASE'], 'confusion_BARTS.npy'))
 fgs = np.load(join(environ['OV_DATA_BASE'], 'fgs_BARTS.npy'))
+
+print('number of fg scans:')
+for i, cl in enumerate(lb_classes):
+    print('{}: {:03d}'.format(cl, int(fgs[i])))
+print()
+
+print('Confusion:')
+for i, cl in enumerate(lb_classes):
+    conf_str = ' '.join(['{:03d}'.format(int(conf)) for conf in confusion[i]])
+    print(str(cl) + ' ' + conf_str)
+
