@@ -6,6 +6,12 @@ import torch
 from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import argparse
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--debug", default=False, action='store_true')
+args = parser.parse_args()
 
 colors_list = ['red', 'green', 'blue', 'yellow', 'magenta', 'hotpink']
 
@@ -76,7 +82,12 @@ plotp = join(environ['OV_DATA_BASE'], 'plots', 'OV04', 'ovlp_predictions')
 if not exists(plotp):
     makedirs(plotp)
 
-for i in tqdm(range(len(ds))):
+if args.debug:
+    N = 6
+else:
+    N = len(ds)
+
+for i in tqdm(N):
     data_tpl = ds[i]
     lb = data_tpl['label']
     im = data_tpl['image']
@@ -101,6 +112,7 @@ for i in tqdm(range(len(ds))):
         plt.contour(preds[j, z], colors=colors_list[j])
     
         plt.savefig(join(plotp, scan + '_' + str(z) + '.png'))
+        plt.close()
 # %%
 for i in range(6):
-    print(int(confusion[i,:]))
+    print(confusion[i,:].astype(int))
