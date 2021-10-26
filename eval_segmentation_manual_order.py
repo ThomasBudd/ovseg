@@ -38,7 +38,7 @@ ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', 'BARTS'),
 
 def get_pred(data_tpl):
     prev_preds = []
-    for prev_stage, key in zip(prev_stages[:-1], keys_for_previous_stages[:-1]):
+    for prev_stage, key in zip(prev_stages, keys_for_previous_stages):
         assert key in data_tpl, 'prediction '+key+' from previous stage missing'
         pred = data_tpl[key]
         if torch.is_tensor(pred):
