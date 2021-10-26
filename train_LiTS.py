@@ -25,7 +25,7 @@ model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
 model_params['training']['loss_params'] = {'loss_names': ['cross_entropy',
                                                           'dice_loss']}
 
-
+model_params['augmentation']['torch_params']['grid_inplane']['p_rot'] = 1.0
 
 p_name = 'default'
 model = SegmentationModel(val_fold=args.vf,
