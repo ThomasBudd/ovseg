@@ -47,7 +47,7 @@ for prev_stage in prev_stages:
 ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', 'BARTS'),
                  prev_stages=prev_stages)
 
-def get_pred(data_tpl):
+def get_preds(data_tpl):
     preds = []
     confm = np.zeros((6, 6))
     for prev_stage, key in zip(prev_stages, keys_for_previous_stages):
@@ -91,7 +91,8 @@ for i in tqdm(range(N)):
     data_tpl = ds[i]
     lb = data_tpl['label']
     lbs = np.stack([(lb == cl).astype(float) for cl in lb_classes])
-    confm, has_fg = get_pred(data_tpl)
+    preds = get_preds(data_tpl)
+    confm, has_fg = eval_confusion(lbs, preds)
     
     confusion += confm
     fgs += has_fg
