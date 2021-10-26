@@ -97,6 +97,9 @@ for i in tqdm(range(N)):
     confusion += confm
     fgs += has_fg
 
-np.save(join('~', 'confusion_BARTS.npy'), confusion)
-np.save(join('~', 'fgs_BARTS.npy'), fgs)
+np.save(join(environ['OV_DATA_BASE'], 'confusion_BARTS.npy'), confusion)
+np.save(join(environ['OV_DATA_BASE'], 'fgs_BARTS.npy'), fgs)
 
+# %%
+confusion = np.load(join(environ['OV_DATA_BASE'], 'confusion_BARTS.npy'))
+fgs = np.load(join(environ['OV_DATA_BASE'], 'fgs_BARTS.npy'))
