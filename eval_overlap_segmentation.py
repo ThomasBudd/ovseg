@@ -102,15 +102,19 @@ for i in tqdm(range(N)):
     for z, i, j in ovlp_list:
         plt.subplot(1, 2, 1)
         plt.imshow(im[z].clip(-150, 250), cmap='bone')
+        title_str = []
         for k, col in enumerate(colors_list):
             if lbs[k, z].max() > 0:
                 plt.contour(lbs[k, z], colors=col)
+                title_str.append(str(k))
+        plt.title(', '.join(title_str))
         plt.axis('off')
         plt.subplot(1, 2, 2)
         plt.imshow(im[z].clip(-150, 250), cmap='bone')
         plt.contour(preds[i, z], colors=colors_list[i])
         plt.contour(preds[j, z], colors=colors_list[j])
         plt.axis('off')
+        plt.title(str(i)+ ', '+str(j))
     
         plt.savefig(join(plotp, scan + '_' + str(z) + '.png'))
         plt.close()
