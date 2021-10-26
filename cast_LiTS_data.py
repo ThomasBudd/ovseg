@@ -11,6 +11,7 @@ folders = ['Training Batch 1', 'Training Batch 2']
 
 lbp = join(rbp, 'labels')
 imp = join(rbp, 'images')
+# %%
 for f in [lbp, imp]:
     if not exists(f):
         makedirs(f)
@@ -39,12 +40,16 @@ for folder in folders:
 # %%
 sp_list = []
 shape_list = []
-for case in tqdm(listdir(lbp)):
-    img = nib.load(join(lbp, case))
-    sp_list.append(img.header['pixdim'][1:4])
-    shape_list.append(img.shape)
+for case_im, case_lb in tqdm(zip(listdir(imp), listdir(lbp))):
+    img = nib.load(join(imp, case_im))
+    seg = nib.load(join(lbp, case_lb))
+    sp_list.append(img.header['pixdim'][1:4] - seg.header['pixdim'][1:4])
+    shape_list.append(np.array(img.shape) - np.array(seg.shape))
+    if np.abs(img.header['pixdim'][1:4] - seg.header['pixdim'][1:4]).max() > 1e-4:
+        print(case_im)
 
 sp_list = np.array(sp_list)
+shape_list = np.array(shape_list)
 
 print(np.mean(sp_list, 0))
 print(np.median(np.array(shape_list), 0))
