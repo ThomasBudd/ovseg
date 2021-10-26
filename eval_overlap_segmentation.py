@@ -67,10 +67,10 @@ def get_pred(data_tpl):
         if preds[i].max() > 0:
             confm[i, i] = 1
         for j in range(i+1, 6):
-            s = preds[i] + preds[j]
-            if s.max() > 1:
+            ovlp = (preds[i] + preds[j]) > 2
+            if ovlp.max() > 0:
                 confm[i, j] = 1 
-                contains = np.where(np.sum(s, (1,2)))[0]
+                contains = np.where(np.sum(ovlp, (1,2)))[0]
                 for z in contains:
                     ovlp_list.append((z, i, j))
                 
@@ -105,7 +105,7 @@ for i in tqdm(range(N)):
         for k, col in enumerate(colors_list):
             if lbs[k, z].max() > 0:
                 plt.contour(lbs[k, z], colors=col)
-        
+        plt.axis('off')
         plt.subplot(1, 2, 2)
         plt.imshow(im[z].clip(-150, 250), cmap='bone')
         plt.contour(preds[i, z], colors=colors_list[i])
