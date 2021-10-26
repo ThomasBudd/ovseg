@@ -131,7 +131,7 @@ def read_nii_files(nii_files):
     out_volumes = [im]
     for nii_file in nii_files[1:]:
         out = read_nii(nii_file)
-        if np.any(out[1] != spacing):
+        if np.max(out[1] - spacing) < 1e-4:
             raise ValueError('Spacing didn\'t match for '
                              + nii_files[0] + ' and ' + nii_file + '. Got '
                              + str(spacing) + ' and ' + str(out[1]))
@@ -231,7 +231,7 @@ def read_data_tpl_from_nii(folder, case):
         return data_tpl
     elif len(label_files) == 1:
         lb, spacing, had_z_first = read_nii(label_files[0])
-        if not np.all(spacing == data_tpl['spacing']):
+        if np.max(spacing - data_tpl['spacing']) > 1e-4:
             raise ValueError('Found not matching spacings for case {}.'.format(case))
         if had_z_first != data_tpl['had_z_first']:
             raise ValueError('Axis ordering doesn\'t match for case {}'
