@@ -87,7 +87,7 @@ if args.debug:
 else:
     N = len(ds)
 
-for i in tqdm(N):
+for i in tqdm(range(N)):
     data_tpl = ds[i]
     lb = data_tpl['label']
     im = data_tpl['image']
