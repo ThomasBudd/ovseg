@@ -8,19 +8,24 @@ from tqdm import tqdm
 
 
 lb_classes = [1, 2, 9, 13, 15, 17]
-prev_stages = [{'data_name':'OV04',
-                'preprocessed_name': 'pod_067',
-                'model_name': 'larger_res_encoder'},
+order = [3, 2, 0, 1, 4, 5]
+prev_stages = [
                {'data_name':'OV04',
                 'preprocessed_name': 'om_067',
-                'model_name': 'larger_res_encoder'},
+                'model_name': 'larger_res_encoder',
+                'lb_classes': [1]},
                {'data_name': 'OV04',
                 'preprocessed_name': 'multiclass_1_2_9',
                 'model_name': 'U-Net5',
                 'lb_classes': [2]},
+               {'data_name':'OV04',
+                'preprocessed_name': 'pod_067',
+                'model_name': 'larger_res_encoder',
+                'lb_classes': [9]},
                {'data_name': 'OV04',
                 'preprocessed_name': 'multiclass_13_15_17',
-                'model_name': 'U-Net5'}]
+                'model_name': 'U-Net5',
+                'lb_classes': [13, 15, 17]}]
 
 keys_for_previous_stages = []
 for prev_stage in prev_stages:
@@ -37,27 +42,25 @@ ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', 'BARTS'),
                  prev_stages=prev_stages)
 
 def get_pred(data_tpl):
-    prev_preds = []
+    preds = []
     for prev_stage, key in zip(prev_stages, keys_for_previous_stages):
         assert key in data_tpl, 'prediction '+key+' from previous stage missing'
         pred = data_tpl[key]
         if torch.is_tensor(pred):
             pred = pred.cpu().numpy()
-        # ensure the array is 4d
-        pred = maybe_add_channel_dim(pred)
-        
-        if 'lb_classes' in prev_stage:
-            pred_new = np.zeros_like(pred)
-            for cl in prev_stage['lb_classes']:
-                pred_new[pred == cl] = cl
-            prev_preds.append(pred_new)
-        else:
-            prev_preds.append(pred)
+        # ensure the array is 3d
+        pred = maybe_add_channel_dim(pred)[0]
+    
+        for cl in prev_stage['lb_classes']:
+            preds.append((pred == cl).astype(float))
+    
+    
     
     full_pred = np.zeros_like(pred)
     
-    for pred in prev_preds[::-1]:
+    for o in order:
         #full_pred[pred > 0] = pred[pred > 0]
+        pred = preds[o]
         full_pred = full_pred * (pred == 0).astype(float) + pred
     
     return full_pred
