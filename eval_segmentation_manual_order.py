@@ -61,7 +61,7 @@ def get_pred(data_tpl):
     for o in order:
         #full_pred[pred > 0] = pred[pred > 0]
         pred = preds[o]
-        full_pred = full_pred * (pred == 0).astype(float) + pred
+        full_pred = full_pred * (pred == 0).astype(float) + pred * lb_classes[o]
     
     return full_pred
 
