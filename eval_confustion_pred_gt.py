@@ -1,13 +1,13 @@
 import numpy as np
 from os.path import join, exists
 from os import environ, makedirs
-from ovseg.data.Dataset import raw_Dataset
 import torch
-from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import argparse
 import pickle
+from ovseg.utils.torch_np_utils import maybe_add_channel_dim
+from ovseg.data.Dataset import raw_Dataset
 
 # %%
 parser = argparse.ArgumentParser()
@@ -16,7 +16,7 @@ args = parser.parse_args()
 
 colors_list = ['red', 'green', 'blue', 'yellow', 'magenta', 'hotpink']
 
-lb_classes = [1, 9, 2, 13, 15, 17]
+lb_classes = [1, 2, 9, 13, 15, 17]
 prev_stages = [{'data_name':'OV04',
                 'preprocessed_name': 'om_067',
                 'model_name': 'larger_res_encoder',
@@ -119,8 +119,12 @@ confusion = np.load(join(environ['OV_DATA_BASE'], 'confusion_OV04.npy'))
 fgs = np.load(join(environ['OV_DATA_BASE'], 'fgs_OV04.npy'))
 
 print('number of fg scans:')
+print('ground truth')
 for i, cl in enumerate(lb_classes):
-    print('{}: {:03d}'.format(cl, int(fgs[i])))
+    print('{}: {:03d}'.format(cl, int(fgs[i, 0])))
+print('prediction')
+for i, cl in enumerate(lb_classes):
+    print('{}: {:03d}'.format(cl, int(fgs[i, 1])))
 print()
 
 print('Confusion:')
