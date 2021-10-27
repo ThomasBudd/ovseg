@@ -55,9 +55,6 @@ for prev_stage in prev_stages:
 
     keys_for_previous_stages.append(key)
 
-ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', 'OV04'),
-                 prev_stages=prev_stages)
-
 def get_preds(data_tpl):
     preds = []
     confm = np.zeros((6, 6))
@@ -91,42 +88,48 @@ def eval_confusion(lbs, preds):
     return conf, has_fg
         
 # %%
-confusion = np.zeros((6, 6))
-fgs = np.zeros((6, 2))
 
-if args.debug:
-    N = 6
-else:
-    N = len(ds)
-
-for i in tqdm(range(N)):
-    data_tpl = ds[i]
-    lb = data_tpl['label']
-    lbs = np.stack([(lb == cl).astype(float) for cl in lb_classes])
-    preds = get_preds(data_tpl)
-    confm, has_fg = eval_confusion(lbs, preds)
+for ds_name in ['OV04', 'BARTS']:
     
-    confusion += confm
-    fgs += has_fg
+    ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', ds_name),
+                     prev_stages=prev_stages)
+    confusion = np.zeros((6, 6))
+    fgs = np.zeros((6, 2))
+    
+    if args.debug:
+        N = 6
+    else:
+        N = len(ds)
+    
+    for i in tqdm(range(N)):
+        data_tpl = ds[i]
+        lb = data_tpl['label']
+        lbs = np.stack([(lb == cl).astype(float) for cl in lb_classes])
+        preds = get_preds(data_tpl)
+        confm, has_fg = eval_confusion(lbs, preds)
+        
+        confusion += confm
+        fgs += has_fg
+    
+    np.save(join(environ['OV_DATA_BASE'], 'confusion_{}.npy'.format(ds_name)), confusion)
+    np.save(join(environ['OV_DATA_BASE'], 'fgs_{}.npy'.format(ds_name)), fgs)
+    
+    # %%
 
-np.save(join(environ['OV_DATA_BASE'], 'confusion_OV04.npy'), confusion)
-np.save(join(environ['OV_DATA_BASE'], 'fgs_OV04.npy'), fgs)
-
-# %%
-confusion = np.load(join(environ['OV_DATA_BASE'], 'confusion_OV04.npy'))
-fgs = np.load(join(environ['OV_DATA_BASE'], 'fgs_OV04.npy'))
-
-print('number of fg scans:')
-print('ground truth')
-for i, cl in enumerate(lb_classes):
-    print('{}: {:03d}'.format(cl, int(fgs[i, 0])))
-print('prediction')
-for i, cl in enumerate(lb_classes):
-    print('{}: {:03d}'.format(cl, int(fgs[i, 1])))
-print()
-
-print('Confusion:')
-for i, cl in enumerate(lb_classes):
-    conf_str = ' '.join(['{:03d}'.format(int(conf)) for conf in confusion[i]])
-    print(str(cl) + ' ' + conf_str)
+for ds_name in ['OV04', 'BARTS']:
+    
+    print(ds_name)
+    
+    confusion = np.load(join(environ['OV_DATA_BASE'], 'confusion_{}.npy'.format(ds_name)))
+    fgs = np.load(join(environ['OV_DATA_BASE'], 'fgs_{}.npy'.format(ds_name)))
+    
+    print('number of fg scans:')
+    for i, cl in enumerate(lb_classes):
+        print('{}: {:03d} {:03d}'.format(cl, int(fgs[i, 0]), int(fgs[i, 1])))
+    print()
+    
+    print('Confusion:')
+    for i, cl in enumerate(lb_classes):
+        conf_str = ' '.join(['{:03d}'.format(int(conf)) for conf in confusion[i]])
+        print(str(cl) + ' ' + conf_str)
 
