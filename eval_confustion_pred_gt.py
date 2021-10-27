@@ -14,8 +14,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--debug", default=False, action='store_true')
 args = parser.parse_args()
 
-colors_list = ['red', 'green', 'blue', 'yellow', 'magenta', 'hotpink']
-
 lb_classes = [1, 2, 9, 13, 15, 17]
 prev_stages = [{'data_name':'OV04',
                 'preprocessed_name': 'om_067',
