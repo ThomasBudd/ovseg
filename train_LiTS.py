@@ -8,11 +8,10 @@ parser.add_argument("vf", type=int)
 args = parser.parse_args()
 
 patch_size = [40, 160, 160]
-model_name = 'U-Net4'
+model_name = 'U-Net5'
 use_prg_trn = True
 out_shape = [[24, 96, 96],
-             [28, 112, 112],
-             [36, 144, 144],
+             [32, 128, 128],
              [40, 160, 160]]
 larger_res_encoder = True
 
