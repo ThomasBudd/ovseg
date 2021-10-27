@@ -13,5 +13,5 @@ for case in tqdm(listdir(predp)):
     seg = img.get_fdata()
     if seg.max() == 1:
         seg_new = seg * 9
-        img_new = nib.Nifti1Image(arr, img.affine, img.header)
+        img_new = nib.Nifti1Image(seg_new, img.affine, img.header)
         nib.save(img_new, join(predp, case))
