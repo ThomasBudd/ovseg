@@ -17,34 +17,34 @@ args = parser.parse_args()
 colors_list = ['red', 'green', 'blue', 'yellow', 'magenta', 'hotpink']
 
 lb_classes = [1, 9, 2, 13, 15, 17]
-# prev_stages = [{'data_name':'OV04',
-#                 'preprocessed_name': 'om_067',
-#                 'model_name': 'larger_res_encoder',
-#                 'lb_classes': [1]},
-#                {'data_name': 'OV04',
-#                 'preprocessed_name': 'multiclass_1_2_9',
-#                 'model_name': 'U-Net5',
-#                 'lb_classes': [2]},
-#                {'data_name':'OV04',
-#                 'preprocessed_name': 'pod_067',
-#                 'model_name': 'larger_res_encoder',
-#                 'lb_classes': [9]},
-#                {'data_name': 'OV04',
-#                 'preprocessed_name': 'multiclass_13_15_17',
-#                 'model_name': 'U-Net5',
-#                 'lb_classes': [13, 15, 17]}]
 prev_stages = [{'data_name':'OV04',
-                'preprocessed_name': 'pod_om_08_5',
-                'model_name': 'U-Net4_prg_lrn',
-                'lb_classes': [1, 9]},
+                'preprocessed_name': 'om_067',
+                'model_name': 'larger_res_encoder',
+                'lb_classes': [1]},
                 {'data_name': 'OV04',
                 'preprocessed_name': 'multiclass_1_2_9',
                 'model_name': 'U-Net5',
                 'lb_classes': [2]},
-               {'data_name': 'OV04',
+                {'data_name':'OV04',
+                'preprocessed_name': 'pod_067',
+                'model_name': 'larger_res_encoder',
+                'lb_classes': [9]},
+                {'data_name': 'OV04',
                 'preprocessed_name': 'multiclass_13_15_17',
                 'model_name': 'U-Net5',
                 'lb_classes': [13, 15, 17]}]
+# prev_stages = [{'data_name':'OV04',
+#                 'preprocessed_name': 'pod_om_08_5',
+#                 'model_name': 'U-Net4_prg_lrn',
+#                 'lb_classes': [1, 9]},
+#                 {'data_name': 'OV04',
+#                 'preprocessed_name': 'multiclass_1_2_9',
+#                 'model_name': 'U-Net5',
+#                 'lb_classes': [2]},
+#                {'data_name': 'OV04',
+#                 'preprocessed_name': 'multiclass_13_15_17',
+#                 'model_name': 'U-Net5',
+#                 'lb_classes': [13, 15, 17]}]
 
 keys_for_previous_stages = []
 for prev_stage in prev_stages:
@@ -57,7 +57,7 @@ for prev_stage in prev_stages:
 
     keys_for_previous_stages.append(key)
 
-ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', 'BARTS'),
+ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', 'OV04'),
                  prev_stages=prev_stages)
 
 def get_preds(data_tpl):
@@ -81,10 +81,11 @@ def get_preds(data_tpl):
 def eval_confusion(lbs, preds):
     
     conf = np.zeros((6, 6))
-    has_fg = np.zeros(6)
+    has_fg = np.zeros((6, 2))
 
     for i in range(6):
-        has_fg[i] = lbs[i].max()
+        has_fg[i, 0] = lbs[i].max()
+        has_fg[i, 1] = preds[i].max()
         
         for j in range(6):
             conf[i, j] = (lbs[i] * preds[j]).max()
@@ -93,7 +94,7 @@ def eval_confusion(lbs, preds):
         
 # %%
 confusion = np.zeros((6, 6))
-fgs = np.zeros(6)
+fgs = np.zeros((6, 2))
 
 if args.debug:
     N = 6
@@ -110,12 +111,12 @@ for i in tqdm(range(N)):
     confusion += confm
     fgs += has_fg
 
-np.save(join(environ['OV_DATA_BASE'], 'confusion_BARTS.npy'), confusion)
-np.save(join(environ['OV_DATA_BASE'], 'fgs_BARTS.npy'), fgs)
+np.save(join(environ['OV_DATA_BASE'], 'confusion_OV04.npy'), confusion)
+np.save(join(environ['OV_DATA_BASE'], 'fgs_OV04.npy'), fgs)
 
 # %%
-confusion = np.load(join(environ['OV_DATA_BASE'], 'confusion_BARTS.npy'))
-fgs = np.load(join(environ['OV_DATA_BASE'], 'fgs_BARTS.npy'))
+confusion = np.load(join(environ['OV_DATA_BASE'], 'confusion_OV04.npy'))
+fgs = np.load(join(environ['OV_DATA_BASE'], 'fgs_OV04.npy'))
 
 print('number of fg scans:')
 for i, cl in enumerate(lb_classes):
