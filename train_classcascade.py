@@ -49,7 +49,7 @@ model = ClassCascadeModel(val_fold=args.vf,
                           data_name=data_name,
                           model_name=model_name,
                           preprocessed_name=p_name,
-                          model_paramters=model_params)
+                          model_parameters=model_params)
 model.training.train()
 model.eval_validation_set()
 model.eval_raw_data_npz('BARTS')
