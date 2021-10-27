@@ -1,6 +1,8 @@
 from ovseg.model.ClassCascadeModel import ClassCascadeModel
+from ovseg.model.ClassCascadeEnsemble import ClassCascadeEnsemble
 from ovseg.model.model_parameters_segmentation import get_model_params_3d_res_encoder_U_Net
 import argparse
+from time import sleep
 
 parser = argparse.ArgumentParser()
 parser.add_argument("vf", type=int)
@@ -52,4 +54,12 @@ model.training.train()
 model.eval_validation_set()
 model.eval_raw_data_npz('BARTS')
 
+ens = ClassCascadeEnsemble(val_fold=list(range(5)),
+                           data_name=data_name,
+                           model_name=model_name, 
+                           preprocessed_name=p_name)
 
+while not ens.all_folds_complete():
+    sleep(10)
+
+ens.eval_raw_dataset('BARTS')
