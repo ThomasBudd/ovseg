@@ -34,5 +34,5 @@ model = SegmentationModel(val_fold=args.vf,
                           model_name=model_name,
                           model_parameters=model_params)
 model.training.train()
-model.eval_raw_dataset('OV04')
-model.eval_raw_dataset('BARTS')
+model.eval_raw_dataset('OV04', save_preds=True, save_plots=True)
+model.eval_raw_dataset('BARTS', save_preds=True, save_plots=True)
