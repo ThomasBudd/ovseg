@@ -44,10 +44,11 @@ for ds in datasets:
     for c in range(18):
         vol = measures[ds]['volumes'][c]/1000
         fg_scans = measures[ds]['has_fgs'][c]
-        print('{}: vol = {:.2f}, ({:.2f}%), {:.2f}%'.format(c+1,
-                                                            vol/fg_scans if fg_scans > 0 else -1,
-                                                            100 * vol/tv,
-                                                            100 * fg_scans/n))
+        print('{}: vol = {:.2f}, ({:.2f}%), count = {}, ({:.2f}%)'.format(c+1,
+                                                                          fg_scans,
+                                                                          vol/fg_scans if fg_scans > 0 else -1,
+                                                                          100 * vol/tv,
+                                                                          100 * fg_scans/n))
         
 
 # %%
