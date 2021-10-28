@@ -146,8 +146,8 @@ class dice_loss_vector_weighted(nn.Module):
         if torch.cuda.is_available():
             self.weights = self.weights.cuda()
         
-        self.w1 = (2-self.weights) * 0.5
-        self.w2 = self.weights * 0.5
+        self.w1 = self.weights * 0.5
+        self.w2 = (2-self.weights) * 0.5
 
     def forward(self, logs, yb_oh, mask=None):
         assert logs.shape == yb_oh.shape

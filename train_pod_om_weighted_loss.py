@@ -52,7 +52,12 @@ while model.training.epochs_done < 1000:
     
             scale = (np.array(out_shape[i]) / np.array(out_shape[-1])).tolist()
             BARTS_low_res_ds = low_res_ds_wrapper('BARTS', scale)
+            # the model has been trained on this patch size so far
+            # we have to also use it for inference
+            model.prediction.patch_size = out_shape[i]
             model.eval_ds(BARTS_low_res_ds, 'BARTS_{}'.format(ep),
                           save_preds=False)
+            # undo this before bad things happen
+            model.prediction.patch_size = patch_size
 
 model.eval_raw_dataset('BARTS')
