@@ -158,6 +158,7 @@ class dice_loss_vector_weighted(nn.Module):
         # easier
         nb, nch = pred.shape[:2]
         pred = pred.reshape((nb, nch, -1))
+        yb_oh = yb_oh.reshape((nb, nch, -1))
         
         # remove the background channel from both as the dice will only
         # be computed over foreground classes
