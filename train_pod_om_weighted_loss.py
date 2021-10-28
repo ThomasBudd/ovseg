@@ -60,4 +60,5 @@ while model.training.epochs_done < 1000:
             # undo this before bad things happen
             model.prediction.patch_size = patch_size
 
+model.eval_validation_set()
 model.eval_raw_dataset('BARTS')
