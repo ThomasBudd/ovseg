@@ -125,11 +125,11 @@ for ds_name in ['OV04', 'BARTS']:
     
     print('number of fg scans:')
     for i, cl in enumerate(lb_classes):
-        print('{}: {:03d} {:03d}'.format(cl, int(fgs[i, 0]), int(fgs[i, 1])))
+        print('{:02d}: {:03d} {:03d}'.format(int(cl), int(fgs[i, 0]), int(fgs[i, 1])))
     print()
     
     print('Confusion:')
     for i, cl in enumerate(lb_classes):
         conf_str = ' '.join(['{:03d}'.format(int(conf)) for conf in confusion[i]])
-        print(str(cl) + ' ' + conf_str)
+        print('{:2d}'.format(int(cl)) + ' ' + conf_str)
 

@@ -79,6 +79,26 @@ class cross_entropy_weighted_bg(nn.Module):
             l = l * mask[:, 0]
         return l.mean()
 
+class cross_entropy_weighted_fg(nn.Module):
+
+    def __init__(self, weights_fg):
+        super().__init__()
+        self.weights_fg = weights_fg
+        assert isinstance(self.weights_fg, list), 'fg weights must be given as list'
+        self.weight = [1] + self.weights_fg
+        self.weight = torch.tensor(self.weight).type(torch.float)
+        if torch.cuda.is_available():
+            self.weight = self.weight.cuda()
+        self.loss = torch.nn.CrossEntropyLoss(weight=self.weight, reduction='none')
+        
+    def forward(self, logs, yb_oh, mask=None):
+        assert logs.shape == yb_oh.shape
+        yb_int = torch.argmax(yb_oh, 1)
+        l = self.loss(logs, yb_int)
+        if mask is not None:
+            l = l * mask[:, 0]
+        return l.mean()
+
 
 class dice_loss_weighted(nn.Module):
 
@@ -108,6 +128,52 @@ class dice_loss_weighted(nn.Module):
         tp = torch.sum(yb_oh * pred, dim)
         yb_vol = torch.sum(yb_oh, dim)
         pred_vol = torch.sum(pred, dim)
+        # the main formula
+        dice = (tp + self.eps) / (self.w1 * yb_vol + self.w2 * pred_vol + self.eps)
+        # the mean is computed over the batch and channel axis (excluding background)
+        return 1 - 1 * dice.mean()
+
+
+class dice_loss_vector_weighted(nn.Module):
+
+    def __init__(self, weights, eps=1e-5):
+        # same as in the cross_entropy_weighted_bg: weight=1 means no weighting, weight < 1
+        # mean more sens less precision
+        super().__init__()
+        self.eps = eps
+        assert isinstance(weights, list), 'weights must be given as a list'
+        self.weights = torch.tensor(weights).type(torch.float).reshape((1, -1, 1))
+        if torch.cuda.is_available():
+            self.weights = self.weights.cuda()
+        
+        self.w1 = (2-self.weights) * 0.5
+        self.w2 = self.weights * 0.5
+
+    def forward(self, logs, yb_oh, mask=None):
+        assert logs.shape == yb_oh.shape
+        
+        pred = torch.nn.functional.softmax(logs, 1)
+        
+        # reshape to a 3d array, makes the multiplication with the weights
+        # easier
+        nb, nch = pred.shape[:2]
+        pred = pred.reshape((nb, nch, -1))
+        
+        # remove the background channel from both as the dice will only
+        # be computed over foreground classes
+        pred = pred[:, 1:]
+        yb_oh = yb_oh[:, 1:]
+        
+        # apply loss mask if given.
+        if mask is not None:
+            pred = pred * mask
+            # Is this second line neseccary? Probably not! But better be safe than sorry.
+            yb_oh = yb_oh * mask
+
+        # now compute overlap and volume
+        tp = torch.sum(yb_oh * pred, 2)
+        yb_vol = torch.sum(yb_oh, 2)
+        pred_vol = torch.sum(pred, 2)
         # the main formula
         dice = (tp + self.eps) / (self.w1 * yb_vol + self.w2 * pred_vol + self.eps)
         # the mean is computed over the batch and channel axis (excluding background)

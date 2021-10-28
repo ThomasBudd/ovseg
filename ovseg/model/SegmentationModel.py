@@ -452,23 +452,20 @@ class SegmentationModel(ModelBase):
             tp = np.sum(seg_c * pred_c)
             seg_c_vol = np.sum(seg_c)
             pred_c_vol = np.sum(pred_c)
-            if seg_c.max() > 0:
+            if seg_c_vol > 0:
                 dice = 200 * tp / (seg_c_vol + pred_c_vol)
+                sens = 100 * tp / seg_c_vol
             else:
                 dice = np.nan
-            results.update({'dice_%d' % c: dice})
+                sens = np.nan
+            results.update({'dice_%d' % c: dice, 'sens_%d' % c: sens})
 
-            # if has_fg:
-            #     sens = 100 * tp / seg_c_vol
-            # else:
-            #     sens = np.nan
+            if pred_c_vol > 0:
+                prec = 100 * tp / pred_c_vol
+            else:
+                prec = np.nan
 
-            # if fg_pred:
-            #     prec = 100 * tp / pred_c_vol
-            # else:
-            #     prec = np.nan
-
-            # results.update({'sens_%d' % c: sens, 'prec_%d' % c: prec})
+            results.update({'prec_%d' % c: prec})
 
         if len(self.lb_classes) > 1:
             dscs = [results['dice_%d'%c] for c in self.lb_classes]
