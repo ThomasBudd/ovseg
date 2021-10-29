@@ -13,7 +13,6 @@ class SlidingWindowPrediction(object):
 
         self.dev = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.network = network.to(self.dev)
-        self.patch_size = np.array(patch_size).astype(int)
         self.batch_size = batch_size
         self.overlap = overlap
         self.fp32 = fp32
@@ -25,9 +24,14 @@ class SlidingWindowPrediction(object):
         assert self.patch_weight_type.lower() in ['constant', 'gaussian', 'linear']
         assert self.mode.lower() in ['simple', 'flip']
 
+        self._set_patch_size_and_weight(patch_size)
+    
+
+    def _set_patch_size_and_weight(self, patch_size): 
         # check and build up the patch weight
         # we can use a gaussian weighting since the predictions on the edge of the patch are less
         # reliable than the ones in the middle
+        self.patch_size = np.array(patch_size).astype(int)
         if self.patch_weight_type.lower() == 'constant':
             self.patch_weight = np.ones(self.patch_size)
         elif self.patch_weight_type.lower() == 'gaussian':
@@ -69,6 +73,8 @@ class SlidingWindowPrediction(object):
             self.is_2d = False
         else:
             raise ValueError('patch_size must be of len 2 or 3 (for 2d and 3d networks).')
+        
+
 
     def _get_xyz_list(self, shape, ROI=None):
         
