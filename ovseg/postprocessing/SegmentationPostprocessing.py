@@ -141,8 +141,8 @@ class SegmentationPostprocessing(object):
             volume = self.fill_holes(volume, is_3d=False)
             
         # now we might keep only the largest component for some classes
-        # if keep_only_largest=False this does nothing
-        volume = self.keep_only_largest(volume)
+        if np.any(self.keep_only_largest):
+            volume = self.get_largest_component(volume)
 
         return volume
 

@@ -30,7 +30,7 @@ def compute_r1_r2(liver, lesions, z_to_xy_ratio):
     ovlp = np.sum(lesions * liver)
     if ovlp < vol_les:
         
-        while ovlp < vol_les and r1 < 30:
+        while ovlp < vol_les and r1 < 100:
             r1 += 1
             liver_dial = seg_fg_dial(liver, r1, z_to_xy_ratio=z_to_xy_ratio, use_3d_ops=True)
             ovlp = np.sum(liver_dial * lesions)
@@ -39,7 +39,7 @@ def compute_r1_r2(liver, lesions, z_to_xy_ratio):
     
     ovlp = np.sum(lesions * liver)
     if ovlp > 0:
-        while ovlp > 0 and r2 < 30:
+        while ovlp > 0 and r2 < 100:
             r2 += 1
             liver_eros = seg_eros(liver, r2, z_to_xy_ratio=z_to_xy_ratio, use_3d_ops=True)
             ovlp = np.sum(liver_eros * lesions)
