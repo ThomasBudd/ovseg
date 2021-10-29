@@ -343,7 +343,8 @@ class SegmentationModel(ModelBase):
             red_key = key+'dcm_export'
             data_tpl[red_key] = reduce_classes(data_tpl[key], self.lb_classes)
             names = [str(lb) for lb in self.lb_classes]
-            save_dcmrt_from_data_tpl(data_tpl, out_file, key=red_key, names=names)
+            save_dcmrt_from_data_tpl(data_tpl, join(pred_folder, out_file),
+                                     key=red_key, names=names)
 
     def plot_prediction(self, data_tpl, folder_name, filename=None, image_key='image'):
 
