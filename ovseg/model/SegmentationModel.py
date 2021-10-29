@@ -486,7 +486,7 @@ class SegmentationModel(ModelBase):
     def _init_global_metrics(self):
         self.global_metrics_helper = {}
         self.global_metrics = {}
-        for c in range(1, self.n_fg_classes + 1):
+        for c in self.lb_classes:#range(1, self.n_fg_classes + 1):
             self.global_metrics_helper.update({s+str(c): 0 for s in ['overlap_',
                                                                      'gt_volume_',
                                                                      'pred_volume_']})
@@ -498,15 +498,27 @@ class SegmentationModel(ModelBase):
 
         if 'label' not in data_tpl:
             return
-        label = data_tpl['label']
-        if len(label.shape) == 4:
-            label = label[0]
+        
         pred = data_tpl[self.pred_key]
+        seg = data_tpl['label']
+        if len(seg.shape) == 4:
+            seg = seg[0]
+
+        if self.preprocessing.is_preprocessed_data_tpl(data_tpl):
+            # if we have a preprocessed data_tpl we need to bring the segmentation back from
+            # integer to class encoding
+            seg_lb = np.zeros_like(seg)
+            for i, c in enumerate(self.lb_classes):
+                seg_lb[seg == i+1] = c
+            seg = seg_lb
+        else:
+            if self.preprocessing.reduce_lb_to_single_class:
+                seg = (seg > 0).astype(seg.dtype)
 
         # volume of one voxel
         fac = np.prod(data_tpl['spacing']) if 'spacing' in data_tpl else 1
-        for c in range(1, self.n_fg_classes + 1):
-            lb_c = (label == c).astype(float)
+        for c in self.lb_classes:#range(1, self.n_fg_classes + 1):
+            lb_c = (seg == c).astype(float)
             pred_c = (pred == c).astype(float)
             ovlp = self.global_metrics_helper['overlap_'+str(c)] + np.sum(lb_c * pred_c) * fac
             gt_vol = self.global_metrics_helper['gt_volume_'+str(c)] + np.sum(lb_c) * fac

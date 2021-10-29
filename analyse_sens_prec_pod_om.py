@@ -3,7 +3,7 @@ import nibabel as nib
 import os
 from tqdm import tqdm
 
-ds_name = 'ApolloTCGA'
+ds_name = 'BARTS'
 
 predp = os.path.join(os.environ['OV_DATA_BASE'], 'predictions', 
                      'OV04', 'pod_om_08_5', 'U-Net4_prg_lrn',
@@ -57,13 +57,43 @@ def compute_metrics(gt, pred):
 
 
 # %%
+
+ovlp_om, ovlp_pod = 0, 0
+vol_om, vol_pod = 0, 0
+pvol_om, pvol_pod = 0, 0
+
 metrics_list = []
 for case in tqdm(os.listdir(predp)):
     
     gt = nib.load(os.path.join(gtp, case)).get_fdata()
     pred = nib.load(os.path.join(predp, case)).get_fdata()
+    if not gt.shape == pred.shape:
+        print('Shape mismatch!')
+        continue
     metrics_list.append(compute_metrics(gt, pred))
+    
+    gt_om, gt_pod = (gt == 1).astype(float), (gt == 9).astype(float)
+    pred_om, pred_pod = (pred == 1).astype(float), (pred == 9).astype(float)
+
+    ovlp_om += np.sum(gt_om * pred_om)
+    ovlp_pod += np.sum(gt_pod * pred_pod)
+
+    vol_om += np.sum(gt_om)
+    vol_pod += np.sum(gt_pod)
+    
+    pvol_om +=  np.sum(pred_om)
+    pvol_pod +=  np.sum(pred_pod)
 
 metrics_list = np.array(metrics_list)
 mean_metrics = np.nanmean(metrics_list, 0)
-print(mean_metrics)
+print('mean metrics')
+print(', '.join(['{:.1f}'.format(m) for m in mean_metrics]))
+
+print('full metrics')
+full_metrics = [200 * ovlp_om / (vol_om + pvol_om), 
+                100 * ovlp_om / vol_om,
+                100 * ovlp_om / pvol_om,
+                200 * ovlp_pod / (vol_pod + pvol_pod),
+                100 * ovlp_pod / vol_pod,
+                100 * ovlp_pod / pvol_pod]
+print(', '.join(['{:.1f}'.format(m) for m in full_metrics]))

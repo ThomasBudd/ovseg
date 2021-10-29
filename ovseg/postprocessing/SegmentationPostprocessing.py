@@ -4,6 +4,7 @@ from ovseg.utils.torch_np_utils import check_type, maybe_add_channel_dim
 from skimage.measure import label
 from skimage.transform import resize
 from torch.nn.functional import interpolate
+from scipy.ndimage.morphology import binary_fill_holes
 
 
 class SegmentationPostprocessing(object):
@@ -11,7 +12,10 @@ class SegmentationPostprocessing(object):
     def __init__(self, apply_small_component_removing=False,
                  volume_thresholds=None,
                  mask_with_reg=False,
-                 lb_classes=None):
+                 lb_classes=None,
+                 use_fill_holes_2d=False,
+                 use_fill_holes_3d=False,
+                 keep_only_largest=False):
         self.apply_small_component_removing = apply_small_component_removing
         self.volume_thresholds = volume_thresholds
         self.mask_with_reg=mask_with_reg
@@ -22,6 +26,21 @@ class SegmentationPostprocessing(object):
             raise ValueError('No volume thresholds given.')
         if not isinstance(self.volume_thresholds, (list, tuple, np.ndarray)):
             self.volume_thresholds = [self.volume_thresholds]
+        
+        self.use_fill_holes_2d = use_fill_holes_2d
+        self.use_fill_holes_3d = use_fill_holes_3d
+        
+        if isinstance(keep_only_largest, bool):
+            
+            self.keep_only_largest = len(self.lb_classes) * [keep_only_largest]
+        
+        elif isinstance(keep_only_largest, (tuple, list, np.ndarray)):
+            
+            assert len(keep_only_largest) == len(lb_classes)
+            self.keep_only_largest = keep_only_largest
+
+        else:
+            raise TypeError('Received unexpected type for keep_only_largst '+str(type(keep_only_largest)))
 
     def postprocess_volume(self, volume, reg=None, spacing=None, orig_shape=None):
         '''
@@ -114,6 +133,16 @@ class SegmentationPostprocessing(object):
             for i, c in enumerate(self.lb_classes):
                 volume_lb[volume == i+1] = c
             volume = volume_lb
+        
+        # maybe we will the holes in the segmentations
+        if self.use_fill_holes_3d:
+            volume = self.fill_holes(volume, is_3d=True)
+        elif self.use_fill_holes_2d:
+            volume = self.fill_holes(volume, is_3d=False)
+            
+        # now we might keep only the largest component for some classes
+        # if keep_only_largest=False this does nothing
+        volume = self.keep_only_largest(volume)
 
         return volume
 
@@ -182,3 +211,55 @@ class SegmentationPostprocessing(object):
 
         # done! The mask is 0 where all the undesired components are
         return mask * volume
+
+    def fill_holes(self, volume, is_3d):
+        
+        for cl in self.lb_classes:
+            
+            if is_3d:
+                vol_filled = self.bin_fill_holes_3d((volume == cl).astype(volume.dtype))
+            else:
+                vol_filled = self.bin_fill_holes_2d((volume == cl).astype(volume.dtype))
+            
+            volume[vol_filled > 0] = cl
+        
+        return volume
+
+    def bin_fill_holes_2d(self, volume):
+        
+        assert len(volume.shape) == 3, 'expected 3d volume'
+        
+        return np.stack([binary_fill_holes(volume[z]) for z in range(volume.shape[0])], 0)
+
+    def bin_fill_holes_3d(self, volume):
+        
+        assert len(volume.shape) == 3, 'expected 3d volume'
+        
+        return binary_fill_holes(volume)
+
+    def get_largest_component(self, volume):
+        
+        for cl, keep in zip(self.lb_classes, self.keep_only_largest):
+            
+            if keep:
+                
+                largest = self.bin_get_largest_component((volume == cl).astype(volume.dtype))
+                
+                volume[volume == cl] == 0
+                volume[largest > 0] == cl
+        
+        return volume
+
+    def bin_get_largest_component(self, volume):
+    
+        comps = label(volume)
+        
+        n_comps = comps.max()
+        if n_comps < 2:
+            return volume
+        else:
+            volumes = [np.sum(comps == i) for i in range(1, n_comps + 1)]
+            
+            k = np.argmax(volumes)
+            
+            return (comps == k+1).astype(volume.dtype)
