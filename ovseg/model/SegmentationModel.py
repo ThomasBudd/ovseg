@@ -1,27 +1,5 @@
 import warnings
 warnings.simplefilter("ignore")
-from ovseg import OV_PREPROCESSED
-from ovseg.preprocessing.SegmentationPreprocessing import SegmentationPreprocessing
-from ovseg.preprocessing.ClassEnsemblePreprocessing import ClassEnsemblePreprocessing
-from ovseg.augmentation.SegmentationAugmentation import SegmentationAugmentation
-from ovseg.data.SegmentationData import SegmentationData
-from ovseg.prediction.SlidingWindowPrediction import SlidingWindowPrediction
-from ovseg.networks.UNet import UNet
-from ovseg.networks.nfUNet import nfUNet
-from ovseg.networks.iUNet import iUNet
-from ovseg.networks.resUNet import UNetResEncoder, UNetResDecoder, UResNet
-from ovseg.networks.refine_res_networks import RefineResNet
-from ovseg.training.SegmentationTraining import SegmentationTraining, SegmentationTrainingV2
-from ovseg.training.ClassEnsemblingTraining import ClassEnsemblingTraining
-from ovseg.model.ModelBase import ModelBase
-from ovseg.utils.torch_np_utils import check_type
-from ovseg.postprocessing.SegmentationPostprocessing import SegmentationPostprocessing
-from ovseg.postprocessing.ClassEnsemblingPostprocessing import ClassEnsemblingPostprocessing
-from ovseg.utils.io import save_nii_from_data_tpl, save_npy_from_data_tpl, load_pkl, read_nii
-from ovseg.data.Dataset import raw_Dataset
-from ovseg.utils.torch_np_utils import maybe_add_channel_dim
-from ovseg.utils.dict_equal import dict_equal, print_dict_diff
-from skimage.measure import label
 import torch
 import numpy as np
 from os import environ, makedirs, listdir
@@ -32,6 +10,29 @@ try:
 except ModuleNotFoundError:
     tqdm = lambda x: x
 from time import sleep
+from skimage.measure import label
+from ovseg import OV_PREPROCESSED
+from ovseg.model.ModelBase import ModelBase
+from ovseg.preprocessing.SegmentationPreprocessing import SegmentationPreprocessing
+from ovseg.preprocessing.ClassEnsemblePreprocessing import ClassEnsemblePreprocessing
+from ovseg.augmentation.SegmentationAugmentation import SegmentationAugmentation
+from ovseg.data.SegmentationData import SegmentationData
+from ovseg.data.Dataset import raw_Dataset
+from ovseg.networks.UNet import UNet
+from ovseg.networks.nfUNet import nfUNet
+from ovseg.networks.iUNet import iUNet
+from ovseg.networks.resUNet import UNetResEncoder, UNetResDecoder, UResNet
+from ovseg.networks.refine_res_networks import RefineResNet
+from ovseg.training.SegmentationTraining import SegmentationTraining, SegmentationTrainingV2
+from ovseg.training.ClassEnsemblingTraining import ClassEnsemblingTraining
+from ovseg.prediction.SlidingWindowPrediction import SlidingWindowPrediction
+from ovseg.postprocessing.SegmentationPostprocessing import SegmentationPostprocessing
+from ovseg.postprocessing.ClassEnsemblingPostprocessing import ClassEnsemblingPostprocessing
+from ovseg.utils.io import save_nii_from_data_tpl, save_npy_from_data_tpl, load_pkl, read_nii, save_dcmrt_from_data_tpl, is_dcm_path
+from ovseg.utils.torch_np_utils import maybe_add_channel_dim
+from ovseg.utils.dict_equal import dict_equal, print_dict_diff
+from ovseg.utils.label_utils import reduce_classes
+from ovseg.utils.torch_np_utils import check_type
 
 
 class SegmentationModel(ModelBase):
@@ -316,9 +317,11 @@ class SegmentationModel(ModelBase):
         # find name of the file
         if filename is None:
             filename = data_tpl['scan'] + '.nii.gz'
+            out_file = data_tpl['scan'] + '.dcm'
         else:
             # remove fileextension e.g. .nii.gz
             filename = filename.split('.')[0] + '.nii.gz'
+            out_file = filename.split('.')[0] + '.dcm'
 
         # all predictions are stored in the designated 'predictions' folder in the OV_DATA_BASE
         pred_folder = join(environ['OV_DATA_BASE'], 'predictions', self.data_name,
@@ -334,7 +337,13 @@ class SegmentationModel(ModelBase):
             key += '_orig_shape'
 
         save_nii_from_data_tpl(data_tpl, join(pred_folder, filename), key)
-        # save_npy_from_data_tpl(data_tpl, join(pred_folder, filename), key)
+        
+        if is_dcm_path(data_tpl['raw_image_file']):
+            
+            red_key = key+'dcm_export'
+            data_tpl[red_key] = reduce_classes(data_tpl[key], self.lb_classes)
+            names = [str(lb) for lb in self.lb_classes]
+            save_dcmrt_from_data_tpl(data_tpl, out_file, key=red_key, names=names)
 
     def plot_prediction(self, data_tpl, folder_name, filename=None, image_key='image'):
 

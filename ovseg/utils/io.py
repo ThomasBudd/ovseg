@@ -554,4 +554,30 @@ def save_dcmrt_from_data_tpl(data_tpl, out_file, key, names=None, colors=None, d
                              name=name)
 
     rtstruct.save(out_file)
-        
+
+def is_dcm_path(path):
+    
+    if not isdir(path):
+        return False
+    
+    files = listdir(path)
+    
+    dcm_ending = [f for f in files if f[-3:].lower() in ['dcm', 'ima']]
+    
+    if len(dcm_ending) > 0:
+        return True
+    else:
+        # some dcm files don't end on .dcm or similar
+        # let's see if we can open those with pydicom...
+        for f in files:
+            
+            if isdir(join(path, f)):
+                continue
+            
+            try:
+                pydicom.dcmread(join(path, f))
+                return True
+            except:
+                pass
+                
+        return False
