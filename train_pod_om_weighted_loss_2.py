@@ -1,6 +1,8 @@
 from ovseg.model.SegmentationModel import SegmentationModel
 from ovseg.model.model_parameters_segmentation import get_model_params_3d_res_encoder_U_Net
+from ovseg.model.SegmentationEnsemble import SegmentationEnsemble
 from ovseg.data.Dataset import low_res_ds_wrapper
+from time import sleep
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
@@ -19,7 +21,7 @@ out_shape = [[20, 128, 128],
              [32, 216, 216]]
 larger_res_encoder = False
 
-all_weights = [[1.3, 1.1], [1.35, 1.15]]
+all_weights = [[1.3, 1.1], [1.4, 1.2], [1.5, 1.3]]
 weights = all_weights[args.exp]
 
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
@@ -48,3 +50,13 @@ model.training.train()
 model.eval_validation_set()
 model.eval_raw_data_npz('BARTS_dcm')
 model.eval_raw_data_npz('ApolloTCGA_dcm')
+
+ens = SegmentationEnsemble(val_fold=[5,6,7],
+                           data_name='OV04', 
+                           model_name='U-Net4_weighted_{:.2f}_{:.2f}'.format(*weights),
+                           preprocessed_name=p_name)
+while not ens.all_folds_complete():
+    sleep(20)
+
+ens.eval_raw_dataset('BARTS_dcm')
+ens.eval_raw_dataset('ApolloTCGA_dcm')
