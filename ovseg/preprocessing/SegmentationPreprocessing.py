@@ -207,7 +207,10 @@ class SegmentationPreprocessing(object):
         spacing = data_tpl['spacing'] if 'spacing' in data_tpl else None
 
         if 'label' not in data_tpl:
-            raise ValueError('Can\'t clean label from data tpl, none was found!')
+            
+            return np.zeros(data_tpl['image'].shape[-3:])
+            
+            # raise ValueError('Can\'t clean label from data tpl, none was found!')
 
         lb = data_tpl['label']
 

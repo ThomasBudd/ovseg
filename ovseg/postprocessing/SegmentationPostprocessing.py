@@ -9,8 +9,11 @@ from scipy.ndimage.morphology import binary_fill_holes
 
 class SegmentationPostprocessing(object):
 
-    def __init__(self, apply_small_component_removing=False,
+    def __init__(self,
+                 apply_small_component_removing=False,
                  volume_thresholds=None,
+                 remove_2d_comps=True,
+                 remove_comps_by_volume=False,
                  mask_with_reg=False,
                  lb_classes=None,
                  use_fill_holes_2d=False,
@@ -18,7 +21,9 @@ class SegmentationPostprocessing(object):
                  keep_only_largest=False):
         self.apply_small_component_removing = apply_small_component_removing
         self.volume_thresholds = volume_thresholds
-        self.mask_with_reg=mask_with_reg
+        self.remove_2d_comps = remove_2d_comps
+        self.remove_comps_by_volume = remove_comps_by_volume
+        self.mask_with_reg = mask_with_reg
         self.lb_classes = lb_classes
 
         if self.apply_small_component_removing and \
@@ -174,20 +179,21 @@ class SegmentationPostprocessing(object):
                                                                orig_shape=orig_shape)
         return data_tpl
 
-    def remove_small_components(self, volume, spacing):
+    def remove_small_components(self, volume, spacing=None):
         if not isinstance(volume, np.ndarray):
             raise TypeError('Input must be np.ndarray')
         if not len(volume.shape) == 3:
             raise ValueError('Volume must be 3d array')
 
-        if not isinstance(np.ndarray, spacing):
-            raise ValueError('Spacing must be a list of length 3 to represent the spatial length '
-                             'of the voxel')
+        if self.remove_comps_by_volume:
+            if not isinstance(np.ndarray, spacing):
+                raise ValueError('Spacing must be a list of length 3 to represent the spatial length '
+                                 'of the voxel')
 
         # stores all coordinates of small components as 0 and rest as 1
         mask = np.ones_like(volume)
 
-        num_classes = volume.max()
+        num_classes = int(volume.max())
         if len(self.volume_thresholds) == 1:
             # if we only have one threshold we will apply it for all
             # lesion types
@@ -200,14 +206,34 @@ class SegmentationPostprocessing(object):
                                  'for all fg classes or')
 
         # we allow for different thresholds for the different lesions
-        voxel_size = np.prod(spacing)
-        for i, tr in enumerate(thresholds):
-            components = label(volume == i+1)
-            n_comps = components.max()
-            for j in range(1, n_comps + 1):
-                comp = components == j
-                if np.sum(comp) < tr * voxel_size:
-                    mask[comp] = 0
+        if self.remove_comps_by_volume:
+            if self.remove_2d_comps:
+                voxel_size = np.prod(spacing[1:])
+            else:
+                voxel_size = np.prod(spacing)
+        else:
+            # we remove the components by number of pixel
+            voxel_size = 1
+        
+        if self.remove_2d_comps:
+            for i, tr in enumerate(thresholds):
+                
+                for z in range(volume.shape[0]):
+                    
+                    components = label(volume[z] == i+1)
+                    n_comps = components.max()
+                    for j in range(1, n_comps + 1):
+                        comp = components == j
+                        if np.sum(comp) * voxel_size < tr :
+                            mask[z][comp] = 0
+        else:
+            for i, tr in enumerate(thresholds):
+                components = label(volume == i+1)
+                n_comps = components.max()
+                for j in range(1, n_comps + 1):
+                    comp = components == j
+                    if np.sum(comp) < tr * voxel_size:
+                        mask[comp] = 0
 
         # done! The mask is 0 where all the undesired components are
         return mask * volume
