@@ -334,7 +334,8 @@ class SegmentationPreprocessing(object):
                                  image_folder=image_folder,
                                  dcm_revers=dcm_revers,
                                  dcm_names_dict=dcm_names_dict,
-                                 prev_stages=self.prev_stages if self.is_cascade() else None)
+                                 prev_stages=self.prev_stages if self.is_cascade() else None,
+                                 create_missing_labels_as_zero=True)
             raw_ds_list.append(raw_ds)
 
         if not self.is_initalised:
@@ -480,7 +481,8 @@ class SegmentationPreprocessing(object):
             raw_ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', data_name),
                                  image_folder=image_folder,
                                  dcm_revers=dcm_revers,
-                                 dcm_names_dict=dcm_names_dict)
+                                 dcm_names_dict=dcm_names_dict,
+                                 create_missing_labels_as_zero=True)
             datasets.append(raw_ds)
         # foreground vals for windowing
         fg_cvals = []

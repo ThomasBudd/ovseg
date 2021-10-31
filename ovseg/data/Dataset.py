@@ -96,11 +96,13 @@ class Dataset(object):
 class raw_Dataset(object):
 
     def __init__(self, raw_path, scans=None, image_folder=None, dcm_revers=True,
-                 dcm_names_dict=None, prev_stages=None):
+                 dcm_names_dict=None, prev_stages=None, 
+                 create_missing_labels_as_zero=False):
 
         assert image_folder in ['images', 'imagesTr', 'imagesTs', None]
 
         self.raw_path = raw_path
+        self.create_missing_labels_as_zero = create_missing_labels_as_zero
         if not exists(self.raw_path):
             p = join(environ['OV_DATA_BASE'], 'raw_data', self.raw_path)
             if exists(p):
@@ -240,6 +242,9 @@ class raw_Dataset(object):
                     scan = data_tpl['pat_name'] + '_' + data_tpl['date']
                 else:
                     scan = superfolder + '_' + folder
+
+        if 'label' not in data_tpl and self.create_missing_labels_as_zero:
+            data_tpl['label'] = np.zeros(data_tpl['image'].shape[-3:])
 
         if self.is_cascade:
             for path, key in zip(self.pathes_to_previous_stages, self.keys_for_previous_stages):
