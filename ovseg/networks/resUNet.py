@@ -443,6 +443,22 @@ class UpConv(nn.Module):
     def forward(self, xb):
         return self.conv(xb)
 
+class UpConv33(nn.Module):
+    
+    def __init__(self, in_channels, out_channels, kernel_size=2):
+        super().__init__()
+        self.conv1 = nn.ConvTranspose2d(in_channels, out_channels,
+                                        kernel_size=(1, 3, 3),
+                                        stride=(1, 2, 2),
+                                        bias=False)
+        self.conv2 = nn.ConvTranspose3d(in_channels, out_channels,
+                                        kernel_size=1,
+                                        stride=(1, 2, 2),
+                                        bias=False)
+        nn.init.kaiming_normal_(self.conv.weight)
+
+    def forward(self, xb):
+        return self.conv1(xb) + self.conv2(xb)
 
 class UpLinear(nn.Module):
 
@@ -642,6 +658,153 @@ class UNetResDecoder(nn.Module):
             p = (1 - h) * param_dict['p_dropout_logits'][0] + h * param_dict['p_dropout_logits'][1]
             for l in self.all_logits:
                 l.dropout.p = p
+
+# %%
+class UNetResNewDecoder(nn.Module):
+
+    def __init__(self, in_channels, out_channels, is_2d, z_to_xy_ratio, block='res',
+                 n_blocks_list=[1, 2, 6, 3], filters=16, filters_max=384,
+                 conv_params=None, norm=None, norm_params=None, nonlin_params=None, 
+                 bottleneck_ratio=2, stochdepth_rate=0.0, p_dropout_logits=0.0, use_se=False,
+                 use_logit_bias=False, final_upsampling_33=True):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.is_2d = is_2d
+        self.block = block
+        self.z_to_xy_ratio = z_to_xy_ratio
+        self.n_blocks_list = n_blocks_list
+        self.filters = filters
+        self.filters_max = filters_max
+        self.conv_params = conv_params
+        self.norm = norm
+        self.norm_params = norm_params
+        self.nonlin_params = nonlin_params
+        self.p_dropout_logits = p_dropout_logits
+        self.bottleneck_ratio = bottleneck_ratio
+        self.stochdepth_rate = stochdepth_rate
+        self.use_se = use_se
+        self.use_logit_bias = use_logit_bias
+        self.final_upsampling_33 = final_upsampling_33
+        # we double the amount of channels every downsampling step
+        # up to a max of filters_max
+        self.n_stages = len(n_blocks_list) +1 
+        self.filters_list = [min([self.filters*2**i, self.filters_max])
+                             for i in range(self.n_stages)]
+
+        # first let's make the lists for the blocks on both pathes
+        # number of input and output channels of the blocks on the contracting path
+        self.in_channels_down_list = [self.in_channels] + self.filters_list[:-1]
+        self.in_channels_up_list = [2*f for f in self.filters_list[:-1]]
+        self.out_channels_list = self.filters_list
+        self.z_to_xy_ratio_list = [max([self.z_to_xy_ratio / 2**i, 1])
+                                   for i in range(self.n_stages)]
+        if self.is_2d:
+            self.kernel_sizes_up = (self.n_stages-1) * [3]
+        else:
+            self.kernel_sizes_up = [(1, 3, 3) if z_to_xy >= 2 else 3 for z_to_xy in 
+                                    self.z_to_xy_ratio_list]
+        self.init_stride_list = [1] + [get_stride(ks) for ks in self.kernel_sizes_up]
+
+
+        # blocks on the contracting path
+        
+        self.first_conv = nn.Conv3d(self.in_channels, 
+                                    self.filters,
+                                    kernel_size=self.kernel_sizes_up[0],
+                                    stride=get_stride(self.kern))
+        
+        self.blocks_down = []
+        for n_blocks, in_ch, out_ch, init_stride, z_to_xy in zip(self.n_blocks_list,
+                                                                 self.in_channels_down_list,
+                                                                 self.out_channels_list,
+                                                                 self.init_stride_list,
+                                                                 self.z_to_xy_ratio_list):
+            self.blocks_down.append(stackedResBlocks(block=self.block,
+                                                     n_blocks=n_blocks,
+                                                     in_channels=in_ch,
+                                                     out_channels=out_ch,
+                                                     init_stride=init_stride,
+                                                     is_2d=self.is_2d,
+                                                     z_to_xy_ratio=z_to_xy,
+                                                     conv_params=self.conv_params,
+                                                     norm=self.norm,
+                                                     norm_params=self.norm_params,
+                                                     nonlin_params=self.nonlin_params,
+                                                     bottleneck_ratio=self.bottleneck_ratio,
+                                                     stochdepth_rate=self.stochdepth_rate,
+                                                     use_se=self.use_se))
+
+        # blocks on the upsampling path
+        self.blocks_up = []
+        for in_channels, out_channels, kernel_size in zip(self.in_channels_up_list,
+                                                          self.out_channels_list,
+                                                          self.kernel_sizes_up):
+            block = ConvNormNonlinBlock(in_channels=in_channels,
+                                        out_channels=out_channels,
+                                        is_2d=self.is_2d,
+                                        kernel_size=kernel_size,
+                                        conv_params=self.conv_params,
+                                        norm=self.norm,
+                                        norm_params=self.norm_params,
+                                        nonlin_params=self.nonlin_params)
+            self.blocks_up.append(block)
+
+        # upsaplings
+        self.upsamplings = []
+        for in_channels, out_channels, kernel_size in zip(self.out_channels_list[1:],
+                                                          self.out_channels_list[:-1],
+                                                          self.kernel_sizes_up):
+            self.upsamplings.append(UpConv(in_channels=in_channels,
+                                           out_channels=out_channels,
+                                           is_2d=self.is_2d,
+                                           kernel_size=get_stride(kernel_size)))
+        # logits
+        self.all_logits = []
+        for in_channels in self.out_channels_list:
+            self.all_logits.append(Logits(in_channels=in_channels,
+                                          out_channels=self.out_channels,
+                                          is_2d=self.is_2d,
+                                          p_dropout=self.p_dropout_logits,
+                                          use_bias=self.use_logit_bias))
+
+        # now important let's turn everything into a module list
+        self.blocks_down = nn.ModuleList(self.blocks_down)
+        self.blocks_up = nn.ModuleList(self.blocks_up)
+        self.upsamplings = nn.ModuleList(self.upsamplings)
+        self.all_logits = nn.ModuleList(self.all_logits)
+
+    def forward(self, xb):
+        # keep all out tensors from the contracting path
+        xb_list = []
+        logs_list = []
+        # contracting path
+        for block in self.blocks_down[:-1]:
+            xb = block(xb)
+            xb_list.append(xb)
+
+        # bottom block
+        xb = self.blocks_down[-1](xb)
+        logs_list.append(self.all_logits[-1](xb))
+
+        # expanding path with logits
+        for i in range(self.n_stages - 2, -1, -1):
+            xb = self.upsamplings[i](xb)
+            xb = torch.cat([xb, xb_list[i]], 1)
+            del xb_list[i]
+            xb = self.blocks_up[i](xb)
+            logs = self.all_logits[i](xb)
+            logs_list.append(logs)
+
+        # as we iterate from bottom to top we have to flip the logits list
+        return logs_list[::-1]
+
+    def update_prg_trn(self, param_dict, h, indx=None):
+        if 'p_dropout_logits' in param_dict:
+            p = (1 - h) * param_dict['p_dropout_logits'][0] + h * param_dict['p_dropout_logits'][1]
+            for l in self.all_logits:
+                l.dropout.p = p
+
 
 # %%
 class UNetResEncoder(nn.Module):
