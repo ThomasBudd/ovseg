@@ -712,7 +712,7 @@ class UNetResNewDecoder(nn.Module):
         self.first_conv = nn.Conv3d(self.in_channels, 
                                     self.filters,
                                     kernel_size=self.kernel_sizes_up[0],
-                                    stride=get_stride(self.kern))
+                                    stride=get_stride(self.kernel_sizes_up[0]))
         
         self.blocks_down = []
         for n_blocks, in_ch, out_ch, init_stride, z_to_xy in zip(self.n_blocks_list,
