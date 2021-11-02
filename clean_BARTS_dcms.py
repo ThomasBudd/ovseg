@@ -8,6 +8,7 @@ from skimage.measure import label
 from ovseg.utils.io import read_dcms, save_dcmrt_from_data_tpl
 from tqdm import tqdm
 from ovseg.utils.label_utils import reduce_classes
+import pydicom
 
 predp = join(environ['OV_DATA_BASE'], 'predictions', 'OV04', 'pod_om_08_25',
              'U-Net4_prg_lrn', 'BARTS_dcm_ensemble_5_6_7')
@@ -39,10 +40,19 @@ for nii_file in tqdm(nii_files):
     
     if scan.startswith('BARTS'):
         scan = scan[10:]
-    else:
-        scan = '_'.join(scan.split('_')[:-1])
+        dcmp = join(rawp, scan)
+    else:        
+        pat_id = '_'.join(scan.split('_')[:-1])
+        date = scan.split('_')[-1]
+        
+        dcm_pathes = [join(rawp,p) for p in listdir(rawp) if p.startswith(pat_id)]
     
-    dcmp = join(rawp, scan)
+        for dcmp in dcm_pathes:
+            dcms = [join(dcmp, dcm) for dcm in listdir(dcmp)]
+            ds = pydicom.dcmread(dcms[5])
+            if date == ds.AcquisitionDate:
+                break
+    
     data_tpl = read_dcms(dcmp)
     im = data_tpl['image'].clip(-150, 250)
     
@@ -69,3 +79,11 @@ for nii_file in tqdm(nii_files):
                              out_file=out_file,
                              key='lb_clean',
                              names=['1', '9'])
+
+# %%
+
+for scan in listdir(rawp):
+    
+    data_tpl = read_dcms(join(rawp, scan))
+    if data_tpl['spacing'][0] < 3:
+        print(data_tpl['raw_image_file'])
