@@ -304,14 +304,18 @@ def read_dcms(dcm_folder, reverse=True, names_dict=None, dataset=None):
     roidss = []
     roidcms = []
     for dcm in dcms:
-        ds = pydicom.dcmread(dcm)
-        if _is_im_dcm_ds(ds):
-            imdss.append(ds)
-        elif _is_roi_dcm_ds(ds):
-            roidss.append(ds)
-            roidcms.append(dcm)
-        else:
-            raise TypeError(dcm + ' is neither image nor roi dcm.')
+        try:
+            ds = pydicom.dcmread(dcm)
+            if _is_im_dcm_ds(ds):
+                imdss.append(ds)
+            elif _is_roi_dcm_ds(ds):
+                roidss.append(ds)
+                roidcms.append(dcm)
+            else:
+                print('Found file '+dcm+' that is neither image nor roi dcm.')
+        except:
+            print('Found file '+dcm+' that is neither image nor roi dcm.')
+            
     if len(roidss) > 1:
         raise FileExistsError('Found multiple ROI dcms in folder '+dcm_folder+'. '
                               'Make sure that at most one ROI dcm file is in each folder.')
