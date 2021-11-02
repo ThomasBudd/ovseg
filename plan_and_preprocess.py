@@ -145,13 +145,13 @@ preprocessing.preprocess_raw_data(raw_data=args.raw_data,
                                   data_name=args.data_name,
                                   save_as_fp16=not args.save_as_fp32)
 
-print('Done! Here are the preprocessing paramters:')
-if args.data_name is None:
-    data_name = '_'.join(sorted(args.raw_data))
+# print('Done! Here are the preprocessing paramters:')
+# if args.data_name is None:
+#     data_name = '_'.join(sorted(args.raw_data))
 
-# root folder of all saved preprocessed data
-path_to_file = join(environ['OV_DATA_BASE'], 'preprocessed', data_name, args.preprocessed_name,
-                    'preprocessing_parameters.txt')
+# # root folder of all saved preprocessed data
+# path_to_file = join(environ['OV_DATA_BASE'], 'preprocessed', data_name, args.preprocessed_name,
+#                     'preprocessing_parameters.txt')
 
-with open(path_to_file, 'r') as file:
-    print(file.read())
+# with open(path_to_file, 'r') as file:
+#     print(file.read())

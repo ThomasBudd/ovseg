@@ -454,6 +454,13 @@ class SegmentationPreprocessing(object):
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         print('Preprocessing done!')
+        
+        print('Here are the preprocessing paramters:')
+        
+        path_to_params = join(outfolder, 'preprocessing_parameters.txt')
+        
+        with open(path_to_params, 'r') as file:
+            print(file.read())
 
     def plan_preprocessing_raw_data(self, raw_data,
                                     percentiles=[0.5, 99.5],
