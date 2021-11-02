@@ -9,7 +9,8 @@ args = parser.parse_args()
 model = SegmentationModel(val_fold=args.vf,
                           data_name='OV04',
                           preprocessed_name='multiclass_1_9',
-                          model_name='U-Net5_new_sampling')
+                          model_name='U-Net5_new_sampling',
+                          is_inference_only=True)
 model.eval_raw_data_npz('ApolloTCGA')
 
 if args.vf == 0:
