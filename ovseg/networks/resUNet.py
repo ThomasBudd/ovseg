@@ -445,7 +445,7 @@ class UpConv(nn.Module):
 
 class UpConv33(nn.Module):
     
-    def __init__(self, in_channels, out_channels, kernel_size=2):
+    def __init__(self, in_channels, out_channels):
         super().__init__()
         self.conv1 = nn.ConvTranspose2d(in_channels, out_channels,
                                         kernel_size=(1, 3, 3),
@@ -455,7 +455,8 @@ class UpConv33(nn.Module):
                                         kernel_size=1,
                                         stride=(1, 2, 2),
                                         bias=False)
-        nn.init.kaiming_normal_(self.conv.weight)
+        nn.init.kaiming_normal_(self.conv.weight1)
+        nn.init.kaiming_normal_(self.conv.weight2)
 
     def forward(self, xb):
         return self.conv1(xb) + self.conv2(xb)
@@ -660,13 +661,13 @@ class UNetResDecoder(nn.Module):
                 l.dropout.p = p
 
 # %%
-class UNetResNewDecoder(nn.Module):
+class UNetResStemEncoder(nn.Module):
 
     def __init__(self, in_channels, out_channels, is_2d, z_to_xy_ratio, block='res',
-                 n_blocks_list=[1, 2, 6, 3], filters=16, filters_max=384,
+                 n_blocks_list=[1, 1, 2, 6, 3], filters=16, filters_max=384,
                  conv_params=None, norm=None, norm_params=None, nonlin_params=None, 
                  bottleneck_ratio=2, stochdepth_rate=0.0, p_dropout_logits=0.0, use_se=False,
-                 use_logit_bias=False, final_upsampling_33=True):
+                 use_logit_bias=False, final_upsampling_33=False):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -688,7 +689,8 @@ class UNetResNewDecoder(nn.Module):
         self.final_upsampling_33 = final_upsampling_33
         # we double the amount of channels every downsampling step
         # up to a max of filters_max
-        self.n_stages = len(n_blocks_list) +1 
+        self.n_stages = len(n_blocks_list)
+        assert self.n_blocks_list[0] == 1, 'The stem version requires only one block on top'
         self.filters_list = [min([self.filters*2**i, self.filters_max])
                              for i in range(self.n_stages)]
 
@@ -704,7 +706,7 @@ class UNetResNewDecoder(nn.Module):
         else:
             self.kernel_sizes_up = [(1, 3, 3) if z_to_xy >= 2 else 3 for z_to_xy in 
                                     self.z_to_xy_ratio_list]
-        self.init_stride_list = [1] + [get_stride(ks) for ks in self.kernel_sizes_up]
+        self.init_stride_list = [1, 1] + [get_stride(ks) for ks in self.kernel_sizes_up[1:]]
 
 
         # blocks on the contracting path
@@ -712,14 +714,15 @@ class UNetResNewDecoder(nn.Module):
         self.first_conv = nn.Conv3d(self.in_channels, 
                                     self.filters,
                                     kernel_size=self.kernel_sizes_up[0],
-                                    stride=get_stride(self.kernel_sizes_up[0]))
+                                    stride=get_stride(self.kernel_sizes_up[0]),
+                                    padding=get_padding(self.kernel_sizes_up[0]))
         
         self.blocks_down = []
-        for n_blocks, in_ch, out_ch, init_stride, z_to_xy in zip(self.n_blocks_list,
-                                                                 self.in_channels_down_list,
-                                                                 self.out_channels_list,
-                                                                 self.init_stride_list,
-                                                                 self.z_to_xy_ratio_list):
+        for n_blocks, in_ch, out_ch, init_stride, z_to_xy in zip(self.n_blocks_list[1:],
+                                                                 self.in_channels_down_list[1:],
+                                                                 self.out_channels_list[1:],
+                                                                 self.init_stride_list[1:],
+                                                                 self.z_to_xy_ratio_list[1:]):
             self.blocks_down.append(stackedResBlocks(block=self.block,
                                                      n_blocks=n_blocks,
                                                      in_channels=in_ch,
@@ -737,9 +740,9 @@ class UNetResNewDecoder(nn.Module):
 
         # blocks on the upsampling path
         self.blocks_up = []
-        for in_channels, out_channels, kernel_size in zip(self.in_channels_up_list,
-                                                          self.out_channels_list,
-                                                          self.kernel_sizes_up):
+        for in_channels, out_channels, kernel_size in zip(self.in_channels_up_list[1:],
+                                                          self.out_channels_list[1:],
+                                                          self.kernel_sizes_up[1:]):
             block = ConvNormNonlinBlock(in_channels=in_channels,
                                         out_channels=out_channels,
                                         is_2d=self.is_2d,
@@ -749,19 +752,26 @@ class UNetResNewDecoder(nn.Module):
                                         norm_params=self.norm_params,
                                         nonlin_params=self.nonlin_params)
             self.blocks_up.append(block)
+        
+        if self.final_upsampling_33:
+            self.last_conv = UpConv33(2*self.filters, self.out_channels)
+        else:
+            self.last_conv = UpConv(2*self.filters, self.out_channels, self.is_2d,
+                                    get_stride(self.kernel_sizes_up[0]))
+            
 
         # upsaplings
         self.upsamplings = []
-        for in_channels, out_channels, kernel_size in zip(self.out_channels_list[1:],
-                                                          self.out_channels_list[:-1],
-                                                          self.kernel_sizes_up):
+        for in_channels, out_channels, kernel_size in zip(self.out_channels_list[2:],
+                                                          self.out_channels_list[1:-1],
+                                                          self.kernel_sizes_up[1:]):
             self.upsamplings.append(UpConv(in_channels=in_channels,
                                            out_channels=out_channels,
                                            is_2d=self.is_2d,
                                            kernel_size=get_stride(kernel_size)))
         # logits
         self.all_logits = []
-        for in_channels in self.out_channels_list:
+        for in_channels in self.out_channels_list[1:]:
             self.all_logits.append(Logits(in_channels=in_channels,
                                           out_channels=self.out_channels,
                                           is_2d=self.is_2d,
@@ -776,6 +786,9 @@ class UNetResNewDecoder(nn.Module):
 
     def forward(self, xb):
         # keep all out tensors from the contracting path
+        
+        xb = self.first_conv(xb)
+        
         xb_list = []
         logs_list = []
         # contracting path
@@ -788,7 +801,7 @@ class UNetResNewDecoder(nn.Module):
         logs_list.append(self.all_logits[-1](xb))
 
         # expanding path with logits
-        for i in range(self.n_stages - 2, -1, -1):
+        for i in range(self.n_stages - 3, -1, -1):
             xb = self.upsamplings[i](xb)
             xb = torch.cat([xb, xb_list[i]], 1)
             del xb_list[i]
@@ -796,6 +809,7 @@ class UNetResNewDecoder(nn.Module):
             logs = self.all_logits[i](xb)
             logs_list.append(logs)
 
+        logs_list.append(self.last_conv(xb))        
         # as we iterate from bottom to top we have to flip the logits list
         return logs_list[::-1]
 
@@ -1198,7 +1212,7 @@ class UResNet(nn.Module):
 
 # %%
 if __name__ == '__main__':
-    net = UResNet(1, 2, False, 4)
-    xb = torch.randn((2, 1, 32, 128, 128))
+    net = UNetResDecoder(1, 2, False, 5/0.67, n_blocks_list=[1, 1, 2, 6, 3],
+                         filters=16)
     print(net)
-    yb = net(xb)
+    
