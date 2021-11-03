@@ -31,6 +31,7 @@ model_params['data']['val_dl_params']['n_fg_classes'] = 2
 model_params['data']['trn_dl_params']['n_fg_classes'] = 2
 model_params['data']['val_dl_params']['bias'] = 'cl_fg'
 model_params['data']['trn_dl_params']['bias'] = 'cl_fg'
+model_params['data']['trn_dl_params']['store_data_in_ram'] = True
 model_params['postprocessing'] = {'apply_small_component_removing': True,
                                   'volume_thresholds': 10,
                                   'remove_2d_comps': True,

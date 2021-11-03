@@ -37,6 +37,7 @@ model_params['training']['batches_have_masks'] = True
 model_params['postprocessing'] = {'mask_with_reg': True}
 model_params['data']['val_dl_params']['bias'] = 'cl_fg'
 model_params['data']['trn_dl_params']['bias'] = 'cl_fg'
+model_params['data']['trn_dl_params']['store_data_in_ram'] = True
 model_params['data']['val_dl_params']['n_fg_classes'] = len(lb_classes)
 model_params['data']['trn_dl_params']['n_fg_classes'] = len(lb_classes)
 
