@@ -277,7 +277,7 @@ def SegmentationDataloader(vol_ds, patch_size, batch_size, num_workers=None,
     dataset = SegmentationBatchDataset(vol_ds=vol_ds, patch_size=patch_size, batch_size=batch_size,
                                        epoch_len=epoch_len, *args, **kwargs)
     if num_workers is None:
-        num_workers = 0 if os.name == 'nt' else 8
+        num_workers = 0 if os.name == 'nt' else 7
     worker_init_fn = lambda _: np.random.seed()
     sampler = torch.utils.data.SequentialSampler(range(batch_size * epoch_len))
     return torch.utils.data.DataLoader(dataset,
