@@ -90,7 +90,7 @@ elif args.vf < 3:
     
     model.training.train()
     model.eval_raw_data_npz('BARTS')
-    ens = SegmentationEnsemble(val_fold=list(range(5)),
+    ens = SegmentationEnsemble(val_fold=[5,6,7],
                                data_name=data_name,
                                model_name=model_name, 
                                preprocessed_name=p_name)
