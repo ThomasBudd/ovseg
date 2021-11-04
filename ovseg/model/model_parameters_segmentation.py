@@ -60,7 +60,7 @@ def get_model_params_2d_segmentation(n_fg_classes=1,
     # we have no postprocessing parameters and just go with the default
     # now data
     ds_params = {}
-    num_workers = 0 if os.name == 'nt' else 8
+    num_workers = 0 if os.name == 'nt' else 5
     trn_dl_params = {'patch_size': [512, 512],
                      'batch_size': 12,
                      'num_workers': num_workers,
@@ -79,6 +79,8 @@ def get_model_params_2d_segmentation(n_fg_classes=1,
     val_dl_params['epoch_len'] = 8
     val_dl_params['store_data_in_ram'] = True
     val_dl_params['n_max_volumes'] = 16
+    val_dl_params['num_workers'] = 0   
+    # as here we can store the data in RAM, 0 workers are faster
     keys = ['image', 'label']
     folders = ['images', 'labels']
     data_params = {'n_folds': 5,
