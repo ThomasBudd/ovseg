@@ -81,6 +81,9 @@ class ClassCascadePostprocessing(SegmentationPostprocessing):
                     prev_pred = np.stack([resize(prev_pred[c], orig_shape, 0)
                                        for c in range(prev_pred.shape[0])])
 
+        # to 3d array
+        prev_pred = prev_pred[0]
+
         # now mask and change from soft to hard labels 
         if torch.is_tensor(volume):
             volume = torch.argmax(volume, 0).type(torch.float)
@@ -108,13 +111,11 @@ class ClassCascadePostprocessing(SegmentationPostprocessing):
         
         # now in the end we fill in the previous prediction again
         if torch.is_tensor(prev_pred):
-            prev_pred.cpu().numpy().astype(volume.dtype)
+            prev_pred = prev_pred.cpu().numpy().astype(volume.dtype)
         
         # the volume should be 0 where prev_pred == 0, this expression
         # is typically faster then 
         # volume[prev_pred > 0] = prev_prev[prev_pred> 0]
-        print(volume.shape, type(volume))
-        print(prev_pred.shape, type(prev_pred))
-        volume = volume + prev_pred[0]
+        volume += prev_pred
 
         return volume
