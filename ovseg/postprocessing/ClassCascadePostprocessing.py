@@ -108,11 +108,13 @@ class ClassCascadePostprocessing(SegmentationPostprocessing):
         
         # now in the end we fill in the previous prediction again
         if torch.is_tensor(prev_pred):
-            prev_pred.cpu().numpy()
+            prev_pred.cpu().numpy().astype(volume.dtype)
         
         # the volume should be 0 where prev_pred == 0, this expression
         # is typically faster then 
         # volume[prev_pred > 0] = prev_prev[prev_pred> 0]
-        volume += prev_pred[0]
+        print(volume.shape, type(volume))
+        print(prev_pred.shape, type(prev_pred))
+        volume = volume + prev_pred[0]
 
         return volume
