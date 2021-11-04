@@ -167,7 +167,7 @@ class SegmentationPostprocessing(object):
             spacing = data_tpl['orig_spacing'] if 'orig_spacing' in data_tpl else None
             shape = data_tpl['orig_shape']
             data_tpl[prediction_key+'_orig_shape'] = self.postprocess_volume(pred,
-                                                                             reg=reg,
+                                                                             reg,
                                                                              spacing=spacing,
                                                                              orig_shape=shape)
         else:
