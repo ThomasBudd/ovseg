@@ -25,7 +25,7 @@ class ClassCascadeEnsemble(SegmentationEnsemble):
     def _get_im_prev_pred_from_data_tpl(self, data_tpl):
         if not self.preprocessing.is_preprocessed_data_tpl(data_tpl):
             # the image already contains the binary prediction as additional channel
-            volume = self.preprocessing(data_tpl, preprocess_only_im=True)
+            volume = self.preprocessing(data_tpl, preprocess_only_im=True, return_np=True)
             im, prev_pred = volume[:-1], volume[-1:]
         else:
             # the data_tpl is already preprocessed, let's just get the arrays
