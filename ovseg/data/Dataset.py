@@ -1,6 +1,6 @@
 import numpy as np
 from os.path import basename, join, exists, isdir, split
-from os import listdir, environ
+from os import listdir, environ, walk
 from ovseg.utils.io import read_data_tpl_from_nii, read_dcms, read_nii
 import nibabel as nib
 import torch
@@ -194,22 +194,14 @@ class raw_Dataset(object):
             self.dcm_names_dict = dcm_names_dict
             if scans is None:
                 self.scans = []
-                folders = [join(self.raw_path, f) for f in listdir(self.raw_path)
-                           if isdir(join(self.raw_path, f))]
-                for folder in folders:
-                    subfolders = [join(folder, f) for f in listdir(folder)
-                                  if isdir(join(folder, f))]
-                    if len(subfolders) > 0:
-                        # if there are subfolders contained we will assume that these are the
-                        # dcm folders we're looking for
-                        self.scans.extend(subfolders)
-                    elif len(listdir(folder)) > 0:
-                        # otherwise if the folder is not empty we will assume that the dcms are here
-                        self.scans.append(folder)
+                for root, dirs, files in walk(self.raw_path):
+                    if len(files) > 0:
+                        self.scans.append(root)
             else:
                 self.scans = [join(self.raw_path, scan) for scan in scans]
 
-        print('Using scans: ', [basename(scan) for scan in sorted(self.scans)])
+        len_rawp = len(self.raw_path)
+        print('Using scans: ', [scan[len_rawp:] for scan in sorted(self.scans)])
 
     def __len__(self):
         return len(self.scans)
