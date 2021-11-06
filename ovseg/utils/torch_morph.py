@@ -39,7 +39,7 @@ def morph_cleaning(seg):
     
     assert torch.is_tensor(seg)
     # to one hot encoding (in batch dimension)
-    n_cl = seg.max()
+    n_cl = int(seg.max())
     seg_oh = torch.stack([seg == cl for cl in range(1, n_cl+1)]).type(torch.float)
     
     # cleaning with opening and closing
