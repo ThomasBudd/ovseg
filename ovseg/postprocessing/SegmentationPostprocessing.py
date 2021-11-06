@@ -5,6 +5,7 @@ from skimage.measure import label
 from skimage.transform import resize
 from torch.nn.functional import interpolate
 from scipy.ndimage.morphology import binary_fill_holes
+from ovseg.utils.torch_morph import morph_cleaning
 
 
 class SegmentationPostprocessing(object):
@@ -18,13 +19,15 @@ class SegmentationPostprocessing(object):
                  lb_classes=None,
                  use_fill_holes_2d=False,
                  use_fill_holes_3d=False,
-                 keep_only_largest=False):
+                 keep_only_largest=False,
+                 apply_morph_cleaning=False):
         self.apply_small_component_removing = apply_small_component_removing
         self.volume_thresholds = volume_thresholds
         self.remove_2d_comps = remove_2d_comps
         self.remove_comps_by_volume = remove_comps_by_volume
         self.mask_with_reg = mask_with_reg
         self.lb_classes = lb_classes
+        self.apply_morph_cleaning = apply_morph_cleaning
 
         if self.apply_small_component_removing and \
                 self.volume_thresholds is None:
@@ -35,17 +38,21 @@ class SegmentationPostprocessing(object):
         self.use_fill_holes_2d = use_fill_holes_2d
         self.use_fill_holes_3d = use_fill_holes_3d
         
-        if isinstance(keep_only_largest, bool):
+        if self.lb_classes is not None:
+            if isinstance(keep_only_largest, bool):
+                
+                self.keep_only_largest = len(self.lb_classes) * [keep_only_largest]
             
-            self.keep_only_largest = len(self.lb_classes) * [keep_only_largest]
-        
-        elif isinstance(keep_only_largest, (tuple, list, np.ndarray)):
-            
-            assert len(keep_only_largest) == len(lb_classes)
-            self.keep_only_largest = keep_only_largest
-
+            elif isinstance(keep_only_largest, (tuple, list, np.ndarray)):
+                
+                assert len(keep_only_largest) == len(lb_classes)
+                self.keep_only_largest = keep_only_largest
+    
+            else:
+                raise TypeError('Received unexpected type for keep_only_largst '+str(type(keep_only_largest)))
         else:
-            raise TypeError('Received unexpected type for keep_only_largst '+str(type(keep_only_largest)))
+            if not isinstance(keep_only_largest, (list, tuple, np.ndarray)):
+                self.keep_only_largest = [keep_only_largest]
 
     def postprocess_volume(self, volume, reg=None, spacing=None, orig_shape=None):
         '''
@@ -112,15 +119,19 @@ class SegmentationPostprocessing(object):
                         reg = np.stack([resize(reg[c], orig_shape, 0)
                                            for c in range(reg.shape[0])])
 
-        # now change from soft to hard labels 
-        if torch.is_tensor(volume):
-            volume = volume.cpu().numpy()
+        # convert to hard labels
+        volume = torch.argmax(volume, 0).type(torch.float)
+        
+        if self.apply_morph_cleaning:
+            # this will work on GPU tensors
+            volume = morph_cleaning(volume)
+
+        # now change to CPU and numpy
+        volume = volume.cpu().numpy()
         if self.mask_with_reg:
             if torch.is_tensor(reg):
                 reg = reg.cpu().numpy()
 
-        # now change from soft to hard labels and multiply by the binary prediction
-        volume = np.argmax(volume, 0).astype(float)
         if self.mask_with_reg:
             # now we're finally doing what we're asking the whole time about!
             volume *= reg[0]
@@ -265,16 +276,36 @@ class SegmentationPostprocessing(object):
 
     def get_largest_component(self, volume):
         
-        for cl, keep in zip(self.lb_classes, self.keep_only_largest):
-            
-            if keep:
-                
-                largest = self.bin_get_largest_component((volume == cl).astype(volume.dtype))
-                
-                volume[volume == cl] == 0
-                volume[largest > 0] == cl
         
-        return volume
+        if self.lb_classes is not None:
+            for cl, keep in zip(self.lb_classes, self.keep_only_largest):
+                
+                if keep:
+                    
+                    largest = self.bin_get_largest_component((volume == cl).astype(volume.dtype))
+                    
+                    volume[volume == cl] == 0
+                    volume[largest > 0] == cl
+            
+            return volume
+        
+        else:
+            
+            if not self.keep_only_largest[0]:
+                return volume
+            
+            lb_classes = list(range(1, volume.max()))
+            for cl in lb_classes:
+                
+                if keep:
+                    
+                    largest = self.bin_get_largest_component((volume == cl).astype(volume.dtype))
+                    
+                    volume[volume == cl] == 0
+                    volume[largest > 0] == cl
+            
+            return volume
+            
 
     def bin_get_largest_component(self, volume):
     
