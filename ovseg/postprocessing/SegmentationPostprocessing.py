@@ -251,16 +251,29 @@ class SegmentationPostprocessing(object):
 
     def fill_holes(self, volume, is_3d):
         
-        for cl in self.lb_classes:
+        if self.lb_classes is not None:
+            for cl in self.lb_classes:
+                
+                if is_3d:
+                    vol_filled = self.bin_fill_holes_3d((volume == cl).astype(volume.dtype))
+                else:
+                    vol_filled = self.bin_fill_holes_2d((volume == cl).astype(volume.dtype))
+                
+                volume[vol_filled > 0] = cl
             
-            if is_3d:
-                vol_filled = self.bin_fill_holes_3d((volume == cl).astype(volume.dtype))
-            else:
-                vol_filled = self.bin_fill_holes_2d((volume == cl).astype(volume.dtype))
+            return volume
+        else:
+            lb_classes = list(range(1, volume.max()+1))
+            for cl in lb_classes:
+                
+                if is_3d:
+                    vol_filled = self.bin_fill_holes_3d((volume == cl).astype(volume.dtype))
+                else:
+                    vol_filled = self.bin_fill_holes_2d((volume == cl).astype(volume.dtype))
+                
+                volume[vol_filled > 0] = cl
             
-            volume[vol_filled > 0] = cl
-        
-        return volume
+            return volume
 
     def bin_fill_holes_2d(self, volume):
         
