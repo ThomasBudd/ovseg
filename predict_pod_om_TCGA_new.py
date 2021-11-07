@@ -57,6 +57,10 @@ for i in tqdm(range(len(scans))):
     
     scan += '_TB'
     
+    # it doesn't matter what how we set this value
+    # it is just to not let the code crash in the ensemble prediction
+    data_tpl['scan'] = scan
+    
     # predict from this datapoint
     pred = model(data_tpl)
     if torch.is_tensor(pred):
