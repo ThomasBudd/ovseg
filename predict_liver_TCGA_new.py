@@ -6,7 +6,8 @@ import torch
 
 model = SegmentationModel(val_fold=5, data_name='Lits_5mm',
                           preprocessed_name='default',
-                          model_name='U-Net5')
+                          model_name='U-Net5',
+                          is_inference_only=True)
 rawp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', 'TCGA_new')
 predp = os.path.join(os.environ['OV_DATA_BASE'], 'predictions', 'Lits_5mm',
                      'default', 'U-Net5', 'TCGA_new_fold_5')
