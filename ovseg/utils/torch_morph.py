@@ -7,13 +7,15 @@ def _2d_morph_conv(seg_oh):
     
     assert len(seg_oh.shape) == 4, 'seg must be 4d'
     
-    selem = torch.tensor([[0, 1/5, 0], [1/5, 1/5, 1/5], [0, 1/5, 0]]).view((1,1,3,3))
+    nz = seg_oh.shape[1]
+    selem = torch.tensor([[0, 1/5, 0], [1/5, 1/5, 1/5], [0, 1/5, 0]]).view((1,3,3))
     selem = selem.to(seg_oh.device)
+    selem = torch.stack(nz * [selem])
 
     return torch.nn.functional.conv2d(seg_oh,
                                       selem,
                                       padding=(1,1),
-                                      groups=selem.shape[1])
+                                      groups=nz)
 
 def _2d_dial(seg_oh):
     
