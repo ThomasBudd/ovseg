@@ -17,7 +17,8 @@ model_name='U-Net4_prg_lrn'
 model = SegmentationModel(val_fold=args.vf,
                           data_name=data_name,
                           preprocessed_name=p_name,
-                          model_name=model_name)
+                          model_name=model_name,
+                          is_inference_only=True)
 rawp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', 'TCGA_new')
 predp = os.path.join(os.environ['OV_DATA_BASE'], 'npz_predictions',
                      data_name,
@@ -25,6 +26,9 @@ predp = os.path.join(os.environ['OV_DATA_BASE'], 'npz_predictions',
                      model_name,
                      'TCGA_new',
                      'fold_'+str(args.vf))
+if not os.path.exists(predp):
+    
+    os.makedirs(predp)
 
 scans = []
 
