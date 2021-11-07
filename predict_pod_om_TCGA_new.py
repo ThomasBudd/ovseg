@@ -6,14 +6,18 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-model = SegmentationEnsemble(data_name='ApolloTCGA_dcm_BARTS_dcm_OV04_DCM',
-                             preprocessed_name='pod_om_08_25',
-                             model_name='U-Net4_prg_lrn')
+
+data_name='ApolloTCGA_dcm_BARTS_dcm_OV04_dcm'
+p_name='pod_om_08_25'
+model_name='U-Net4_prg_lrn'
+model = SegmentationEnsemble(data_name=data_name,
+                             preprocessed_name=p_name,
+                             model_name=model_name)
 rawp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', 'TCGA_new')
 predp = os.path.join(os.environ['OV_DATA_BASE'], 'predictions',
-                     'ApolloTCGA_dcm_BARTS_dcm_OV04_DCM',
-                     'pod_om_08_25',
-                     'U-Net4_prg_lrn',
+                     data_name,
+                     p_name,
+                     model_name,
                      'TCGA_new')
 livp = os.path.join(os.environ['OV_DATA_BASE'],
                     'predictions',
@@ -21,9 +25,9 @@ livp = os.path.join(os.environ['OV_DATA_BASE'],
                     'default',
                     'U-Net5')
 plotp = os.path.join(os.environ['OV_DATA_BASE'], 'plots',
-                     'ApolloTCGA_dcm_BARTS_dcm_OV04_DCM',
-                     'pod_om_08_25',
-                     'U-Net4_prg_lrn',
+                     data_name,
+                     p_name,
+                     model_name,
                      'TCGA_new')
 if not os.path.exists(plotp):
     
