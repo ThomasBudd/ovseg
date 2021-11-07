@@ -68,7 +68,7 @@ for i in tqdm(range(len(scans))):
 
     if not scanp.endswith('pelvis'):
         # load the liver segmentation
-        nii_file = os.path.join(livp, data_tpl['pat_id']+'_liver_TB')
+        nii_file = os.path.join(livp, data_tpl['pat_id']+'_liver_TB.nii.gz')
         liver = read_nii(nii_file)
         
         # compute the slice where the liver is the largest
