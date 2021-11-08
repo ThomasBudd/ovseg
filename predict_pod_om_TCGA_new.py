@@ -23,7 +23,8 @@ livp = os.path.join(os.environ['OV_DATA_BASE'],
                     'predictions',
                     'Lits_5mm',
                     'default',
-                    'U-Net5')
+                    'U-Net5',
+                    'TCGA_new_fold_5')
 plotp = os.path.join(os.environ['OV_DATA_BASE'], 'plots',
                      data_name,
                      p_name,
