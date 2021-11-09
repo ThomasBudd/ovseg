@@ -71,7 +71,7 @@ class ClassCascadeModel(SegmentationModel):
 
         # the input to the network (predicion object) must be with binarised
         # previous prediction
-        im = np.concatenate([im, (prev_pred > 0).astype(im.dtype)])
+        # im = np.concatenate([im, (prev_pred > 0).astype(im.dtype)])
         # now the importat part: the sliding window evaluation (or derivatives of it)
         pred = self.prediction(im)
         data_tpl[self.pred_key] = pred

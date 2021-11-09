@@ -34,7 +34,7 @@ class ClassCascadeEnsemble(SegmentationEnsemble):
 
         # the input to the network (predicion object) must be with binarised
         # previous prediction
-        im = np.concatenate([im, (prev_pred > 0).astype(im.dtype)])
+        # im = np.concatenate([im, (prev_pred > 0).astype(im.dtype)])
         
         return im, prev_pred 
 
