@@ -5,6 +5,11 @@ import numpy as np
 
 class ClassCascadePreprocessing(SegmentationPreprocessing):
     
+    def __init__(self, *args, prev_pred_classes=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.prev_pred_classes = prev_pred_classes
+        self.preprocessing_parameters.append('prev_pred_classes')
+    
     def is_cascade(self):
         assert len(self.prev_stages) == 1, 'in a cascade we need exactly one previous model'
         return True        
@@ -18,9 +23,6 @@ class ClassCascadePreprocessing(SegmentationPreprocessing):
         xb = maybe_add_channel_dim(xb)
 
         if self.is_cascade():
-            # the cascade is only implemented with binary predictions so far --> overwrite
-            # this function for different predictions
-            prev_preds = []
             key = self.keys_for_previous_stages[0]
             assert key in data_tpl, 'prediction '+key+' from previous stage missing'
             pred = data_tpl[key]
@@ -28,8 +30,12 @@ class ClassCascadePreprocessing(SegmentationPreprocessing):
                 pred = pred.cpu().numpy()
             # ensure the array is 4d
             pred = maybe_add_channel_dim(pred)
-            prev_preds.append(pred)
-    
+            
+            if self.prev_pred_classes is not None:
+                pp_classes = [c for c in np.unique(pred) if c > 0]
+                ignor_this_classes = [c for c in pp_classes if c not in self.prev_pred_classes]
+                for c in ignor_this_classes:
+                    pred[pred == c] = 0
 
             xb = np.concatenate([xb, pred])
 
