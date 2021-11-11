@@ -185,6 +185,7 @@ class raw_Dataset(object):
                         self.scans = np.unique([scan[:-5] for scan in self.scans]).tolist()
             else:
                 self.scans = scans
+            print('Using scans: ', self.scans))
 
         else:
             # dcm case
@@ -200,8 +201,8 @@ class raw_Dataset(object):
             else:
                 self.scans = [join(self.raw_path, scan) for scan in scans]
 
-        len_rawp = len(self.raw_path)
-        print('Using scans: ', [scan[len_rawp:] for scan in sorted(self.scans)])
+            len_rawp = len(self.raw_path)
+            print('Using scans: ', [scan[len_rawp:] for scan in sorted(self.scans)])
 
     def __len__(self):
         return len(self.scans)
