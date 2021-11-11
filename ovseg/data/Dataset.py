@@ -185,7 +185,7 @@ class raw_Dataset(object):
                         self.scans = np.unique([scan[:-5] for scan in self.scans]).tolist()
             else:
                 self.scans = scans
-            print('Using scans: ', self.scans))
+            print('Using scans: ', self.scans)
 
         else:
             # dcm case
