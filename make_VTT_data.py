@@ -46,6 +46,10 @@ for path in [manual_path, auto_path]:
     om_scans = np.random.choice(has_1, size=20, replace=False)
     pod_scans = np.random.choice(has_9, size=20, replace=False)
     
+    # this was a hack to repair the fact that 25-1634 was broken
+    # om_scans = ['TCGA-25-1635']
+    # pod_scans = []
+    
     print('copy omentum scans and chance rt file')
     sleep(0.1)
     for scan in tqdm(om_scans):
