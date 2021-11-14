@@ -13,17 +13,14 @@ args = parser.parse_args()
 mu = [0.99, 0.98, 0.97][args.exp]
 
 p_name = 'pod_067'
-model_name = 'bs_4_mu_'+str(mu)
+model_name = 'bs_4_mu_'+str(mu)+'_smaller_patches'
 data_name='OV04'
-patch_size = [40, 320, 320]
+patch_size = [32, 256, 256]
 use_prg_trn = True
-out_shape = [[24, 192, 192],
-             [28, 224, 224],
-             [36, 288, 288],
-             [40, 320, 320]]
+out_shape = [[20, 160, 160], [24, 192, 192], [28, 224, 224], [32, 256, 256]]
 larger_res_encoder = True
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
-                                                      z_to_xy_ratio=5.0/0.67,
+                                                      z_to_xy_ratio=8,
                                                       use_prg_trn=use_prg_trn,
                                                       larger_res_encoder=larger_res_encoder,
                                                       n_fg_classes=1,
