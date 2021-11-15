@@ -10,16 +10,16 @@ import numpy as np
 bp = 'D:\\PhD\\Data\\TCGA_new_TB'
 
 
-for root, folders, files in os.walk(bp):
+# for root, folders, files in os.walk(bp):
     
-    if len(files) > 0:
+#     if len(files) > 0:
         
-        dcm_rt_files = [file for file in files if file.startswith('TCGA')]
+#         dcm_rt_files = [file for file in files if file.startswith('TCGA')]
         
-        if len(dcm_rt_files) > 0:
-            dcm_rt_file = dcm_rt_files[0]
-            os.remove(os.path.join(root, dcm_rt_file))
-            print('removed ', dcm_rt_file)
+#         if len(dcm_rt_files) > 0:
+#             dcm_rt_file = dcm_rt_files[0]
+#             os.remove(os.path.join(root, dcm_rt_file))
+#             print('removed ', dcm_rt_file)
 
 
 # %%
@@ -91,7 +91,24 @@ with xnat.connect(xnathost, user=user_id, password=pwd) as session:
                 if scan not in os.listdir(os.path.join(VTT_path, task)):
                     dcm_rt_labels.append(xnat_experiment.data['label'])
                     xnat_experiment.delete()
+
+
+# %%
+# with xnat.connect(xnathost, user=user_id, password=pwd) as session:
     
+#     CT_sessions = []
+    
+#     for experiment in session.experiments:
+        
+#         xnat_experiment = session.experiments[experiment]
+        
+#         if hasattr(xnat_experiment, 'data'):
+#             if 'modality' in xnat_experiment.data:
+                
+#                 if xnat_experiment.data['modality'] == 'CT':
+                
+#                     CT_sessions.append(xnat_experiment.data['label'])
+                
 #     for task in os.listdir(VTT_path):
 #         print(task)
 #         sleep(0.1)

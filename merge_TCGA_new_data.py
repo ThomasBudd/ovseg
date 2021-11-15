@@ -2,7 +2,7 @@ import os
 import pydicom
 import numpy as np
 from ovseg.utils.io import save_dcmrt_from_data_tpl, read_dcms
-from shutil import copytree
+from shutil import copytree, rmtree
 from tqdm import tqdm
 
 data_path = 'D:\\PhD\\Data\\TCGA_new_RW'
@@ -44,7 +44,7 @@ def print_diff_attr(ds_list1, ds_list2):
 
 def modify_ipp(ds_list1, ds_list2):
     st = np.median(np.diff([ds.ImagePositionPatient[2] for ds in ds_list1]))
-    x, y = ds_list1[0].ImagePositionPatient[0], ds_list1[0].ImagePositionPatient[0]
+    x, y = ds_list1[0].ImagePositionPatient[0], ds_list1[0].ImagePositionPatient[1]
     z_start = float(ds_list1[-1].ImagePositionPatient[2])
     ds_list2_new = []
     for i, ds in enumerate(ds_list2):
@@ -92,6 +92,7 @@ def read_and_merge(fol):
     root, scan = os.path.split(fol)
     data_base, dataset_name = os.path.split(root)
     target_path = os.path.join(data_base, dataset_name+'_merged', scan)
+    rmtree(target_path)
     if not os.path.exists(target_path):
         os.makedirs(target_path)
     
@@ -106,7 +107,7 @@ def read_and_merge(fol):
 
 # %% merge for folders with two subfolders
 
-for data_path in ['D:\\PhD\\Data\\TCGA_new_RW', 'D:\\PhD\\Data\\TCGA_new_TB']:
+for data_path in ['D:\\PhD\\Data\\TCGA_new_TB']:#['D:\\PhD\\Data\\TCGA_new_RW', 'D:\\PhD\\Data\\TCGA_new_TB']:
 
     fol_list = []
     for root, dirs, files in os.walk(data_path):
@@ -118,10 +119,11 @@ for data_path in ['D:\\PhD\\Data\\TCGA_new_RW', 'D:\\PhD\\Data\\TCGA_new_TB']:
 
 # %% copy the other scans with only one folder
 
-for data_path in ['D:\\PhD\\Data\\TCGA_new_RW', 'D:\\PhD\\Data\\TCGA_new_TB']:
+for data_path in ['D:\\PhD\\Data\\TCGA_new_TB']:#['D:\\PhD\\Data\\TCGA_new_RW', 'D:\\PhD\\Data\\TCGA_new_TB']:
     tarp = data_path + '_merged'
     
     for scan in tqdm(os.listdir(data_path)):
         if scan not in os.listdir(tarp):
+            print('Copy', scan)
             copytree(os.path.join(data_path, scan),
                      os.path.join(tarp, scan))
