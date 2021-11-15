@@ -7,10 +7,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-data_name='ApolloTCGA_dcm_BARTS_dcm_OV04_dcm'
+data_name='OV04'#'ApolloTCGA_dcm_BARTS_dcm_OV04_dcm'
 p_name='pod_om_08_25'
 model_name='U-Net4_prg_lrn'
-model = SegmentationEnsemble(data_name=data_name,
+model = SegmentationEnsemble(val_fold=list(range(5)),
+                             data_name=data_name,
                              preprocessed_name=p_name,
                              model_name=model_name)
 rawp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', 'TCGA_new')
