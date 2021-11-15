@@ -104,7 +104,7 @@ def read_and_merge(fol):
     out_file = os.path.join(target_path, scan+'_'+dataset_name[-2:]+'.dcm')
     save_dcmrt_from_data_tpl(data_tpl, out_file, key='new_label')
 
-# %%
+# %% merge for folders with two subfolders
 
 for data_path in ['D:\\PhD\\Data\\TCGA_new_RW', 'D:\\PhD\\Data\\TCGA_new_TB']:
 
@@ -116,7 +116,7 @@ for data_path in ['D:\\PhD\\Data\\TCGA_new_RW', 'D:\\PhD\\Data\\TCGA_new_TB']:
     for fol in fol_list:
         read_and_merge(fol)
 
-# %%
+# %% copy the other scans with only one folder
 
 for data_path in ['D:\\PhD\\Data\\TCGA_new_RW', 'D:\\PhD\\Data\\TCGA_new_TB']:
     tarp = data_path + '_merged'

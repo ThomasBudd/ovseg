@@ -7,10 +7,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-data_name='ApolloTCGA_dcm_BARTS_dcm_OV04_dcm'
+data_name='OV04'#'ApolloTCGA_dcm_BARTS_dcm_OV04_dcm'
 p_name='pod_om_08_25'
 model_name='U-Net4_prg_lrn'
-model = SegmentationEnsemble(data_name=data_name,
+model = SegmentationEnsemble(val_fold=list(range(5)),
+                             data_name=data_name,
                              preprocessed_name=p_name,
                              model_name=model_name)
 rawp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', 'TCGA_new')
@@ -78,5 +79,8 @@ for i in tqdm(range(len(scans))):
         plt.close()
         # set prediction above to 0
         data_tpl[model.pred_key][:z_liver] = 0
+        
+        if data_tpl[model.pred_key].max() == 0:
+            print('WARNING!! Found empty prediction '+scan)
 
     model.save_prediction(data_tpl, folder_name=predp, filename=scan)
