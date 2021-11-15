@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("vf", type=int)
 args = parser.parse_args()
 
-data_name='ApolloTCGA_dcm_BARTS_dcm_OV04_dcm'
+data_name='OV04'#'ApolloTCGA_dcm_BARTS_dcm_OV04_dcm'
 p_name='pod_om_08_25'
 model_name='U-Net4_prg_lrn'
 model = SegmentationModel(val_fold=args.vf,
