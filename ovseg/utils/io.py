@@ -555,7 +555,8 @@ def save_dcmrt_from_data_tpl(data_tpl, out_file, key, names=None, colors=None, d
             # rt_utils sorts the images the other way around
             rtstruct.add_roi(mask=mask[..., ::-1],
                              color=color,
-                             name=name)
+                             name=name,
+                             approximate_contours=False)
 
     rtstruct.save(out_file)
 
