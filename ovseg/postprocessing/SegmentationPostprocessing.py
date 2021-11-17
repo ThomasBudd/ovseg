@@ -113,6 +113,7 @@ class SegmentationPostprocessing(object):
                         volume = volume.cpu().numpy()
                     volume = np.stack([resize(volume[c], orig_shape, 1)
                                        for c in range(volume.shape[0])])
+                    
                     if self.mask_with_reg:
                         if torch.is_tensor(reg):
                             reg = reg.cpu().numpy()
@@ -120,6 +121,11 @@ class SegmentationPostprocessing(object):
                                            for c in range(reg.shape[0])])
 
         # convert to hard labels
+        if not torch.is_tensor(volume):
+            volume = torch.from_numpy(volume)
+            if torch.cuda.is_available():
+                volume = volume.cuda()
+            
         volume = torch.argmax(volume, 0).type(torch.float)
         
         if self.apply_morph_cleaning:
