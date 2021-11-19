@@ -6,14 +6,20 @@ from time import sleep
 
 parser = argparse.ArgumentParser()
 parser.add_argument("bs", type=int)
+parser.add_argument("--small", type=bool, default=False, action='store_true')
 args = parser.parse_args()
 
 p_name='pod_067'
 bs = args.bs
-patch_size = [32, 256, 256]
+
+if args.small:
+    patch_size = [32, 216, 216] 
+    larger_res_encoder = False
+else:
+    patch_size = [32, 256, 256]
+    larger_res_encoder = True
 use_prg_trn = False
 out_shape = None#[[20, 160, 160], [24, 192, 192], [28, 224, 224], [32, 256, 256]]
-larger_res_encoder = True
 
 
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
