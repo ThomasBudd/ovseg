@@ -157,7 +157,7 @@ class SHA(object):
                 model_name = '_'.join(['hpo',
                                        self.hpo_name,
                                        str(num_epochs),
-                                       str(ind)])
+                                       '{:.03d}'.format(ind)])
                 names_list.append(model_name)
                 
                 vfs_list.append(vf)
@@ -191,7 +191,7 @@ class SHA(object):
             best_scores_and_names = scores_and_names[:n_best]
             
             # best model parameters
-            n_epochs = self.n_epochs_per_stage[s-1]
+            num_epochs = self.n_epochs_per_stage[s]
             best_model_params = []
             
             self.print_and_log('Evaluated best models from previous stage:')
@@ -201,12 +201,12 @@ class SHA(object):
                                              model_name,
                                              'model_parameters.pkl'))
                 # already change the num_epochs
-                model_params['training']['num_epochs'] = n_epochs
+                model_params['training']['num_epochs'] = num_epochs
                 best_model_params.append(model_params)
                 
                 # print results with hyper parameters
                 values = [self.nested_get(model_params, names) for names in self.parameter_names]
-                values = ['{:.3f}'.format(val) for val in values]
+                values = ['{:.3e}'.format(val) for val in values]
                 
                 keys = ['->'.join(names) for names in self.parameter_names]
                 
@@ -234,7 +234,7 @@ class SHA(object):
                 model_name = '_'.join(['hpo',
                                        self.hpo_name,
                                        str(num_epochs),
-                                       str(ind)])
+                                       '{:.03d}'.format(ind)])
                 
                 self.print_and_log('\t'+model_name+', fold '+str(vf))
                 
