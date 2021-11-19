@@ -12,11 +12,12 @@ class SHA(object):
     def __init__(self,
                  data_name: str,
                  preprocessed_name: str,
-                 n_process: int,
+                 i_process: int,
                  parameter_names: list,
                  parameter_grids: list,
                  target_metrics: list,
                  validation_set_name: str,
+                 default_model_params: dict,
                  n_epochs_per_stage: list=[250, 500, 1000, 1000],
                  vfs_per_stage: list=[[5], [5], [5], [6,7]],
                  hpo_name=None,
@@ -26,12 +27,13 @@ class SHA(object):
                  ensemble_class=SegmentationEnsemble):
         self.data_name = data_name
         self.preprocessed_name = preprocessed_name
-        self.n_process = n_process
+        self.i_process = i_process
         self.parameter_names = parameter_names
         self.parameter_grids = parameter_grids
         self.target_metrics = target_metrics
         self.vfs_per_stage = vfs_per_stage
         self.validation_set_name = validation_set_name
+        self.default_model_params = default_model_params
         self.n_epochs_per_stage = n_epochs_per_stage
         self.hpo_name = hpo_name
         self.n_processes = n_processes
@@ -43,18 +45,26 @@ class SHA(object):
         assert len(vfs_per_stage) == len(n_epochs_per_stage), 'nber of stages not consistent'
         self.n_stages = len(vfs_per_stage)
         
+        for vfs in self.vfs_per_stage[:-1]:
+            if len(vfs) != 1:
+                raise NotImplementedError('The current implementation assumes '
+                                          'that excatly one fold is trained '
+                                          'per model_parameter except for the '
+                                          'last stage.')
+        
         # compute list of all hyper-parameters combinations
         self.parameter_combinations = self.list_kronecker(self.parameter_grids)
         self.n_combinations  = len(self.parameter_combinations)
         
         # default: number of models per stage halves at each stage
         if self.n_models_per_stage is None:
-            self.n_models_per_stage = [self.n_combinations//(2**i) for i in range(self.n_stages)]
+            self.n_models_per_stage = [self.n_combinations//(2**s) * len(vfs)
+                                       for s, vfs in enumerate(self.vfs_per_stage)]
         
-        if not self.n_models_per_stage[0] == self.n_combinations * self.vf_per_stage[0]:
+        if not self.n_models_per_stage[0] == self.n_combinations * len(self.vf_per_stage[0]):
             raise ValueError('Number of parameter combinations {} times folds {} '
                              'and models in first stage {} don\'t match.'.format(self.n_combinations,
-                                                                                 self.vf_per_stage[0],
+                                                                                 len(self.vf_per_stage[0]),
                                                                                  self.n_models_per_stage[0]))
         
         
@@ -96,8 +106,78 @@ class SHA(object):
     def get_params_names_and_vfs(self):
         
         if self.stage == 0:
-            ind_list = 
+            # list of all parameter indices and validation folds
+            # accross all processes
+            ind_vf_list = self.list_kronecker([list(range(self.n_com)), 
+                                               self.vfs_per_stage[0]])
         
+            # pick indices and folds from this process
+            ind_vf_list = ind_vf_list[self.i_process::self.n_processes]
+        
+            num_epochs = self.n_epochs_per_stage[0]
+            params_list, names_list, vfs_list = [], [], []
+            
+            for ind, vf in ind_vf_list:
+                
+                # make model parameters
+                params = self.default_model_params.copy()
+                params['training']['num_epochs'] = num_epochs
+                parameter_values = self.parameter_combinations[ind]
+                
+                for name, value in zip(self.parameter_names,
+                                       parameter_values):
+                    self.nested_set(params, name, value)
+                
+                params_list.append(params)
+                
+                model_name = '_'.join(['hpo',
+                                       self.hpo_name,
+                                       str(num_epochs),
+                                       str(ind)])
+                names_list.append(model_name)
+                
+                vfs_list.append(vf)
+            
+            return params_list, names_list, vfs_list
+        else:
+            s = self.stage
+            
+            # get model names and vfs from the previous stage
+            prev_n_epochs = self.n_epochs_per_stage[s-1]
+            prev_vfs = self.vfs_per_stage[s-1]
+            prev_pref = '_'.join(['hpo',
+                                  self.hpo_name,
+                                  str(prev_n_epochs)])
+            prev_models = [mn for mn in listdir(self.path_to_models)
+                           if mn.startswith(prev_pref)]
+            prev_models_vfs = self.list_kronecker([prev_models, prev_vfs])
+            # get all scores
+            
+            prev_scores = [self.get_model_score(model_name, vf)
+                           for model_name, vf in prev_models_vfs]
+            
+            # get best scores
+            scores_and_names = sorted(zip(prev_scores, prev_models))
+            vfs = self.vfs_per_stage[s]
+            n_best = self.n_models_per_stage // len(vfs)
+            best_scores_and_names = scores_and_names[:n_best]
+            
+            # print results
+            print('Evaluated models and found best scores:')
+            for score, name in best_scores_and_names:
+                print(name + ': {:.2f}'.format(score))
+            print()
+            
+            # best model parameters
+            n_epochs = self.n_epochs_per_stage[s-1]
+            best_model_params = []
+            for score, model_name in best_scores_and_names:
+                model_params = load_pkl(join(self.path_to_models,
+                                             model_name,
+                                             'model_parameters.pkl'))
+                model_params['training']['num_epochs'] = n_epochs
+                best_model_params.append(model_params)
+            
     
     def print_info(self):
         print('Got {} combinations of hyper-parameters in total'.format(self.n_combinations))
@@ -245,7 +325,6 @@ class SHA(object):
         for key in keys[:-1]:
             dic = dic[key]
         dic[keys[-1]] = value
-        return dic
     
     
 # %%
