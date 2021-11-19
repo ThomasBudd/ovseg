@@ -245,6 +245,24 @@ def get_model_params_3d_res_encoder_U_Net(patch_size, z_to_xy_ratio, use_prg_trn
                                               'lr': 2*10**-2}
     return model_params        
 
+def get_model_params_effUNet(patch_size=[32, 256, 256],
+                             z_to_xy_ratio=5/0.67,
+                             use_prg_trn=True,
+                             n_fg_classes=1,
+                             out_shape=[[20, 160, 160], [24, 192, 192], [28, 224, 224], [32, 256, 256]],
+                             larger_res_encoder=True):
+    model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
+                                                         z_to_xy_ratio=z_to_xy_ratio,
+                                                         use_prg_trn=use_prg_trn,
+                                                         n_fg_classes=n_fg_classes,
+                                                         out_shape=out_shape,
+                                                         larger_res_encoder=larger_res_encoder,
+                                                         fp32=True)
+    model_params['architecture'] = 'unetresstemencoder'
+    
+    return model_params
+    
+
 def get_model_params_class_ensembling(prev_stages, patch_size, z_to_xy_ratio, n_fg_classes,
                                       use_prg_trn=False,
                                       fp32=False, out_shape=None,
