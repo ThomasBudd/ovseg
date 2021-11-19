@@ -1,4 +1,4 @@
-from ovseg.hpo.SHA import SHA
+from ovseg.HPO.SHA import SHA
 from ovseg.model.model_parameters_segmentation import get_model_params_effUNet
 import argparse
 import numpy as np
