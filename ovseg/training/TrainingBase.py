@@ -33,7 +33,7 @@ class TrainingBase():
         # these attributes will be stored and recovered, append this list
         # with the attributes you want to save
         self.checkpoint_attributes = ['epochs_done', 'trn_start_time', 'trn_end_time',
-                                      'total_train_time']
+                                      'total_train_time', 'num_epochs']
         self.print_attributes = ['model_path', 'num_epochs']
         # make model_path and training_log
         maybe_create_path(self.model_path)
