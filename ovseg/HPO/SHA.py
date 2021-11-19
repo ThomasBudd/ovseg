@@ -1,11 +1,12 @@
 from ovseg.model.SegmentationModel import SegmentationModel
 from ovseg.model.SegmentationEnsemble import SegmentationEnsemble
-from ovseg.model.model_parameters_segmentation import get_model_params_effUNet
 from ovseg.utils.io import load_pkl
 from os import environ, listdir
 from os.path import join, exists
 from time import sleep
 import numpy as np
+import sys
+import time
 
 class SHA(object):
     
@@ -19,7 +20,7 @@ class SHA(object):
                  validation_set_name: str,
                  default_model_params: dict,
                  n_epochs_per_stage: list=[250, 500, 1000, 1000],
-                 vfs_per_stage: list=[[5], [5], [5], [6,7]],
+                 vfs_per_stage: list=[[5], [5], [5], [6, 7]],
                  hpo_name=None,
                  n_processes: int=8,
                  n_models_per_stage=None,
@@ -67,13 +68,18 @@ class SHA(object):
                                                                                  len(self.vf_per_stage[0]),
                                                                                  self.n_models_per_stage[0]))
         
-        
+        # path where all models will be found
         self.path_to_models = join(environ['OV_DATA_BASE'],
                                    'trained_models',
                                    self.data_name,
                                    self.preprocessed_name)
+        # we will also store some protocol there
+        self.hpo_log = join(self.path_to_models,
+                            '_'.join('hpo',
+                                     self.hpo_name,
+                                     str(self.i_process))+'.txt')
         
-        self.stage = self.get_current_stage()
+        self.stage = self.get_current_stage()        
         self.print_info()
     
     def launch(self):
@@ -91,7 +97,10 @@ class SHA(object):
                                              preprocessed_name=self.preprocessed_name,
                                              model_name=model_name,
                                              model_paramters=model_params)
-                    model.training.tain()                
+                    
+                    self.print_and_log('Training '+model_name+' fold '+str(vf)+'.',1)
+                    model.training.tain()           
+                    self.print_and_log('Evaluate '+self.validation_set_name,1)     
                     model.eval_raw_dataset(self.validation_set_name)
                     model.clean()
             
@@ -101,6 +110,10 @@ class SHA(object):
             # now we can update the stage
             self.stage += 1
         
+        # evaluate the models as ensembles
+        self.evaluate_ensembles()
+        
+        # publish the results
         self.print_final_results()
 
     def get_params_names_and_vfs(self):
@@ -110,13 +123,23 @@ class SHA(object):
             # accross all processes
             ind_vf_list = self.list_kronecker([list(range(self.n_com)), 
                                                self.vfs_per_stage[0]])
+            self.print_and_log('Building parameters for first stage models:')
+            self.print_and_log('Stage 0: {} models'.format(self.n_combinations), 1)
         
+            # print parameter grids
+            self.print_and_log('Parameters grids: ')
+            for name, grid in zip(self.parameter_names, self.parameter_grids):
+                name_str = '->'.join(name)
+                val_str = ', '.join([str(val) for val in grid])
+                self.print_and_log('\t' + name_str + ': '+val_str)
+                
             # pick indices and folds from this process
             ind_vf_list = ind_vf_list[self.i_process::self.n_processes]
         
             num_epochs = self.n_epochs_per_stage[0]
             params_list, names_list, vfs_list = [], [], []
             
+            self.print_and_log('Models in this process: ')
             for ind, vf in ind_vf_list:
                 
                 # make model parameters
@@ -137,6 +160,10 @@ class SHA(object):
                 names_list.append(model_name)
                 
                 vfs_list.append(vf)
+            
+                self.print_and_log('\t'+model_name+', fold '+str(vf))
+            
+            self.print_and_log('Starting training...', 2)
             
             return params_list, names_list, vfs_list
         else:
@@ -162,35 +189,150 @@ class SHA(object):
             n_best = self.n_models_per_stage // len(vfs)
             best_scores_and_names = scores_and_names[:n_best]
             
-            # print results
-            print('Evaluated models and found best scores:')
-            for score, name in best_scores_and_names:
-                print(name + ': {:.2f}'.format(score))
-            print()
-            
             # best model parameters
             n_epochs = self.n_epochs_per_stage[s-1]
             best_model_params = []
+            
+            self.print_and_log('Evaluated best models from previous stage:')
+            
             for score, model_name in best_scores_and_names:
                 model_params = load_pkl(join(self.path_to_models,
                                              model_name,
                                              'model_parameters.pkl'))
+                # already change the num_epochs
                 model_params['training']['num_epochs'] = n_epochs
                 best_model_params.append(model_params)
+                
+                # print results with hyper parameters
+                values = [self.nested_get(model_params, names) for names in self.parameter_names]
+                values = ['{:.3f}'.format(val) for val in values]
+                
+                keys = ['->'.join(names) for names in self.parameter_names]
+                
+                param_str = ', '.join([key+': '+val for key, val in zip(keys, values)])
+                
+                self.print_and_log(model_name+':: '+param_str+' score: {:.2f}'.format(score))
             
+            # now get all combinations of indices and vfs
+            ind_vf_list = self.list_kronecker([list(range(len(best_model_params))), 
+                                               vfs])
+
+            self.print_and_log('Stage {}: {} models.'.format(self.stage,
+                                                             len(ind_vf_list)))
+            self.print_and_log('Models in this process:')
+            
+            # pick indices and folds from this process
+            ind_vf_list = ind_vf_list[self.i_process::self.n_processes]
+            params_list, names_list, vfs_list = [], [], []
+            
+            for ind, vf in ind_vf_list:
+                
+                # model_parameters
+                params_list.append(best_model_params[ind])
+                
+                model_name = '_'.join(['hpo',
+                                       self.hpo_name,
+                                       str(num_epochs),
+                                       str(ind)])
+                
+                self.print_and_log('\t'+model_name+', fold '+str(vf))
+                
+                names_list.append(model_name)
+                
+                vfs_list.append(vf)
+            
+            self.print_and_log('Starting training...', 2)
+    
+            return params_list, names_list, vfs_list
+
+    def _get_last_vfs(self):
+        vfs = []
+        last_num_epochs = self.n_epochs_per_stage[-1]
+        for vf, n_epochs in zip(self.vfs_per_stage, self.n_epochs_per_stage):
+            if n_epochs == last_num_epochs:
+                vfs = vfs + vf
+
+        return np.unique(vfs).tolist()
+
+    def _get_final_model_names(self):
+        
+        all_models = listdir(self.path_to_models)
+        last_num_epochs = self.n_epochs_per_stage[-1]
+        pref = '_'.join(['hpo',
+                         self.hpo_name,
+                         str(last_num_epochs)])
+        return [m for m in all_models if m.startswith(pref)]
+
+    def evaluate_ensembles(self):
+        
+        # validation folds that should be there after the last stage
+        vfs = self._get_last_vfs()
+        # all model_names
+        model_names = self._get_final_model_names()
+
+        # model_names in this process
+        model_names = model_names[self.i_process::self.n_processes]
+        
+        for model_name in model_names:
+            self.print_and_log('Evaluate ensebmle '+model_name)
+            ens = self.ensemble_class(val_fold=vfs,
+                                      data_name=self.data_name,
+                                      preprocessed_name=self.preprocessed_name,
+                                      model_name=model_name)
+            ens.eval_raw_dataset(self.validation_set_name)
+    
+    def print_final_results(self):
+        
+        # validation folds that should be there after the last stage
+        vfs = self._get_last_vfs()
+        # all model_names
+        model_names = self._get_final_model_names()
+        
+        scores = []
+        for model_name in model_names:
+            
+            path_to_results = join(self.path_to_models,
+                                   model_name,
+                                   'ensemble_'+'_'.join([str(vf) for vf in vfs]),
+                                   self.validation_set_name+'_results.pkl')
+            
+            while not exists(path_to_results):
+                print('Waiting for '+model_name+' to finish evaluation')
+                sleep(60)
+                scores.append(self.get_model_score(model_name, vfs))
+        
+        scores_and_names = sorted(zip(scores, model_names))
+        
+        self.print_and_log('Evaluated best model ensembles:')
+        
+        for score, model_name in scores_and_names:
+            model_params = load_pkl(join(self.path_to_models,
+                                         model_name,
+                                         'model_parameters.pkl'))
+            
+            # print results with hyper parameters
+            values = [self.nested_get(model_params, names) for names in self.parameter_names]
+            values = ['{:.3f}'.format(val) for val in values]
+            
+            keys = ['->'.join(names) for names in self.parameter_names]
+            
+            param_str = ', '.join([key+': '+val for key, val in zip(keys, values)])
+            
+            self.print_and_log(model_name+':: '+param_str+' score: {:.2f}'.format(score))
     
     def print_info(self):
-        print('Got {} combinations of hyper-parameters in total'.format(self.n_combinations))
-        print('Plan for all stages:')
+        self.print_and_log('Got {} combinations of hyper-parameters in total'.format(self.n_combinations))
+        self.print_and_log('Plan for all stages:')
         for i in range(self.n_stages):
             
             n_models = self.n_models_per_stage[i]
             n_epochs = self.n_epochs_per_stage[i]
             folds = ', '.join([str(vf) for vf in self.vfs_per_stage[i]])
-            print('Stage {}: n_models {}, n_epochs: {}, folds: {}'.format(i,
-                                                                            n_models,
-                                                                            n_epochs,
-                                                                            folds))
+            self.print_and_log('Stage {}: n_models {}, n_epochs: {}, folds: {}'.format(i,
+                                                                                       n_models,
+                                                                                       n_epochs,
+                                                                                       folds),
+                               2 if i == self.n_stages-1 else 0)
     
     def training_finished(self, model_name, fold, check_results=True):
         path_to_trn_attr = join(self.path_to_models,
@@ -214,17 +356,14 @@ class SHA(object):
                                    'fold_'+str(fold),
                                    self.validation_set_name+'_results.pkl')
 
-        else:
-            # we look at the ensembling results (last stage)
-            all_vfs = []
-            for vfs in self.vfs_per_stage:
-                all_vfs = all_vfs + vfs
-            all_vfs = np.unique(all_vfs).tolist()
+        # else:
+        #     # we look at the ensembling results (last stage)
+        #     all_vfs = self._get_last_vfs()
             
-            path_to_results = join(self.path_to_models,
-                                   model_name,
-                                   'ensemble_'+'_'.join([str(vf) for vf in all_vfs]),
-                                   self.validation_set_name+'_results.pkl')
+        #     path_to_results = join(self.path_to_models,
+        #                            model_name,
+        #                            'ensemble_'+'_'.join([str(vf) for vf in all_vfs]),
+        #                            self.validation_set_name+'_results.pkl')
         
         return exists(path_to_results)
 
@@ -296,10 +435,19 @@ class SHA(object):
 
     def get_model_score(self, model_name, fold):
         
-        path_to_results = join(self.path_to_models,
-                               model_name,
-                               'fold_'+str(fold),
-                               self.validation_set_name+'_results.pkl')
+        
+        if isinstance(fold, list):
+            path_to_results = join(self.path_to_models,
+                                   model_name,
+                                   'ensemble_'+'_'.join([str(vf) for vf in fold]),
+                                   self.validation_set_name+'_results.pkl')
+        else:
+            # check if the results file is at that position
+            path_to_results = join(self.path_to_models,
+                                   model_name,
+                                   'fold_'+str(fold),
+                                   self.validation_set_name+'_results.pkl')
+            
         
         results = load_pkl(path_to_results)
         
@@ -321,11 +469,36 @@ class SHA(object):
         
         return kronecker_list
         
-    def nested_set(dic, keys, value):
+    def nested_set(self, dic, keys, value):
         for key in keys[:-1]:
             dic = dic[key]
         dic[keys[-1]] = value
     
+    def nested_get(self, dic, keys):
+        for key in keys[:-1]:
+            dic = dic[key]
+        return dic[keys[-1]]
+
+    def print_and_log(self, s, n_newlines=0):
+        '''
+        prints, flushes and writes in the training_log
+        '''
+        if len(s) > 0:
+            print(s)
+        for _ in range(n_newlines):
+            print('')
+        sys.stdout.flush()
+        t = time.localtime()
+        if len(s) > 0:
+            ts = time.strftime('%Y-%m-%d %H:%M:%S: ', t)
+            s = ts + s + '\n'
+        else:
+            s = '\n'
+        mode = 'a' if exists(self.hpo_log) else 'w'
+        with open(self.hpo_log, mode) as log_file:
+            log_file.write(s)
+            for _ in range(n_newlines):
+                log_file.write('\n')
     
 # %%
 parameter_grids = [[0.99, 0.98, 0.95, 0.9],
