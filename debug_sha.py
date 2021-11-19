@@ -21,6 +21,7 @@ default_model_params = get_model_params_effUNet()
 default_model_params['network']['filters'] = 8
 default_model_params['training']['num_epochs'] = 40
 default_model_params['data']['trn_dl_params']['num_workers'] = 5
+default_model_params['data']['trn_dl_params']['epoch_len'] = 50
 
 n_epochs_per_stage = [10, 20, 40, 40]
 vfs_per_stage = [[5], [5], [5], [6, 7]]

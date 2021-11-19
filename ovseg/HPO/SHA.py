@@ -76,8 +76,9 @@ class SHA(object):
         # we will also store some protocol there
         self.hpo_log = join(self.path_to_models,
                             '_'.join(['hpo',
-                                     self.hpo_name,
-                                     str(self.i_process)])+'.txt')
+                                      'log',
+                                      self.hpo_name,
+                                      str(self.i_process)])+'.txt')
         
         self.stage = self.get_current_stage()        
         self.print_info()
