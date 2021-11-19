@@ -38,7 +38,7 @@ class SHA(object):
         self.n_epochs_per_stage = n_epochs_per_stage
         self.hpo_name = hpo_name
         self.n_processes = n_processes
-        self,n_models_per_stage = n_models_per_stage
+        self.n_models_per_stage = n_models_per_stage
         self.model_class = model_class
         self.ensemble_class = ensemble_class
         
