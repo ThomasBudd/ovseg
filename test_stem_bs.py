@@ -39,7 +39,7 @@ model_params['data']['val_dl_params']['batch_size'] = bs
 model_name = 'test_bs_' + str(bs)
 if args.small:
     model_name += '_small'
-model = SegmentationModel(val_fold=args.vf,
+model = SegmentationModel(val_fold=0,
                           data_name='OV04',
                           preprocessed_name=p_name,
                           model_name=model_name,
