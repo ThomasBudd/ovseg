@@ -130,7 +130,7 @@ class SHA(object):
             self.print_and_log('Parameters grids: ')
             for name, grid in zip(self.parameter_names, self.parameter_grids):
                 name_str = '->'.join(name)
-                val_str = ', '.join([str(val) for val in grid])
+                val_str = ', '.join(['{:.3f}'.format(val) for val in grid])
                 self.print_and_log('\t' + name_str + ': '+val_str)
                 
             # pick indices and folds from this process
@@ -165,7 +165,7 @@ class SHA(object):
             
             self.print_and_log('Starting training...', 2)
             
-            return params_list, names_list, vfs_list
+            return zip(params_list, names_list, vfs_list)
         else:
             s = self.stage
             
@@ -243,7 +243,7 @@ class SHA(object):
             
             self.print_and_log('Starting training...', 2)
     
-            return params_list, names_list, vfs_list
+            return zip(params_list, names_list, vfs_list)
 
     def _get_last_vfs(self):
         vfs = []
