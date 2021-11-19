@@ -39,6 +39,6 @@ sha = SHA(data_name=data_name,
           n_epochs_per_stage=n_epochs_per_stage,
           vfs_per_stage=vfs_per_stage,
           hpo_name=hpo_name,
-          n_processes=8)
+          n_processes=n_processes)
 
 sha.launch()
