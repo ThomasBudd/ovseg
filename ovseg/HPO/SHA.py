@@ -121,7 +121,7 @@ class SHA(object):
         if self.stage == 0:
             # list of all parameter indices and validation folds
             # accross all processes
-            ind_vf_list = self.list_kronecker([list(range(self.n_com)), 
+            ind_vf_list = self.list_kronecker([list(range(self.n_combinations)), 
                                                self.vfs_per_stage[0]])
             self.print_and_log('Building parameters for first stage models:')
             self.print_and_log('Stage 0: {} models'.format(self.n_combinations), 1)
