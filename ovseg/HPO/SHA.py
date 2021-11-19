@@ -187,7 +187,7 @@ class SHA(object):
             # get best scores
             scores_and_names = sorted(zip(prev_scores, prev_models))
             vfs = self.vfs_per_stage[s]
-            n_best = self.n_models_per_stage // len(vfs)
+            n_best = self.n_models_per_stage[s] // len(vfs)
             best_scores_and_names = scores_and_names[:n_best]
             
             # best model parameters
