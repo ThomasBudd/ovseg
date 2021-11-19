@@ -6,7 +6,7 @@ from time import sleep
 
 parser = argparse.ArgumentParser()
 parser.add_argument("bs", type=int)
-parser.add_argument("--small", type=bool, default=False, action='store_true')
+parser.add_argument("--small", default=False, action='store_true')
 args = parser.parse_args()
 
 p_name='pod_067'
@@ -37,7 +37,8 @@ model_params['data']['val_dl_params']['min_biased_samples'] = int(bs/3+0.5)
 model_params['data']['trn_dl_params']['batch_size'] = bs
 model_params['data']['val_dl_params']['batch_size'] = bs
 model_name = 'test_bs_' + str(bs)
-
+if args.small:
+    model_name += '_small'
 model = SegmentationModel(val_fold=args.vf,
                           data_name='OV04',
                           preprocessed_name=p_name,
