@@ -62,7 +62,7 @@ class SHA(object):
             self.n_models_per_stage = [self.n_combinations//(2**s) * len(vfs)
                                        for s, vfs in enumerate(self.vfs_per_stage)]
         
-        if not self.n_models_per_stage[0] == self.n_combinations * len(self.vf_per_stage[0]):
+        if not self.n_models_per_stage[0] == self.n_combinations * len(self.vfs_per_stage[0]):
             raise ValueError('Number of parameter combinations {} times folds {} '
                              'and models in first stage {} don\'t match.'.format(self.n_combinations,
                                                                                  len(self.vf_per_stage[0]),
