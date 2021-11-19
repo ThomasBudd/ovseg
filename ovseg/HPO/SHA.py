@@ -99,7 +99,7 @@ class SHA(object):
                                              model_parameters=model_params)
                     
                     self.print_and_log('Training '+model_name+' fold '+str(vf)+'.',1)
-                    model.training.tain()           
+                    model.training.train()           
                     self.print_and_log('Evaluate '+self.validation_set_name,1)     
                     model.eval_raw_dataset(self.validation_set_name)
                     model.clean()
@@ -130,7 +130,7 @@ class SHA(object):
             self.print_and_log('Parameters grids: ')
             for name, grid in zip(self.parameter_names, self.parameter_grids):
                 name_str = '->'.join(name)
-                val_str = ', '.join(['{:.3f}'.format(val) for val in grid])
+                val_str = ', '.join(['{:.3e}'.format(val) for val in grid])
                 self.print_and_log('\t' + name_str + ': '+val_str)
                 
             # pick indices and folds from this process
