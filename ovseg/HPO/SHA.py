@@ -96,7 +96,7 @@ class SHA(object):
                                              data_name=self.data_name,
                                              preprocessed_name=self.preprocessed_name,
                                              model_name=model_name,
-                                             model_paramters=model_params)
+                                             model_parameters=model_params)
                     
                     self.print_and_log('Training '+model_name+' fold '+str(vf)+'.',1)
                     model.training.tain()           
