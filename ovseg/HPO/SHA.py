@@ -346,7 +346,7 @@ class SHA(object):
         
         trn_attr = load_pkl(path_to_trn_attr)
         
-        if trn_attr['epochs_done'] <= trn_attr['num_epochs']:
+        if trn_attr['epochs_done'] < trn_attr['num_epochs']:
             return False
         
         
