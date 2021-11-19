@@ -157,7 +157,7 @@ class SHA(object):
                 model_name = '_'.join(['hpo',
                                        self.hpo_name,
                                        str(num_epochs),
-                                       '{:.03d}'.format(ind)])
+                                       '{:03d}'.format(ind)])
                 names_list.append(model_name)
                 
                 vfs_list.append(vf)
@@ -234,7 +234,7 @@ class SHA(object):
                 model_name = '_'.join(['hpo',
                                        self.hpo_name,
                                        str(num_epochs),
-                                       '{:.03d}'.format(ind)])
+                                       '{:03d}'.format(ind)])
                 
                 self.print_and_log('\t'+model_name+', fold '+str(vf))
                 
