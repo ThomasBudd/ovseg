@@ -422,7 +422,7 @@ class SHA(object):
                 
                 for fold in vfs:
                     
-                    while not self.training_finished(model_name, fold, self.stage < self.n_stages):
+                    if self.training_finished(model_name, fold, self.stage < self.n_stages):
                         models_finished += 1
             
             stage_finished = models_finished == n_models
