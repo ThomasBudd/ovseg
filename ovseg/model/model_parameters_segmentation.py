@@ -257,7 +257,7 @@ def get_model_params_effUNet(patch_size=[32, 256, 256],
                                                          n_fg_classes=n_fg_classes,
                                                          out_shape=out_shape,
                                                          larger_res_encoder=larger_res_encoder,
-                                                         fp32=True)
+                                                         fp32=False)
     model_params['architecture'] = 'unetresstemencoder'
     
     return model_params
