@@ -27,7 +27,7 @@ n_epochs_per_stage = [100, 333, 1000, 1000]
 vfs_per_stage = [[5], [5], [5], [6, 7]]
 n_models_per_stage = [80, 24, 8, 8]
 
-hpo_name = 'bs_6_in'
+hpo_name = 'bs_2_in'
 n_processes = 8
 
 sha = SHA(data_name=data_name,
