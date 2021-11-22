@@ -20,7 +20,7 @@ parameter_grids = [[0.99, 0.98, 0.95, 0.9],
 target_metrics = ['dice_9']
 validation_set_name = 'BARTS'
 default_model_params = get_model_params_effUNet()
-default_model_params['data']['trn_dl_params']['num_workers'] = 5
+default_model_params['data']['trn_dl_params']['num_workers'] = 8
 default_model_params['training']['lr_params']['n_warmup_epochs'] = 25
 
 n_epochs_per_stage = [100, 333, 1000, 1000]
