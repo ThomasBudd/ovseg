@@ -162,8 +162,15 @@ class SHA(object):
                 names_list.append(model_name)
                 
                 vfs_list.append(vf)
-            
+                
+                values = ['{:.3e}'.format(val) for val in parameter_values]
+                
+                keys = ['->'.join(names) for names in self.parameter_names]
+                
+                param_str = ', '.join([key+': '+val for key, val in zip(keys, values)])
+                
                 self.print_and_log('\t'+model_name+', fold '+str(vf))
+                self.print_and_log(param_str)
             
             self.print_and_log('Starting training...', 2)
             
