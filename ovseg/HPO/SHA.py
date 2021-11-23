@@ -1,12 +1,13 @@
 from ovseg.model.SegmentationModel import SegmentationModel
 from ovseg.model.SegmentationEnsemble import SegmentationEnsemble
 from ovseg.utils.io import load_pkl
-from os import environ, listdir
+from os import environ, listdir, makedirs
 from os.path import join, exists
 from time import sleep
 import numpy as np
 import sys
 import time
+import copy
 
 class SHA(object):
     
@@ -144,7 +145,7 @@ class SHA(object):
             for ind, vf in ind_vf_list:
                 
                 # make model parameters
-                params = self.default_model_params.copy()
+                params = copy.deepcopy(self.default_model_params)
                 params['training']['num_epochs'] = num_epochs
                 parameter_values = self.parameter_combinations[ind]
                 
@@ -369,6 +370,10 @@ class SHA(object):
         return exists(path_to_results)
 
     def get_current_stage(self):
+        
+        if not exists(self.path_to_models):
+            makedirs(self.path_to_models)
+            return 0
         
         models_found = [model_name for model_name in listdir(self.path_to_models)
                         if model_name.startswith('hpo_'+self.hpo_name)]
