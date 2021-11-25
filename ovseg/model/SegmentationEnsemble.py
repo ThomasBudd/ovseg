@@ -8,6 +8,7 @@ import torch
 from ovseg.utils.torch_np_utils import check_type
 import numpy as np
 from tqdm import tqdm
+from time import sleep
 
 
 class SegmentationEnsemble(ModelBase):
@@ -35,19 +36,9 @@ class SegmentationEnsemble(ModelBase):
 
         # create all models
         self.models = []
-        not_finished_folds = self._find_incomplete_folds()
-        for fold in self.val_fold:
-            if fold in not_finished_folds:
-                print('Skipping fold {}. Training was not finished.'.format(fold))
-                continue
-            print('Creating model from fold: '+str(fold))
-            model = self.create_model(fold)
-            self.models.append(model)
 
-        # change in evaluation mode
-        for model in self.models:
-            model.network.eval()
-
+        if self.all_folds_complete():       
+            self.initialise_models()
         # now we do a hack by initialising the two objects like this...
         self.preprocessing = self.models[0].preprocessing
         self.postprocessing = self.models[0].postprocessing
@@ -76,6 +67,20 @@ class SegmentationEnsemble(ModelBase):
                                   model_parameters_name=self.model_parameters_name
                                   )
         return model
+
+    def initialise_models(self):
+        not_finished_folds = self._find_incomplete_folds()
+        for fold in self.val_fold:
+            if fold in not_finished_folds:
+                print('Skipping fold {}. Training was not finished.'.format(fold))
+                continue
+            print('Creating model from fold: '+str(fold))
+            model = self.create_model(fold)
+            self.models.append(model)
+
+        # change in evaluation mode
+        for model in self.models:
+            model.network.eval()
 
     def is_cascade(self):
         return 'prev_stages' in self.model_parameters
@@ -108,6 +113,18 @@ class SegmentationEnsemble(ModelBase):
             print("It seems like the folds " + str(not_finished_folds) +
                   " have not finished training.")
             return False
+    
+    def wait_until_all_folds_complete(self):
+        
+        waited = 0
+        while not self.all_folds_complete():
+            sleep(60)
+            waited += 60
+            
+            if waited % 600 == 0:
+                print('Waited {} seconds'.format(waited))
+        
+        self.initialise_models()
 
     def initialise_preprocessing(self):
         return

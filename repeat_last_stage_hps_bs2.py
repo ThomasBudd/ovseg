@@ -8,8 +8,8 @@ parser.add_argument("i", type=int)
 args = parser.parse_args()
 
 
-ind = [str(k) for k in [0, 0, 3, 3, 4, 4, 6, 6]][args.i]
-vf = [str(vf) for vf in 4*[5,6]][args.i]
+ind = [k for k in [0, 0, 3, 3, 4, 4, 6, 6]][args.i]
+vf = [vf for vf in 4*[6,7]][args.i]
 
 data_name = 'OV04'
 preprocessed_name = 'pod_067'
@@ -26,7 +26,6 @@ ens = SegmentationEnsemble(val_fold=[5,6,7],
                           preprocessed_name=preprocessed_name,
                           model_name=model_name)
 
-while not ens.all_folds_complete():
-    sleep(60)
+ens.wait_until_all_folds_complete()
 
 ens.eval_raw_dataset('BARTS')
