@@ -37,6 +37,8 @@ class SegmentationEnsemble(ModelBase):
         # create all models
         self.models = []
 
+
+        self.models_initialised = False
         if self.all_folds_complete():       
             self.initialise_models()
         # now we do a hack by initialising the two objects like this...
@@ -69,6 +71,11 @@ class SegmentationEnsemble(ModelBase):
         return model
 
     def initialise_models(self):
+        
+        if self.models_initialised:
+            print('Models were already initialised')
+            return
+        
         not_finished_folds = self._find_incomplete_folds()
         for fold in self.val_fold:
             if fold in not_finished_folds:
@@ -81,6 +88,8 @@ class SegmentationEnsemble(ModelBase):
         # change in evaluation mode
         for model in self.models:
             model.network.eval()
+        
+        self.models_initialised
 
     def is_cascade(self):
         return 'prev_stages' in self.model_parameters
@@ -147,6 +156,11 @@ class SegmentationEnsemble(ModelBase):
     def __call__(self, data_tpl):
         if not self.all_folds_complete():
             print('WARNING: Ensemble is used without all training folds being completed!!')
+        
+        if not self.models_initialised:
+            print('Models were not initialised. Trying to do it now...')
+            self.wait_until_all_folds_complete()
+        
         scan = data_tpl['scan']
 
         # also the path where we will look for already executed npz prediction
