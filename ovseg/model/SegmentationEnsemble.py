@@ -41,21 +41,6 @@ class SegmentationEnsemble(ModelBase):
         self.models_initialised = False
         if self.all_folds_complete():       
             self.initialise_models()
-        # now we do a hack by initialising the two objects like this...
-        self.preprocessing = self.models[0].preprocessing
-        self.postprocessing = self.models[0].postprocessing
-
-        self.n_fg_classes = self.models[0].n_fg_classes
-        if self.is_cascade():
-            self.prev_stages = self.model_parameters['prev_stages'] 
-            self.prev_stages_keys = []
-            for prev_stage in self.prev_stages:
-                key = '_'.join(['prediction',
-                                prev_stage['data_name'],
-                                prev_stage['preprocessed_name'],
-                                prev_stage['model_name']])
-                self.prev_stages_keys.append(key)
-
 
     def create_model(self, fold):
         model = SegmentationModel(val_fold=fold,
@@ -89,7 +74,22 @@ class SegmentationEnsemble(ModelBase):
         for model in self.models:
             model.network.eval()
         
-        self.models_initialised
+        self.models_initialised = True
+        
+        # now we do a hack by initialising the two objects like this...
+        self.preprocessing = self.models[0].preprocessing
+        self.postprocessing = self.models[0].postprocessing
+
+        self.n_fg_classes = self.models[0].n_fg_classes
+        if self.is_cascade():
+            self.prev_stages = self.model_parameters['prev_stages'] 
+            self.prev_stages_keys = []
+            for prev_stage in self.prev_stages:
+                key = '_'.join(['prediction',
+                                prev_stage['data_name'],
+                                prev_stage['preprocessed_name'],
+                                prev_stage['model_name']])
+                self.prev_stages_keys.append(key)
 
     def is_cascade(self):
         return 'prev_stages' in self.model_parameters
