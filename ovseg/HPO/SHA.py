@@ -238,18 +238,24 @@ class SHA(object):
             
             for ind, vf in ind_vf_list:
                 
-                # model_parameters
-                params_list.append(best_model_params[ind])
-                
-                
+                # check if we're training folds of an already
+                # existing model
                 if num_epochs == prev_n_epochs:
-                    # if we're repeating the 
+                    # if we're repeating, reuse the model name
+                    # from the previous stage
                     model_name = best_scores_and_names[ind][1]
+                    
+                    # when no model parameters are given, the stored ones
+                    # are loaded
+                    params_list.append(None)
                 else:
+                    # create new model name
                     model_name = '_'.join(['hpo',
                                            self.hpo_name,
                                            str(num_epochs),
                                            '{:03d}'.format(ind)])
+                    # take best previous parameters
+                    params_list.append(best_model_params[ind])
                 
                 self.print_and_log('\t'+model_name+', fold '+str(vf))
                 
@@ -272,12 +278,30 @@ class SHA(object):
 
     def _get_final_model_names(self):
         
-        all_models = listdir(self.path_to_models)
-        last_num_epochs = self.n_epochs_per_stage[-1]
-        pref = '_'.join(['hpo',
-                         self.hpo_name,
-                         str(last_num_epochs)])
-        return [m for m in all_models if m.startswith(pref)]
+        # get model names and vfs from the second last stage
+        prev_n_epochs = self.n_epochs_per_stage[-2]
+        prev_vfs = self.vfs_per_stage[-2]
+        prev_pref = '_'.join(['hpo',
+                              self.hpo_name,
+                              str(prev_n_epochs)])
+        prev_models = [mn for mn in listdir(self.path_to_models)
+                       if mn.startswith(prev_pref)]
+        prev_models_vfs = self.list_kronecker([prev_models, prev_vfs])
+
+        # get all scores        
+        prev_scores = [self.get_model_score(model_name, vf)
+                       for model_name, vf in prev_models_vfs]
+        
+        # get best scores
+        scores_and_names = sorted(zip(prev_scores, prev_models), reverse=True)
+        vfs = self.vfs_per_stage[-1]
+        n_best = self.n_models_per_stage[-1] // len(vfs)
+        best_scores_and_names = scores_and_names[:n_best]
+        
+        # keep only the model names
+        model_names = [model_name for score, model_name in best_scores_and_names]
+    
+        return model_names
 
     def evaluate_ensembles(self):
         
@@ -291,32 +315,15 @@ class SHA(object):
         
         for model_name in model_names:
             
-            self.print_and_log('Evaluate ensebmle '+model_name)
-            
-            # check if all folders are there
-            path_to_model = join(self.path_to_models,
-                                 model_name)
-            
-            if not np.all([exists(join(path_to_model, 'fold_{}'.format(vf)))
-                           for vf in vfs]):
-                self.print_and_log('Some trainings haven\'t even started...')
-                
-                waited = 0
-                
-                while not np.all([exists(join(path_to_model, 'fold_{}'.format(vf)))
-                           for vf in vfs]):
-                    sleep(60)
-                    waited += 60
-                    
-                    if waited >= self.max_wait_ensemble:
-                        self.print_and_log('Waited {} seconds and still some trainings '
-                                           'haven\'t started. Stopping ensemble evaulation.'.format(waited))
-                    
+            self.print_and_log('Evaluate ensemble '+model_name)
             
             ens = self.ensemble_class(val_fold=vfs,
                                       data_name=self.data_name,
                                       preprocessed_name=self.preprocessed_name,
                                       model_name=model_name)
+            
+            ens.wait_until_all_folds_complete()
+            
             ens.eval_raw_dataset(self.validation_set_name)
     
     def print_final_results(self):
