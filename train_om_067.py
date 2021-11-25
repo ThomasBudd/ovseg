@@ -10,7 +10,7 @@ args = parser.parse_args()
 
 patch_size = [40, 320, 320]
 model_name = 'U-Net5'
-p_name='pod_067'
+p_name='om_067'
 use_prg_trn = True
 out_shape = [[24, 192, 192],
              [28, 224, 224],
@@ -42,5 +42,4 @@ ens = SegmentationEnsemble(val_fold=list(range(5,8)),
                              model_name=model_name)
 
 ens.wait_until_all_folds_complete()
-
 ens.eval_raw_dataset('BARTS')
