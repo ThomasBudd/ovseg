@@ -26,7 +26,8 @@ class SHA(object):
                  n_processes: int=8,
                  n_models_per_stage=None,
                  model_class=SegmentationModel,
-                 ensemble_class=SegmentationEnsemble):
+                 ensemble_class=SegmentationEnsemble,
+                 max_wait_ensemble=3600):
         self.data_name = data_name
         self.preprocessed_name = preprocessed_name
         self.i_process = i_process
@@ -42,6 +43,7 @@ class SHA(object):
         self.n_models_per_stage = n_models_per_stage
         self.model_class = model_class
         self.ensemble_class = ensemble_class
+        self.max_wait_ensemble = max_wait_ensemble
         
         assert len(parameter_names) == len(parameter_grids), 'nber of parameters and grids don\'t match!'
         assert len(vfs_per_stage) == len(n_epochs_per_stage), 'nber of stages not consistent'
@@ -239,10 +241,15 @@ class SHA(object):
                 # model_parameters
                 params_list.append(best_model_params[ind])
                 
-                model_name = '_'.join(['hpo',
-                                       self.hpo_name,
-                                       str(num_epochs),
-                                       '{:03d}'.format(ind)])
+                
+                if num_epochs == prev_n_epochs:
+                    # if we're repeating the 
+                    model_name = best_scores_and_names[ind][1]
+                else:
+                    model_name = '_'.join(['hpo',
+                                           self.hpo_name,
+                                           str(num_epochs),
+                                           '{:03d}'.format(ind)])
                 
                 self.print_and_log('\t'+model_name+', fold '+str(vf))
                 
@@ -283,7 +290,29 @@ class SHA(object):
         model_names = model_names[self.i_process::self.n_processes]
         
         for model_name in model_names:
+            
             self.print_and_log('Evaluate ensebmle '+model_name)
+            
+            # check if all folders are there
+            path_to_model = join(self.path_to_models,
+                                 model_name)
+            
+            if not np.all([exists(join(path_to_model, 'fold_{}'.format(vf)))
+                           for vf in vfs]):
+                self.print_and_log('Some trainings haven\'t even started...')
+                
+                waited = 0
+                
+                while not np.all([exists(join(path_to_model, 'fold_{}'.format(vf)))
+                           for vf in vfs]):
+                    sleep(60)
+                    waited += 60
+                    
+                    if waited >= self.max_wait_ensemble:
+                        self.print_and_log('Waited {} seconds and still some trainings '
+                                           'haven\'t started. Stopping ensemble evaulation.'.format(waited))
+                    
+            
             ens = self.ensemble_class(val_fold=vfs,
                                       data_name=self.data_name,
                                       preprocessed_name=self.preprocessed_name,
@@ -308,7 +337,8 @@ class SHA(object):
             while not exists(path_to_results):
                 print('Waiting for '+model_name+' to finish evaluation')
                 sleep(60)
-                scores.append(self.get_model_score(model_name, vfs))
+
+            scores.append(self.get_model_score(model_name, vfs))
         
         scores_and_names = sorted(zip(scores, model_names))
         
