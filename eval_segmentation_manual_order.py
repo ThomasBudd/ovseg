@@ -86,18 +86,18 @@ for i in tqdm(range(len(ds))):
 
     pred = get_pred(data_tpl)
     
-dscs = np.zeros(len(lb_classes))
-for j, c in enumerate(lb_classes):
-    
-    seg_c = (lb == c).astype(float)
-    pred_c = (pred == c).astype(float)
-    
-    if seg_c.max() > 0:
-        dscs[j] = 200 * np.sum(seg_c * pred_c) / np.sum(seg_c + pred_c)
-    else:
-        dscs[j] = np.nan
+    dscs = np.zeros(len(lb_classes))
+    for j, c in enumerate(lb_classes):
         
-    dscs_list.append(dscs)
+        seg_c = (lb == c).astype(float)
+        pred_c = (pred == c).astype(float)
+        
+        if seg_c.max() > 0:
+            dscs[j] = 200 * np.sum(seg_c * pred_c) / np.sum(seg_c + pred_c)
+        else:
+            dscs[j] = np.nan
+            
+        dscs_list.append(dscs)
 
 dscs_list = np.array(dscs_list)
 
