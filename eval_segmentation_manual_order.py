@@ -7,7 +7,7 @@ from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 from tqdm import tqdm
 
 
-lb_classes = [1, 9, 2, 13, 15, 17]
+lb_classes = [1, 2, 9, 13, 15, 17]
 # order = [3, 2, 0, 1, 4, 5]
 order = [1, 0, 2, 3, 4, 5]
 # prev_stages = [
