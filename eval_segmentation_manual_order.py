@@ -8,20 +8,33 @@ from tqdm import tqdm
 
 
 lb_classes = [1, 2, 9, 13, 15, 17]
-order = [3, 2, 0, 1, 4, 5]
-prev_stages = [
-               {'data_name':'OV04',
-                'preprocessed_name': 'om_067',
-                'model_name': 'larger_res_encoder',
-                'lb_classes': [1]},
+# order = [3, 2, 0, 1, 4, 5]
+order = [1, 0, 2, 3, 4, 5]
+# prev_stages = [
+#                {'data_name':'OV04',
+#                 'preprocessed_name': 'om_067',
+#                 'model_name': 'larger_res_encoder',
+#                 'lb_classes': [1]},
+#                {'data_name': 'OV04',
+#                 'preprocessed_name': 'multiclass_1_2_9',
+#                 'model_name': 'U-Net5',
+#                 'lb_classes': [2]},
+#                {'data_name':'OV04',
+#                 'preprocessed_name': 'pod_067',
+#                 'model_name': 'larger_res_encoder',
+#                 'lb_classes': [9]},
+#                {'data_name': 'OV04',
+#                 'preprocessed_name': 'multiclass_13_15_17',
+#                 'model_name': 'U-Net5',
+#                 'lb_classes': [13, 15, 17]}]
+prev_stages = [{'data_name':'OV04',
+                'preprocessed_name': 'multiclass_1_9',
+                'model_name': 'U-Net5_new_sampling',
+                'lb_classes': [1, 9]},
                {'data_name': 'OV04',
                 'preprocessed_name': 'multiclass_1_2_9',
                 'model_name': 'U-Net5',
                 'lb_classes': [2]},
-               {'data_name':'OV04',
-                'preprocessed_name': 'pod_067',
-                'model_name': 'larger_res_encoder',
-                'lb_classes': [9]},
                {'data_name': 'OV04',
                 'preprocessed_name': 'multiclass_13_15_17',
                 'model_name': 'U-Net5',
