@@ -304,12 +304,3 @@ class SegmentationEnsemble(ModelBase):
             if filename not in listdir(pred_folder):
                 self.__call__(data_tpl)
                 self.save_prediction(data_tpl, folder_name='cross_validation')
-
-# %%
-
-def catch():
-    try:
-        asd()
-    except Exception as e:
-        raise ValueError(e)
-catch()
