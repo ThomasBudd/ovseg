@@ -40,7 +40,7 @@ class bin_cross_entropy(nn.Module):
         assert logs.shape == yb_oh.shape
         yb_int = torch.argmax(yb_oh, 1)
         yb_bin = (yb_int > 0).type(yb_int.dtype)
-        logs_bin = torch.cat([logs[:, :1], logs[:, 1:].max(1, keepdim=True)], 1)
+        logs_bin = torch.cat([logs[:, :1], logs[:, 1:].max(1, keepdim=True)[0]], 1)
         l = self.loss(logs_bin, yb_bin)
         if mask is not None:
             l = l * mask[:, 0]
@@ -88,8 +88,8 @@ class bin_dice_loss(nn.Module):
         dim = list(range(2, len(pred.shape)))
         # remove the background channel from both as the dice will only
         # be computed over foreground classes
-        pred = pred[:, 1:].max(1, keepdim=True)
-        yb_oh = yb_oh[:, 1:].max(1, keepdim=True)
+        pred = pred[:, 1:].max(1, keepdim=True)[0]
+        yb_oh = yb_oh[:, 1:].max(1, keepdim=True)[0]
         
         if mask is not None:
             pred = pred * mask
