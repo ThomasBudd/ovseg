@@ -440,6 +440,12 @@ class SegmentationModel(ModelBase):
                 seg_lb[seg == i+1] = c
             seg = seg_lb
         else:
+            
+            # remove all uninteresting lb classes fr bin_dice computation
+            seg_lb = np.zeros_like(seg)
+            for c in self.lb_classes:
+                seg_lb[seg == c] = c
+            seg = seg_lb
             if self.preprocessing.reduce_lb_to_single_class:
                 seg = (seg > 0).astype(seg.dtype)
         # results are returned as a dict
