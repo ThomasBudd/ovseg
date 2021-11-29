@@ -10,7 +10,7 @@ parser.add_argument("exp", type=int)
 args = parser.parse_args()
 
 patch_size = [32, 216, 216]
-use_prg_trn = False
+use_prg_trn = True
 out_shape = [[20, 128, 128],
              [22, 152, 152],
              [30, 192, 192],
