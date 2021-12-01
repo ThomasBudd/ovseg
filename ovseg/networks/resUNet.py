@@ -474,6 +474,31 @@ class UpLinear(nn.Module):
     def forward(self, xb):
         return self.up(xb)
 
+
+# %%
+class PixelShuffle3d(nn.Module):
+    
+    def __init__(self, r=2):
+        super().__init__()
+        self.r = r
+        self.shuffle = nn.PixelShuffle(self.r)
+
+    def forward(self, xb):
+        
+        return torch.stack([self.shuffle(xb[:, :, z]) for z in range(xb.shape[2])], 2)
+
+class PixelUnshuffle3d(nn.Module):
+    
+    def __init__(self, r=2):
+        super().__init__()
+        self.r = r
+        self.shuffle = nn.PixelUnshuffle(self.r)
+
+    def forward(self, xb):
+        
+        return torch.stack([self.shuffle(xb[:, :, z]) for z in range(xb.shape[2])], 2)
+
+
 # %% now simply the logits
 class Logits(nn.Module):
 
@@ -818,6 +843,162 @@ class UNetResStemEncoder(nn.Module):
             p = (1 - h) * param_dict['p_dropout_logits'][0] + h * param_dict['p_dropout_logits'][1]
             for l in self.all_logits:
                 l.dropout.p = p
+
+
+# %%
+class UNetResShuffleEncoder(nn.Module):
+
+    def __init__(self, in_channels, out_channels, is_2d, z_to_xy_ratio, block='res',
+                 n_blocks_list=[1, 1, 2, 6, 3], filters=16, filters_max=384,
+                 conv_params=None, norm=None, norm_params=None, nonlin_params=None, 
+                 bottleneck_ratio=2, stochdepth_rate=0.0, p_dropout_logits=0.0, use_se=False,
+                 use_logit_bias=False, r_shuffle=2):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.is_2d = is_2d
+        self.block = block
+        self.z_to_xy_ratio = z_to_xy_ratio
+        self.n_blocks_list = n_blocks_list
+        self.filters = filters
+        self.filters_max = filters_max
+        self.conv_params = conv_params
+        self.norm = norm
+        self.norm_params = norm_params
+        self.nonlin_params = nonlin_params
+        self.p_dropout_logits = p_dropout_logits
+        self.bottleneck_ratio = bottleneck_ratio
+        self.stochdepth_rate = stochdepth_rate
+        self.use_se = use_se
+        self.use_logit_bias = use_logit_bias
+        self.r_shuffle = r_shuffle
+        # we double the amount of channels every downsampling step
+        # up to a max of filters_max
+        self.n_stages = len(n_blocks_list)
+        assert self.n_blocks_list[0] == 1, 'The stem version requires only one block on top'
+        self.filters_list = [min([self.filters*2**i, self.filters_max])
+                             for i in range(self.n_stages)]
+
+        # first let's make the lists for the blocks on both pathes
+        # number of input and output channels of the blocks on the contracting path
+        self.in_channels_down_list = [self.in_channels, self.r_shuffle**2*self.in_channels] + self.filters_list[1:-1]
+        self.in_channels_up_list = [2*f for f in self.filters_list[:-1]]
+        self.out_channels_list = self.filters_list
+        self.z_to_xy_ratio_list = [max([self.z_to_xy_ratio / 2**i, 1])
+                                   for i in range(self.n_stages)]
+        if self.is_2d:
+            self.kernel_sizes_up = (self.n_stages-1) * [3]
+        else:
+            self.kernel_sizes_up = [(1, 3, 3) if z_to_xy >= 2 else 3 for z_to_xy in 
+                                    self.z_to_xy_ratio_list]
+        self.init_stride_list = [1, 1] + [get_stride(ks) for ks in self.kernel_sizes_up[1:]]
+
+
+        # blocks on the contracting path
+        self.first_shuffle = PixelUnshuffle3d(self.r_shuffle)
+        
+        self.blocks_down = []
+        for n_blocks, in_ch, out_ch, init_stride, z_to_xy in zip(self.n_blocks_list[1:],
+                                                                 self.in_channels_down_list[1:],
+                                                                 self.out_channels_list[1:],
+                                                                 self.init_stride_list[1:],
+                                                                 self.z_to_xy_ratio_list[1:]):
+            self.blocks_down.append(stackedResBlocks(block=self.block,
+                                                     n_blocks=n_blocks,
+                                                     in_channels=in_ch,
+                                                     out_channels=out_ch,
+                                                     init_stride=init_stride,
+                                                     is_2d=self.is_2d,
+                                                     z_to_xy_ratio=z_to_xy,
+                                                     conv_params=self.conv_params,
+                                                     norm=self.norm,
+                                                     norm_params=self.norm_params,
+                                                     nonlin_params=self.nonlin_params,
+                                                     bottleneck_ratio=self.bottleneck_ratio,
+                                                     stochdepth_rate=self.stochdepth_rate,
+                                                     use_se=self.use_se))
+
+        # blocks on the upsampling path
+        self.blocks_up = []
+        for in_channels, out_channels, kernel_size in zip(self.in_channels_up_list[1:],
+                                                          self.out_channels_list[1:],
+                                                          self.kernel_sizes_up[1:]):
+            block = ConvNormNonlinBlock(in_channels=in_channels,
+                                        out_channels=out_channels,
+                                        is_2d=self.is_2d,
+                                        kernel_size=kernel_size,
+                                        conv_params=self.conv_params,
+                                        norm=self.norm,
+                                        norm_params=self.norm_params,
+                                        nonlin_params=self.nonlin_params)
+            self.blocks_up.append(block)
+        
+        
+        self.last_shuffle = PixelShuffle3d(self.r_shuffle)
+
+        # upsaplings
+        self.upsamplings = []
+        for in_channels, out_channels, kernel_size in zip(self.out_channels_list[2:],
+                                                          self.out_channels_list[1:-1],
+                                                          self.kernel_sizes_up[1:]):
+            self.upsamplings.append(UpConv(in_channels=in_channels,
+                                           out_channels=out_channels,
+                                           is_2d=self.is_2d,
+                                           kernel_size=get_stride(kernel_size)))
+        # logits
+        self.all_logits = [Logits(in_channels=self.out_channels_list[1],
+                                          out_channels=self.out_channels * self.r_shuffle**2,
+                                          is_2d=self.is_2d,
+                                          p_dropout=self.p_dropout_logits,
+                                          use_bias=self.use_logit_bias)]
+        for in_channels in self.out_channels_list[1:]:
+            self.all_logits.append(Logits(in_channels=in_channels,
+                                          out_channels=self.out_channels,
+                                          is_2d=self.is_2d,
+                                          p_dropout=self.p_dropout_logits,
+                                          use_bias=self.use_logit_bias))
+
+        # now important let's turn everything into a module list
+        self.blocks_down = nn.ModuleList(self.blocks_down)
+        self.blocks_up = nn.ModuleList(self.blocks_up)
+        self.upsamplings = nn.ModuleList(self.upsamplings)
+        self.all_logits = nn.ModuleList(self.all_logits)
+
+    def forward(self, xb):
+        # keep all out tensors from the contracting path
+        
+        xb = self.first_shuffle(xb)
+        
+        xb_list = []
+        logs_list = []
+        # contracting path
+        for block in self.blocks_down[:-1]:
+            xb = block(xb)
+            xb_list.append(xb)
+
+        # bottom block
+        xb = self.blocks_down[-1](xb)
+        logs_list.append(self.all_logits[-1](xb))
+
+        # expanding path with logits
+        for i in range(self.n_stages - 3, -1, -1):
+            xb = self.upsamplings[i](xb)
+            xb = torch.cat([xb, xb_list[i]], 1)
+            del xb_list[i]
+            xb = self.blocks_up[i](xb)
+            logs = self.all_logits[i+1](xb)
+            logs_list.append(logs)
+
+        logs_list.append(self.last_shuffle(self.all_logits[0](xb)))        
+        # as we iterate from bottom to top we have to flip the logits list
+        return logs_list[::-1]
+
+    def update_prg_trn(self, param_dict, h, indx=None):
+        if 'p_dropout_logits' in param_dict:
+            p = (1 - h) * param_dict['p_dropout_logits'][0] + h * param_dict['p_dropout_logits'][1]
+            for l in self.all_logits:
+                l.dropout.p = p
+
 
 
 # %%
@@ -1212,7 +1393,12 @@ class UResNet(nn.Module):
 
 # %%
 if __name__ == '__main__':
-    net = UNetResDecoder(1, 2, False, 5/0.67, n_blocks_list=[1, 1, 2, 6, 3],
-                         filters=16)
-    print(net)
+    net = UNetResShuffleEncoder(in_channels=1,
+                                out_channels=2,
+                                is_2d=False,
+                                z_to_xy_ratio=8,
+                                filters=4).cuda()
+    
+    xb = torch.zeros((1, 1, 32, 256, 256)).cuda()
+    logs_list = net(xb)
     
