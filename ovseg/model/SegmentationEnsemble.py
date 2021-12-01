@@ -153,7 +153,7 @@ class SegmentationEnsemble(ModelBase):
     def initialise_training(self):
         return
 
-    def __call__(self, data_tpl, ignore_npz_files=False):
+    def __call__(self, data_tpl):
         if not self.all_folds_complete():
             print('WARNING: Ensemble is used without all training folds being completed!!')
         
@@ -168,8 +168,6 @@ class SegmentationEnsemble(ModelBase):
                              self.preprocessed_name, self.model_name)
         
         # the preprocessing will only do something if the image is not preprocessed yet
-        if ignore_npz_files:
-            im = self.preprocessing(data_tpl, preprocess_only_im=True)
         if not self.preprocessing.is_preprocessed_data_tpl(data_tpl):
             for model in self.models:
                 # try find the npz file if there was already a prediction.
@@ -190,7 +188,7 @@ class SegmentationEnsemble(ModelBase):
                 # try find the npz file if there was already a prediction.
                 path_to_npz = join(pred_npz_path, model.val_fold_str, scan+'.npz')
                 path_to_npy = join(pred_npz_path, model.val_fold_str, scan+'.npy')
-                if exists(path_to_npy) and not ignore_npz_files:
+                if exists(path_to_npy):
                     try:
                         pred = np.load(path_to_npy)
                     except ValueError:
@@ -198,7 +196,7 @@ class SegmentationEnsemble(ModelBase):
                         if im is None:
                             im = self.preprocessing(data_tpl, preprocess_only_im=True)
                         pred = model.prediction(im).cpu().numpy()
-                elif exists(path_to_npz) and not ignore_npz_files:
+                elif exists(path_to_npz):
                     try:
                         pred = np.load(path_to_npz)['arr_0']
                     except ValueError:
@@ -210,19 +208,7 @@ class SegmentationEnsemble(ModelBase):
                     pred = model.prediction(im).cpu().numpy()
                 preds.append(pred)
             
-            try:
-                ens_pred = np.stack(preds).mean(0)
-            except ValueError as e:
-                
-                if ignore_npz_files:
-                    print('Something went wrong when trying to predict scan '+scan)
-                    
-                    raise ValueError(e)
-                
-                else:
-                    print('Caught error for scan {}. Predicting again without loaing npz'.format(scan))
-                
-                    return self.__call__(data_tpl, True)
+            ens_pred = np.stack(preds).mean(0)
                 
             data_tpl[self.pred_key] = ens_pred
 
