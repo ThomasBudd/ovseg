@@ -20,7 +20,7 @@ data_name = 'OV04'
 p_name = 'pod_om_08_5'
 
 model_names = ['U-Net4', 'effU-Net4']
-architctures = ['unetresencoder', 'unettesshuffleencoder']
+architctures = ['unetresencoder', 'unetresshuffleencoder']
 
 for model_name, architecture in zip(model_names, architctures):
 

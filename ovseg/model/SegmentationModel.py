@@ -21,7 +21,7 @@ from ovseg.data.Dataset import raw_Dataset
 from ovseg.networks.UNet import UNet
 from ovseg.networks.nfUNet import nfUNet
 from ovseg.networks.iUNet import iUNet
-from ovseg.networks.resUNet import UNetResEncoder, UNetResDecoder, UResNet, UNetResStemEncoder
+from ovseg.networks.resUNet import UNetResEncoder, UNetResDecoder, UResNet, UNetResStemEncoder, UNetResShuffleEncoder
 from ovseg.networks.refine_res_networks import RefineResNet
 from ovseg.training.SegmentationTraining import SegmentationTraining, SegmentationTrainingV2
 from ovseg.training.ClassEnsemblingTraining import ClassEnsemblingTraining
@@ -185,6 +185,8 @@ class SegmentationModel(ModelBase):
             self.network = UResNet(**params).to(self.dev)
         elif self.model_parameters['architecture'].lower() == 'unetresstemencoder':
             self.network = UNetResStemEncoder(**params).to(self.dev)
+        elif self.model_parameters['architecture'].lower() == 'unetresshuffleencoder':
+            self.network = UNetResShuffleEncoder(**params).to(self.dev)
         else:
             raise ValueError('Got unkown architecture '+self.model_parameters['architecture'])
 
