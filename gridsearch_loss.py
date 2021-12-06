@@ -33,7 +33,7 @@ default_model_params = get_model_params_3d_res_encoder_U_Net(patch_size,
                                                              z_to_xy_ratio=5.0/0.8,
                                                              out_shape=out_shape,
                                                              n_fg_classes=2)
-default_model_params['architecture'] = 'unetresshuffleencoder'
+# default_model_params['architecture'] = 'unetresshuffleencoder'
 default_model_params['training']['loss_params'] = {'loss_names': ['unifiedFocalLoss'],
                                                    'loss_kwargs': {'delta': 0.5,
                                                                    'gamma': 0,
