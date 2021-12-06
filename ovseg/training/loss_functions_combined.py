@@ -38,7 +38,16 @@ class weighted_combined_loss(nn.Module):
         # if no weights are given the losses are just summed without any weight
         self.loss_weights = loss_weights if loss_weights is not None else [1] * len(self.loss_names)
         # if no kwargs are given we just use blanks
-        self.loss_kwargs = loss_kwargs if loss_kwargs is not None else [{}] * len(self.loss_names)
+        
+        if loss_kwargs is None:
+            
+            self.loss_kwargs = [{}] * len(self.loss_names)
+        
+        elif len(loss_names) == 1 and isinstance(loss_kwargs, dict):
+            self.loss_kwargs = [loss_kwargs]
+        else:
+            self.loss_kwargs = loss_kwargs
+            
 
         assert len(loss_names) > 0, 'no names for losses given.'
         assert len(loss_names) == len(self.loss_weights), 'Got different amount of loss names and weights'

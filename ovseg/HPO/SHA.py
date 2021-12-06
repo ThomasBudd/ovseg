@@ -77,8 +77,9 @@ class SHA(object):
                                    self.data_name,
                                    self.preprocessed_name)
         # we will also store some protocol there
+        self.hpo_pref = 'sha'
         self.hpo_log = join(self.path_to_models,
-                            '_'.join(['hpo',
+                            '_'.join([self.hpo_pref,
                                       'log',
                                       self.hpo_name,
                                       str(self.i_process)])+'.txt')
@@ -104,8 +105,11 @@ class SHA(object):
                     
                     self.print_and_log('Training '+model_name+' fold '+str(vf)+'.',1)
                     model.training.train()           
-                    self.print_and_log('Evaluate '+self.validation_set_name,1)     
-                    model.eval_raw_dataset(self.validation_set_name)
+                    self.print_and_log('Evaluate '+self.validation_set_name,1)  
+                    if self.validation_set_name == 'validation':
+                        model.eval_validation_set()
+                    else:
+                        model.eval_raw_dataset(self.validation_set_name)
                     model.clean()
             
             # wait until all other processes are done
@@ -157,7 +161,7 @@ class SHA(object):
                 
                 params_list.append(params)
                 
-                model_name = '_'.join(['hpo',
+                model_name = '_'.join([self.hpo_pref,
                                        self.hpo_name,
                                        str(num_epochs),
                                        '{:03d}'.format(ind)])
@@ -183,7 +187,7 @@ class SHA(object):
             # get model names and vfs from the previous stage
             prev_n_epochs = self.n_epochs_per_stage[s-1]
             prev_vfs = self.vfs_per_stage[s-1]
-            prev_pref = '_'.join(['hpo',
+            prev_pref = '_'.join([self.hpo_pref,
                                   self.hpo_name,
                                   str(prev_n_epochs)])
             prev_models = [mn for mn in listdir(self.path_to_models)
@@ -250,7 +254,7 @@ class SHA(object):
                     params_list.append(None)
                 else:
                     # create new model name
-                    model_name = '_'.join(['hpo',
+                    model_name = '_'.join([self.hpo_pref,
                                            self.hpo_name,
                                            str(num_epochs),
                                            '{:03d}'.format(ind)])
@@ -281,7 +285,7 @@ class SHA(object):
         # get model names and vfs from the second last stage
         prev_n_epochs = self.n_epochs_per_stage[-2]
         prev_vfs = self.vfs_per_stage[-2]
-        prev_pref = '_'.join(['hpo',
+        prev_pref = '_'.join([self.hpo_pref,
                               self.hpo_name,
                               str(prev_n_epochs)])
         prev_models = [mn for mn in listdir(self.path_to_models)
@@ -305,6 +309,8 @@ class SHA(object):
 
     def evaluate_ensembles(self):
         
+        if self.validation_set_name == 'validation':
+            return
         # validation folds that should be there after the last stage
         vfs = self._get_last_vfs()
         # all model_names
@@ -420,14 +426,14 @@ class SHA(object):
             return 0
         
         models_found = [model_name for model_name in listdir(self.path_to_models)
-                        if model_name.startswith('hpo_'+self.hpo_name)]
+                        if model_name.startswith(self.hpo_pref+'_'+self.hpo_name)]
         
         for s in range(self.n_stages):
             
             n_models = self.n_models_per_stage[s]
             n_epochs = self.n_epochs_per_stage[s]
             vfs = self.vfs_per_stage[s]
-            pref = '_'.join(['hpo', self.hpo_name, str(n_epochs)])
+            pref = '_'.join([self.hpo_pref, self.hpo_name, str(n_epochs)])
             
             n_models_finished = 0
             stage_models = [model_name for model_name in models_found
@@ -454,11 +460,11 @@ class SHA(object):
     def wait_until_stage_finishes(self):
         
         models_found = [model_name for model_name in listdir(self.path_to_models)
-                        if model_name.startswith('hpo_'+self.hpo_name)]
+                        if model_name.startswith(self.hpo_pref+'_'+self.hpo_name)]
         n_models = self.n_models_per_stage[self.stage]
         n_epochs = self.n_epochs_per_stage[self.stage]
         vfs = self.vfs_per_stage[self.stage]
-        pref = '_'.join(['hpo', self.hpo_name, str(n_epochs)])
+        pref = '_'.join([self.hpo_pref, self.hpo_name, str(n_epochs)])
         
         stage_finished = False
         
