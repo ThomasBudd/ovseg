@@ -49,6 +49,6 @@ hpo = GridSearch(data_name,
                  default_model_params,
                  vfs=[5,6,7],
                  hpo_name='ufl',
-                 n_processes=10)
+                 n_processes=9)
 
 hpo.launch()
