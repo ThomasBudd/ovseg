@@ -265,7 +265,8 @@ class SLDS_loss(nn.Module):
 
 class modifiedTverskyLoss(nn.Module):
     
-    def __init__(self, gamma, delta, eps=1e-5):
+    def __init__(self, gamma=0.5, delta=0.5, eps=1e-5):
+        # with these constants this loss equals the DICE loss
         super().__init__()
         
         self.gamma = gamma
@@ -303,17 +304,20 @@ class modifiedTverskyLoss(nn.Module):
         mTI = (tp + self.eps) / (tp + self.delta * fp + (1-self.delta) * fn + self.eps)
         # the mean is computed over the batch and channel axis (excluding background)
         
-        mTI_loss = torch.pow(1 - 2*mTI, 1 - self.gamma)
+        mTI_loss = torch.pow(1 - mTI, 1 - self.gamma)
         
         return  mTI_loss.mean()
 
 class modifiedFocalLoss(nn.Module):
     
-    def __init__(self, gamma, delta):
+    def __init__(self, gamma=0.0, delta=0.5, scale=2.0):
+        # with these constants the modified focal loss should equal the 
+        # cross entropy
         
         super().__init__()
         self.gamma = gamma
         self.delta = delta
+        self.scale = scale
     
     def forward(self, logs, yb_oh, mask=None):
         
@@ -325,29 +329,32 @@ class modifiedFocalLoss(nn.Module):
         pred = torch.nn.functional.softmax(logs, 1)
         log_pred = torch.nn.functional.log_softmax(logs, 1)
         
-        weight_bg = torch.pow(1 - pred[:, 0], self.gamma) * (1-self.delta)
+        weight_bg = torch.pow(1 - pred[:, 0:], self.gamma) * (1-self.delta)
         
-        loss_bg = -2 * weight_bg * yb_oh[:, 0] * log_pred[:, 0]
-        loss_fg = -2 * self.delta * yb_oh[:, 1:] * log_pred[:, 1:]
-        loss_fg = loss_fg.sum(dim=1)
         
-        return loss_bg.mean() + loss_fg.mean()
+        loss_bg = -1*self.scale * weight_bg * yb_oh[:, 0:] * log_pred[:, 0:]
+        loss_fg = -1*self.scale * self.delta * yb_oh[:, 1:] * log_pred[:, 1:]
+        loss = torch.cat([loss_bg, loss_fg], 1)
+        
+        return loss.sum(dim=1).mean()
 
 class unifiedFocalLoss(nn.Module):
     
-    def __init__(self, gamma, delta, eps=1e-5):
+    def __init__(self, gamma, delta, eps=1e-5, scale=2):
         super().__init__()
         
         self.gamma = gamma
         self.delta = delta
         self.eps = eps
+        self.scale = scale
     
         self.tversky_loss = modifiedTverskyLoss(gamma=self.gamma,
                                                 delta=self.delta,
                                                 eps=self.eps)
         
         self.focal_loss = modifiedFocalLoss(gamma=self.gamma,
-                                            delta=self.delta)
+                                            delta=self.delta,
+                                            scale=self.scale)
         
     def forward(self, logs, yb_oh, mask):
         
