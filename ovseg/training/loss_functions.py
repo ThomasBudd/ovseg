@@ -321,26 +321,20 @@ class modifiedFocalLoss(nn.Module):
     
     def forward(self, logs, yb_oh, mask=None):
         
-        nch = logs.shape[1]
-        
-        logs = logs.reshape((-1, nch))
-        yb_oh = yb_oh.reshape((-1, nch))
-        
         pred = torch.nn.functional.softmax(logs, 1)
         log_pred = torch.nn.functional.log_softmax(logs, 1)
         
         weight_bg = torch.pow(1 - pred[:, 0:], self.gamma) * (1-self.delta)
         
+        focal_bg = -1*self.scale * weight_bg * yb_oh[:, 0:] * log_pred[:, 0:]
+        focal_fg = -1*self.scale * self.delta * yb_oh[:, 1:] * log_pred[:, 1:]
+        focal = torch.cat([focal_bg, focal_fg], 1)
         
-        loss_bg = -1*self.scale * weight_bg * yb_oh[:, 0:] * log_pred[:, 0:]
-        loss_fg = -1*self.scale * self.delta * yb_oh[:, 1:] * log_pred[:, 1:]
-        loss = torch.cat([loss_bg, loss_fg], 1)
-        
-        return loss.sum(dim=1).mean()
+        return focal.sum(dim=1).mean()
 
 class unifiedFocalLoss(nn.Module):
     
-    def __init__(self, gamma, delta, eps=1e-5, scale=2):
+    def __init__(self, gamma, delta, eps=1e-5, scale=2.0):
         super().__init__()
         
         self.gamma = gamma

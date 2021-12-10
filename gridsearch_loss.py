@@ -15,7 +15,7 @@ parameter_names = [['training', 'loss_params', 'loss_kwargs', 'delta'],
                    ['training', 'loss_params', 'loss_kwargs', 'gamma']]
 
 parameter_grids = [np.linspace(0.1, 0.9, 9),
-                   np.linspace(0.05, 0.5, 10)]
+                   np.linspace(0.05, 0.45, 9)]
 
 target_metrics = ['dice_1', 'dice_9']
 validation_set_name = 'BARTS'
