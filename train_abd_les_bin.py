@@ -14,6 +14,7 @@ ppath = os.path.join(OV_PREPROCESSED, data_name, p_name)
 if not os.path.exists(ppath):
     
     prep = SegmentationPreprocessing(apply_resizing=True,
+                                     target_spacing=[5.0, 0.8, 0.8], 
                                      apply_pooling=False,
                                      apply_windowing=True,
                                      lb_classes=[1,2,3,4,5,6,7],
