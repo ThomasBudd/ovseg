@@ -1,4 +1,4 @@
-from ovseg.prerpocessing.SegmentationPreprocessing import SegmentationPreprocessing
+from ovseg.preprocessing.SegmentationPreprocessing import SegmentationPreprocessing
 from ovseg.model.SegmentationEnsemble import SegmentationEnsemble
 from ovseg.model.SegmentationModel import SegmentationModel
 import os
