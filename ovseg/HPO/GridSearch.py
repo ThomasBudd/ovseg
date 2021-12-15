@@ -362,9 +362,24 @@ class GridSearch(SHA):
                 
                 print('Current stage: '+str(s))
                 return s
+            
+            if not self.evaluation_finished(model_name):
+                return s
         
         print('GridSearch finished')
         return self.n_stages
+    
+    def evaluation_finished(self, model_name):
+        
+        if self.validation_set_name == 'validation':
+            raise NotImplementedError('Have to implement cross validation case')
+        else:
+            
+            path_to_results = join(self.path_to_models,
+                                   model_name,
+                                   'ensemble_'+'_'.join([str(f) for f in self.vfs]),
+                                   self.validation_set_name+'_results.pkl')
+            return exists(path_to_results)
     
     def print_info(self):
         
