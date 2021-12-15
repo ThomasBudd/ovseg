@@ -24,11 +24,7 @@ p_name = 'pod_om_08_5'
 model_name = 'bs4_wd_mu_{}_{}'.format(args.m, args.w)
 
 momentum = [0.99, 0.97][args.m]
-weight_decay = np.logspace(np.log10(5e-5), np.log10(5e-6), 5)[args.w]
-
-model_names = ['U-Net4', 'effU-Net4']
-architctures = ['unetresencoder', 'unetresshuffleencoder']
-
+weight_decay = np.logspace(np.log10(1e-4), np.log10(1e-5), 5)[args.w]
 
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
                                                      z_to_xy_ratio=5/0.8,
@@ -38,6 +34,7 @@ model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
                                                      out_shape=out_shape)
 model_params['training']['loss_params'] = {'loss_names': ['cross_entropy',
                                                           'dice_loss']}
+model_params['data']['trn_dl_params']['batch_size'] = 4
 model_params['training']['opt_params']['momentum'] = momentum
 model_params['training']['opt_params']['weight_decay'] = weight_decay
     
