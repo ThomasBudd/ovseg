@@ -364,6 +364,7 @@ class GridSearch(SHA):
                 return s
             
             if not self.evaluation_finished(model_name):
+                print('Current stage: '+str(s))
                 return s
         
         print('GridSearch finished')
