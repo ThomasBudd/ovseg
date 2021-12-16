@@ -354,15 +354,3 @@ class unifiedFocalLoss(nn.Module):
     def forward(self, logs, yb_oh, mask):
         
         return self.tversky_loss(logs, yb_oh, mask) + self.focal_loss(logs, yb_oh, mask)
-
-
-class FocalLoss(nn.Module):
-
-    def __init__(self, gamma, delta):
-        super(FocalLoss, self).__init__()
-        self.gamma = gamma
-        self.delta = delta
-
-    def forward(self, target, input):
-        input_soft = F.softmax(input, dim=1)
-        weight = torch.pow(1. - input_soft, self.gamma)
