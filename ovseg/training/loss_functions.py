@@ -324,9 +324,9 @@ class modifiedFocalLoss(nn.Module):
         pred = torch.nn.functional.softmax(logs, 1)
         log_pred = torch.nn.functional.log_softmax(logs, 1)
         
-        weight_bg = torch.pow(1 - pred[:, 0:], self.gamma) * (1-self.delta)
+        weight_bg = torch.pow(1 - pred[:, :1], self.gamma) * (1-self.delta)
         
-        focal_bg = -1*self.scale * weight_bg * yb_oh[:, 0:] * log_pred[:, 0:]
+        focal_bg = -1*self.scale * weight_bg * yb_oh[:, :1] * log_pred[:, :1]
         focal_fg = -1*self.scale * self.delta * yb_oh[:, 1:] * log_pred[:, 1:]
         focal = torch.cat([focal_bg, focal_fg], 1)
         
