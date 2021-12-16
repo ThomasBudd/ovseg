@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import numpy as np
-
+import torch.nn.functional as F
 
 # class cross_entropy(nn.Module):
 
@@ -310,7 +310,7 @@ class modifiedTverskyLoss(nn.Module):
 
 class modifiedFocalLoss(nn.Module):
     
-    def __init__(self, gamma=0.0, delta=0.5, scale=2.0):
+    def __init__(self, gamma=0.0, delta=0.5, scale=2.0, eps=1e-5):
         # with these constants the modified focal loss should equal the 
         # cross entropy
         
@@ -318,10 +318,11 @@ class modifiedFocalLoss(nn.Module):
         self.gamma = gamma
         self.delta = delta
         self.scale = scale
+        self.eps = eps
     
     def forward(self, logs, yb_oh, mask=None):
         
-        pred = torch.nn.functional.softmax(logs, 1)
+        pred = torch.nn.functional.softmax(logs, 1).clamp(self.eps, 1-self.eps)
         log_pred = torch.nn.functional.log_softmax(logs, 1)
         
         weight_bg = torch.pow(1 - pred[:, :1], self.gamma) * (1-self.delta)
@@ -354,4 +355,14 @@ class unifiedFocalLoss(nn.Module):
         
         return self.tversky_loss(logs, yb_oh, mask) + self.focal_loss(logs, yb_oh, mask)
 
-        
+
+class FocalLoss(nn.Module):
+
+    def __init__(self, gamma, delta):
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+        self.delta = delta
+
+    def forward(self, target, input):
+        input_soft = F.softmax(input, dim=1)
+        weight = torch.pow(1. - input_soft, self.gamma)

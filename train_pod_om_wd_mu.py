@@ -8,6 +8,7 @@ from time import sleep
 parser = argparse.ArgumentParser()
 parser.add_argument("w", type=int)
 parser.add_argument("m", type=int)
+parser.add_argument("vf", type=int)
 args = parser.parse_args()
 
 patch_size = [32, 216, 216]
@@ -38,18 +39,9 @@ model_params['data']['trn_dl_params']['batch_size'] = 4
 model_params['training']['opt_params']['momentum'] = momentum
 model_params['training']['opt_params']['weight_decay'] = weight_decay
     
-for vf in [5,6,7]:
-    
-    model = SegmentationModel(val_fold=vf,
-                              data_name=data_name,
-                              preprocessed_name=p_name, 
-                              model_name=model_name,
-                              model_parameters=model_params)
-    model.training.train()
-
-ens = SegmentationEnsemble(val_fold=list(range(5,8)),
-                           data_name=data_name,
-                           preprocessed_name=p_name, 
-                           model_name=model_name)
-
-ens.eval_raw_dataset('BARTS')
+model = SegmentationModel(val_fold=args.vf,
+                          data_name=data_name,
+                          preprocessed_name=p_name, 
+                          model_name=model_name,
+                          model_parameters=model_params)
+model.training.train()
