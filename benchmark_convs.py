@@ -5,9 +5,9 @@ import torch
 
 def benchmark(net, xb):
     
-    with torch.no_grad():
-        with torch.cuda.amp.autocast():
+    with torch.cuda.amp.autocast():
             
+        with torch.no_grad():
             for _ in range(100):
                 net(xb)
             
@@ -19,6 +19,12 @@ def benchmark(net, xb):
             et = perf_counter()
             
             print('{:.4e}s elapsed'.format(et-st))
+        for _ in range(1000):
+            net(xb)
+        
+        et = perf_counter()
+        
+        print('{:.4e}s elapsed'.format(et-st))
 
 N = 256
 F = 32
