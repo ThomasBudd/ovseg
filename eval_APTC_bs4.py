@@ -14,10 +14,11 @@ model = SegmentationModel(val_fold=args.vf,
                           data_name=data_name,
                           model_name=model_name,
                           preprocessed_name=preprocessed_name)
-model.eval_raw_data_npz('ApolloTCGA')
+model.eval_training_set(save_preds=True)
+# model.eval_raw_data_npz('ApolloTCGA')
 
-ens = SegmentationEnsemble(val_fold=[5,6,7],
-                           data_name=data_name,
-                           model_name=model_name,
-                           preprocessed_name=preprocessed_name)
-ens.eval_raw_dataset('ApolloTCGA')
+# ens = SegmentationEnsemble(val_fold=[5,6,7],
+#                            data_name=data_name,
+#                            model_name=model_name,
+#                            preprocessed_name=preprocessed_name)
+# ens.eval_raw_dataset('ApolloTCGA')
