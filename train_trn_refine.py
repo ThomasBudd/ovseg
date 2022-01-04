@@ -48,7 +48,7 @@ model_params['training']['opt_params']['momentum'] = 0.98
 model_params['training']['opt_params']['weight_decay'] = wd
 model_params['training']['num_epochs'] = 250
 model_params['training']['lr_params']['n_warmup_epochs'] = 0
-model_params['training']['lr_params']['lr_max'] = 0.01
+model_params['training']['lr_params']['lr_max'] = 0.02
 
 model_name = 'trn_refine_{}_{}'.format(n_bias1, n_bias2)
 
