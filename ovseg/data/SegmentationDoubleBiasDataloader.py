@@ -2,7 +2,9 @@ import torch
 import numpy as np
 from ovseg.data.utils import crop_and_pad_image
 from ovseg.utils.torch_np_utils import maybe_add_channel_dim
+from ovseg.utils.io import read_nii
 import os
+import nibabel as nib
 from time import sleep
 try:
     from tqdm import tqdm
@@ -11,31 +13,46 @@ except ModuleNotFoundError:
     tqdm = lambda x: x
 
 
+def torch_resize(label, pred):
+    
+    pred_gpu = torch.from_numpy(pred[np.newaxis,np.newaxis]).cuda()
+    
+    size = label.shape
+    if len(size) == 4:
+        size = size[0]
+    
+    pred_rsz = torch.nn.functional.interpolate(pred_gpu, label.shape)
+    
+    return pred_rsz[0,0].cpu().numpy()
+    
+
 class SegmentationDoubleBiasBatchDataset(object):
 
-    def __init__(self, vol_ds, patch_size, batch_size, epoch_len=250, p_bias_sampling=0,
-                 min_biased_samples=1, augmentation=None, padded_patch_size=None,
-                 n_im_channels: int = 1, store_coords_in_ram=True, memmap='r', image_key='image',
+    def __init__(self, vol_ds, patch_size, batch_size, epoch_len=250,
+                 n_bias1=1,n_bias2=1, prev_preds:list = [],
+                 augmentation=None, padded_patch_size=None,
+                 n_im_channels: int = 1, memmap='r', image_key='image',
                  label_key='label', store_data_in_ram=False, return_fp16=True, n_max_volumes=None,
-                 bias='fg', n_fg_classes=None, *args, **kwargs):
+                 bias1='fg', n_fg_classes=None, lb_classes=None, *args, **kwargs):
         self.vol_ds = vol_ds
         self.patch_size = np.array(patch_size)
         self.batch_size = batch_size
         self.epoch_len = epoch_len
-        self.p_bias_sampling = p_bias_sampling
-        self.min_biased_samples = min_biased_samples
+        self.n_bias1 = n_bias1
+        self.n_bias2 = n_bias2
+        self.prev_preds = prev_preds
         self.augmentation = augmentation
-        self.store_coords_in_ram = store_coords_in_ram
         self.memmap = memmap
         self.image_key = image_key
         self.label_key = label_key
         self.store_data_in_ram = store_data_in_ram
         self.n_im_channels = n_im_channels
         self.return_fp16 = return_fp16
-        self.bias = bias
+        self.bias1 = bias1
         self.n_fg_classes = n_fg_classes
+        self.lb_classes = lb_classes
         
-        if self.bias == 'cl_fg':
+        if self.bias1 == 'cl_fg':
             assert isinstance(self.n_fg_classes, int)
             assert self.n_fg_classes > 0
         else:
@@ -67,15 +84,45 @@ class SegmentationDoubleBiasBatchDataset(object):
         if len(kwargs) > 0:
             print('Warning, got unused kwargs: {}'.format(kwargs))
 
-    def _get_bias_coords(self, volume):
+
+        assert(len(self.prev_preds)) > 0, 'Need infos for previous predictions'
+        self.path_to_previous_preds = os.path.join(os.environ['OV_DATA_BASE'],
+                                                   'predictions',
+                                                   *self.prev_preds)
+
+
+    def _get_bias_coords(self, labels, pred):
 
         if self.bias == 'fg':
-            return [np.stack(np.where(volume[-1] > 0)).astype(np.int16)]
+            coords1 = [np.stack(np.where(labels[-1] > 0)).astype(np.int16)]
         elif self.bias == 'cl_fg':
-            return [np.stack(np.where(volume[-1] == cl)).astype(np.int16)
-                    for cl in range(1, self.n_fg_classes + 1)]
-        elif self.bias == 'mask':
-            return [np.stack(np.where(volume[-2] > 0)).astype(np.int16)]
+            coords1 = [np.stack(np.where(labels[-1] == cl)).astype(np.int16)
+                       for cl in range(1, self.n_fg_classes + 1)]
+        
+        bin_lb = (labels[-1] > 0).astype(float)
+        bin_pred = (pred > 0).astype(float)
+        coords2 = np.stack(np.where(np.abs(bin_lb-bin_pred) > 0)).astype(np.int16)
+        
+        return [coords1, coords2]
+
+    def _get_bias2_weight(self, labels, pred):
+        
+        lb = labels[-1]
+        
+        w = 0
+        for i, cl in enumerate(self.lb_classes):
+            bin_lb = (lb == i+1).astype(float)
+            bin_pred = (pred ==cl).astype(float)
+            w += 1 - 2*(np.sum(bin_lb*bin_pred) + 1) / (np.sum(bin_lb + bin_pred) + 1)
+        
+        return w
+        
+
+    def _get_prev_pred(self, d):
+        case = os.path.basename(d).split('.')[0]
+        pred, _, _ = read_nii(os.path.join(self.path_to_previous_preds,
+                                           case+'.nii.gz'))
+        return pred
 
     def _maybe_store_data_in_ram(self):
         # maybe cleaning first, just to be sure
@@ -98,51 +145,33 @@ class SegmentationDoubleBiasBatchDataset(object):
                 self.data.append((im, labels))
                     
         # store coords in ram
-        if self.store_coords_in_ram:
-            print('Precomputing bias coordinates to store them in RAM.\n')
-            self.coords_list = []
-            self.contains_fg_list = [[] for _ in range(self.n_fg_classes)]
-            sleep(1)
-            for ind in tqdm(range(self.n_volumes)):
-                if self.store_data_in_ram:
-                    labels = self.data[ind][1]
-                else:
-                    labels = np.load(self.vol_ds.path_dicts[ind][self.label_key])
-                
-                # ensure 4d array
-                labels = maybe_add_channel_dim(labels)
-                coords = self._get_bias_coords(labels)
-                self.coords_list.append(coords)
+        print('Precomputing bias coordinates to store them in RAM.\n')
+        self.coords_list = []
+        self.bias2_weights = []
+        self.contains_fg_list = [[] for _ in range(self.n_fg_classes)]
+        sleep(1)
+        for ind in tqdm(range(self.n_volumes)):
+            if self.store_data_in_ram:
+                labels = self.data[ind][1]
+            else:
+                labels = np.load(self.vol_ds.path_dicts[ind][self.label_key])
+            # ensure 4d array
+            labels = maybe_add_channel_dim(labels)
+            
+            # get prev prediction in right shape
+            pred = self._get_prev_pred(self.vol_ds.path_dicts[ind])
+            pred = torch_resize(labels, pred)
+            
+            coords = self._get_bias_coords(labels, pred)
+            self.coords_list.append(coords)
 
-                # save which index has which fg class
-                for i in range(self.n_fg_classes):
-                    if coords[i].shape[1] > 0:
-                        self.contains_fg_list[i].append(ind)
-            print('Done')
-        else:
-            # if we don't store them in ram we will compute them and store them as .npy files
-            # in the preprocessed path
-            self.contains_fg_list = [[] for _ in range(self.n_fg_classes)]
-            self.bias_coords_fol = os.path.join(self.vol_ds.preprocessed_path,
-                                                'bias_coordinates_'+self.bias)
-            if not os.path.exists(self.bias_coords_fol):
-                os.mkdir(self.bias_coords_fol)
+            self.bias2_weights.append(self._get_bias2_weight(labels, pred))
 
-            # now we check if come cases are missing in the folder
-            print('Checking if all bias coordinates are stored in '+self.bias_coords_fol)
-            for ind, d in enumerate(self.vol_ds.path_dicts):
-                case = os.path.basename(d[self.label_key])
-                if case not in os.listdir(self.bias_coords_fol):
-                    labels = np.load(d[self.label_key])
-                    coords = self._get_bias_coords(labels)
-                    np.save(os.path.join(self.bias_coords_fol, case), coords)
-                else:
-                    coords = np.load(os.path.join(self.bias_coords_fol, case))
-                
-                # save which index has which fg class
-                for i in range(self.n_fg_classes):
-                    if coords[i].shape[1] > 0:
-                        self.contains_fg_list[i].append(ind)
+            # save which index has which fg class
+            for i in range(self.n_fg_classes):
+                if coords[0][i].shape[1] > 0:
+                    self.contains_fg_list[i].append(ind)
+        print('Done')
         
         # print how many scans we have with which class
         for c in range(self.n_fg_classes):
@@ -155,6 +184,10 @@ class SegmentationDoubleBiasBatchDataset(object):
             missing_classes = [i+1 for i, l in enumerate(self.contains_fg_list) if len(l) == 0]
             print('Warning! Some fg classes were not found in this dataset. '
                   'Missing classes: {}'.format(missing_classes))
+        
+        # now make the bias2_weight a probability distribution
+        self.bias2_weights = np.array(self.bias2_weights)
+        self.bias2_weights /= np.sum(self.bias2_weights)
         
         sleep(1)
 
@@ -208,8 +241,12 @@ class SegmentationDoubleBiasBatchDataset(object):
         
         return volumes
 
-    def _get_random_volume_ind(self, biased_sampling):
-        if biased_sampling:
+    def _get_random_volume_ind(self, bias):
+        
+        if bias == 0:
+            return np.random.randint(self.n_volumes), -1
+        
+        elif bias == 1:
             # when we do biased sampling we have to make sure that the
             # volume we're sampling actually has fg
             if len(self.availble_classes) > 0:
@@ -217,32 +254,39 @@ class SegmentationDoubleBiasBatchDataset(object):
                 return np.random.choice(self.contains_fg_list[cl]), cl
             else:
                 return np.random.randint(self.n_volumes), -1
+            
         else:
-            return np.random.randint(self.n_volumes), -1
+            return np.random.choice(list(range(self.n_volumes)), p=self.bias2_weights), -1
 
     def __len__(self):
         return self.epoch_len * self.batch_size
 
     def __getitem__(self, index):
 
-        if index % self.batch_size < self.min_biased_samples:
-            biased_sampling = True
+        
+        rel_indx = index % self.batch_size
+        if rel_indx < self.n_bias1:
+            bias = 1
+        elif rel_indx < self.n_bias1 + self.n_bias2:
+            bias = 2
         else:
-            biased_sampling = np.random.rand() < self.p_bias_sampling
+            bias = 0
 
-        ind, cl = self._get_random_volume_ind(biased_sampling)
+        ind, cl = self._get_random_volume_ind(bias)
         volumes = self._get_volume_tuple(ind)
         shape = np.array(volumes[0].shape)[1:]
 
-        if biased_sampling and cl >= 0:
+        if bias == 1 and cl >= 0:
             # let's get the list of bias coordinates
-            if self.store_coords_in_ram:
-                # loading from RAM
-                coords = self.coords_list[ind][cl]
-            else:
-                # or hard drive
-                case = os.path.basename(self.vol_ds.path_dicts[ind][self.label_key])
-                coords = np.load(os.path.join(self.bias_coords_fol, case))[cl]
+            # loading from RAM
+            coords = self.coords_list[ind][0][cl]
+
+            # pick a random item from the list and compute the upper left corner of the patch
+            n_coords = coords.shape[1]
+            coord = coords[:, np.random.randint(n_coords)] - self.patch_size//2
+        elif bias == 2 and (self.coords_list[ind][1]).shape[1] > 0:
+            # loading from RAM
+            coords = self.coords_list[ind][1]
 
             # pick a random item from the list and compute the upper left corner of the patch
             n_coords = coords.shape[1]
