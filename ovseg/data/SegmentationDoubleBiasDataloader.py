@@ -119,7 +119,7 @@ class SegmentationDoubleBiasBatchDataset(object):
         
 
     def _get_prev_pred(self, d):
-        case = os.path.basename(d).split('.')[0]
+        case = os.path.basename(d[self.label_key]).split('.')[0]
         pred, _, _ = read_nii(os.path.join(self.path_to_previous_preds,
                                            case+'.nii.gz'))
         return pred
