@@ -79,7 +79,7 @@ class SegmentationDoubleBiasBatchDataset(object):
             
             
 
-        assert(len(self.prev_preds)) > 0, 'Need infos for previous predictions'
+        assert len(self.prev_preds) > 0, 'Need infos for previous predictions'
         self.path_to_previous_preds = os.path.join(os.environ['OV_DATA_BASE'],
                                                    'predictions',
                                                    *self.prev_preds)
