@@ -95,9 +95,9 @@ class SegmentationDoubleBiasBatchDataset(object):
 
     def _get_bias_coords(self, labels, pred):
 
-        if self.bias == 'fg':
+        if self.bias1 == 'fg':
             coords1 = [np.stack(np.where(labels[-1] > 0)).astype(np.int16)]
-        elif self.bias == 'cl_fg':
+        elif self.bias1 == 'cl_fg':
             coords1 = [np.stack(np.where(labels[-1] == cl)).astype(np.int16)
                        for cl in range(1, self.n_fg_classes + 1)]
         
