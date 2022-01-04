@@ -115,7 +115,7 @@ class SegmentationDoubleBiasBatchDataset(object):
         for i, cl in enumerate(self.lb_classes):
             bin_lb = (lb == i+1).astype(float)
             bin_pred = (pred ==cl).astype(float)
-            w += 1 - 2*(np.sum(bin_lb*bin_pred) + 1) / (np.sum(bin_lb + bin_pred) + 1)
+            w += 1 - (2*np.sum(bin_lb*bin_pred) + 1) / (np.sum(bin_lb + bin_pred) + 1)
         
         return w
         
@@ -190,6 +190,8 @@ class SegmentationDoubleBiasBatchDataset(object):
         # now make the bias2_weight a probability distribution
         self.bias2_weights = np.array(self.bias2_weights)
         self.bias2_weights /= np.sum(self.bias2_weights)
+        
+        print('')
         
         sleep(1)
 
