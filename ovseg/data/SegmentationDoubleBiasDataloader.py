@@ -21,7 +21,7 @@ def torch_resize(label, pred):
     if len(size) == 4:
         size = size[0]
     
-    pred_rsz = torch.nn.functional.interpolate(pred_gpu, label.shape)
+    pred_rsz = torch.nn.functional.interpolate(pred_gpu, size)
     
     return pred_rsz[0,0].cpu().numpy()
     
