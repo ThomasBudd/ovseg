@@ -66,11 +66,7 @@ path_to_prev_fold = os.path.join(os.environ['OV_DATA_BASE'],
                                'fold_'+str(args.vf))
 model.training.load_last_checkpoint(path_to_prev_fold)
 
-model.training.num_epochs = 250
-model.training.epochs_done = 0
-model.training.trn_start_time = -1
-model.training.trn_end_time = -1
-model.training.total_train_time = 0
+model.training.num_epochs = 1250
 
 model.training.train()
 model.eval_training_set(save_preds=True)
