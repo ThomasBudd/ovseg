@@ -39,7 +39,7 @@ model_params = get_model_params_3d_res_encoder_U_Net(patch_size,
 model_params['data']['use_double_bias'] = True
 for s in ['trn_dl_params','val_dl_params']:
     model_params['data'][s]['batch_size'] = 4
-    model_params['data'][s]['pred_preds'] = prev_preds
+    model_params['data'][s]['prev_preds'] = prev_preds
     model_params['data'][s]['n_bias1'] = n_bias1
     model_params['data'][s]['n_bias2'] = n_bias2
     model_params['data'][s]['lb_classes'] = [1,9]
