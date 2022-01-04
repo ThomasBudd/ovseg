@@ -76,6 +76,13 @@ class SegmentationDoubleBiasBatchDataset(object):
             self.padded_patch_size = self.patch_size
         else:
             self.padded_patch_size = np.array(padded_patch_size)
+            
+            
+
+        assert(len(self.prev_preds)) > 0, 'Need infos for previous predictions'
+        self.path_to_previous_preds = os.path.join(os.environ['OV_DATA_BASE'],
+                                                   'predictions',
+                                                   *self.prev_preds)
 
         self._maybe_store_data_in_ram()
 
@@ -84,11 +91,6 @@ class SegmentationDoubleBiasBatchDataset(object):
         if len(kwargs) > 0:
             print('Warning, got unused kwargs: {}'.format(kwargs))
 
-
-        assert(len(self.prev_preds)) > 0, 'Need infos for previous predictions'
-        self.path_to_previous_preds = os.path.join(os.environ['OV_DATA_BASE'],
-                                                   'predictions',
-                                                   *self.prev_preds)
 
 
     def _get_bias_coords(self, labels, pred):
