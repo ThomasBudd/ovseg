@@ -46,32 +46,33 @@ for s in ['trn_dl_params','val_dl_params']:
 
 model_params['training']['opt_params']['momentum'] = 0.98
 model_params['training']['opt_params']['weight_decay'] = wd
-model_params['training']['num_epochs'] = 250
+model_params['training']['num_epochs'] = 1250
 model_params['training']['lr_params']['n_warmup_epochs'] = 0
 model_params['training']['lr_params']['lr_max'] = 0.02
 
 model_name = 'trn_refine_{}_{}'.format(n_bias1, n_bias2)
 
-model = SegmentationModel(val_fold=args.vf,
-                          data_name=data_name,
-                          model_name=model_name,
-                          preprocessed_name=preprocessed_name,
-                          model_parameters=model_params)
-# load weights
-path_to_prev_fold = os.path.join(os.environ['OV_DATA_BASE'],
-                               'trained_models',
-                               data_name,
-                               preprocessed_name,
-                               prev_model_name,
-                               'fold_'+str(args.vf))
-model.training.load_last_checkpoint(path_to_prev_fold)
+# #uncooment
+# model = SegmentationModel(val_fold=args.vf,
+#                           data_name=data_name,
+#                           model_name=model_name,
+#                           preprocessed_name=preprocessed_name,
+#                           model_parameters=model_params)
+# # load weights
+# path_to_prev_fold = os.path.join(os.environ['OV_DATA_BASE'],
+#                                'trained_models',
+#                                data_name,
+#                                preprocessed_name,
+#                                prev_model_name,
+#                                'fold_'+str(args.vf))
+# model.training.load_last_checkpoint(path_to_prev_fold)
 
-model.training.num_epochs = 1250
+# model.training.num_epochs = 1250
 
-model.training.train()
-model.eval_training_set(save_preds=True)
-model.eval_raw_data_npz('BARTS')
-model.eval_raw_data_npz('ApolloTCGA')
+# model.training.train()
+# model.eval_training_set(save_preds=True)
+# model.eval_raw_data_npz('BARTS')
+# model.eval_raw_data_npz('ApolloTCGA')
 
 
 ens = SegmentationEnsemble(val_fold=[5,6,7],
