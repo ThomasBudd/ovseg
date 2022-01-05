@@ -36,9 +36,10 @@ out_shape = [[20, 128, 128],
 larger_res_encoder = False
 
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size,
-                                                             z_to_xy_ratio=5.0/0.8,
-                                                             n_fg_classes=2,
-                                                             use_prg_trn=use_prg_trn)
+                                                     z_to_xy_ratio=5.0/0.8,
+                                                     n_fg_classes=2,
+                                                     use_prg_trn=use_prg_trn,
+                                                     out_shape=out_shape)
 
 model_params['data']['use_double_bias'] = True
 for s in ['trn_dl_params','val_dl_params']:
