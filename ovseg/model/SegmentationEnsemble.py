@@ -109,7 +109,7 @@ class SegmentationEnsemble(ModelBase):
 
             attr = load_pkl(path_to_attr)
 
-            if attr['epochs_done'] != num_epochs:
+            if attr['epochs_done'] < attr['num_epochs']:
                 not_finished_folds.append(fold)
         return not_finished_folds
 
