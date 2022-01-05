@@ -16,7 +16,7 @@ preprocessed_name = 'pod_om_08_5'
 
 wd = 1e-4
 
-prev_model_name =  'sha_wd_0.98_1000_000'
+prev_model_name =  'bs4'
 
 target_metrics = ['dice_1', 'dice_9']
 validation_set_name = 'BARTS'
