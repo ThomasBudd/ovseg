@@ -4,9 +4,9 @@ import torch.nn.functional as F
 
 class no_z_InstNorm(nn.Module):
 
-    def __init__(self, n_channels, **norm_params):
+    def __init__(self, n_channels, **kwargs):
         super().__init__()
-        self.norm = nn.InstanceNorm2d(n_channels, **norm_params)
+        self.norm = nn.InstanceNorm2d(n_channels, **kwargs)
     
     def forward(self, xb):
         
@@ -22,9 +22,9 @@ class no_z_InstNorm(nn.Module):
 
 class my_LayerNorm(nn.Module):
     
-    def __init__(self, n_channels, **norm_params):
+    def __init__(self, n_channels, **kwargs):
         super().__init__()
-        self.norm = nn.LayerNorm(n_channels, **norm_params)
+        self.norm = nn.LayerNorm(n_channels, **kwargs)
     
     def forward(self, xb):
         
