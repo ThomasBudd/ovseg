@@ -24,7 +24,7 @@ out_shape = [[20, 128, 128],
              [32, 216, 216]]
 larger_res_encoder = False
 
-for norm in ['layer', 'no_z_inst']:
+for norm in ['no_z_inst']:
     
     model_params = get_model_params_3d_res_encoder_U_Net(patch_size,
                                                          z_to_xy_ratio=5.0/0.8,
