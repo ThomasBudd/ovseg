@@ -1,15 +1,9 @@
-import numpy as np
+import torch
 
-def f(l):
-    return np.sum(np.array(l) * np.array([4, 8, 16]))
+xb = torch.rand((2, 3, 10, 50, 50))
 
-print(f([4, 2, 1]))
+nb, nc, nz, nx, ny = xb.shape
 
-print(f([6, 3, 2]))
+xb2 = torch.clone(xb).permute((0, 2, 1, 3, 4)).reshape((nb*nz, nc, nx, ny))
 
-print(f([4, 4, 2]))
-
-print(f([2, 3, 3]))
-
-print(f([2, 6, 3]))
-
+d = torch.abs(xb[0, :, 0] - xb2[0])

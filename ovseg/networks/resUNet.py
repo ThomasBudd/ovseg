@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from ovseg.networks.blocks import StochDepth, SE_unit
+from ovseg.networks.custom_normalization import no_z_InstNorm, my_LayerNorm
 import os
 import pickle
 
@@ -60,6 +61,10 @@ class ConvNormNonlinBlock(nn.Module):
                 norm_fctn = nn.BatchNorm3d
             elif norm.lower().startswith('inst'):
                 norm_fctn = nn.InstanceNorm3d
+            elif norm.lower().startswith('no_z_'):
+                norm_fctn = no_z_InstNorm
+            elif norm.lower().startswith('layer'):
+                norm_fctn = my_LayerNorm
         self.conv1 = conv_fctn(self.in_channels, self.hid_channels,
                                self.kernel_size, padding=self.padding,
                                stride=self.first_stride, **self.conv_params)
@@ -127,6 +132,10 @@ class ResBlock(nn.Module):
                 norm_fctn = nn.BatchNorm3d
             elif norm.lower().startswith('inst'):
                 norm_fctn = nn.InstanceNorm3d
+            elif norm.lower().startswith('no_z_'):
+                norm_fctn = no_z_InstNorm
+            elif norm.lower().startswith('layer'):
+                norm_fctn = my_LayerNorm
         self.conv1 = conv_fctn(self.in_channels, self.out_channels,
                                self.kernel_size, padding=get_padding(self.kernel_size),
                                stride=self.first_stride, **self.conv_params)
@@ -217,6 +226,10 @@ class ResBottleneckBlock(nn.Module):
                 norm_fctn = nn.BatchNorm3d
             elif norm.lower().startswith('inst'):
                 norm_fctn = nn.InstanceNorm3d
+            elif norm.lower().startswith('no_z_'):
+                norm_fctn = no_z_InstNorm
+            elif norm.lower().startswith('layer'):
+                norm_fctn = my_LayerNorm
         self.conv1 = conv_fctn(self.in_channels, self.hid_channels, 1, **self.conv_params)
         self.conv2 = conv_fctn(self.hid_channels, self.hid_channels,
                                self.kernel_size, padding=get_padding(self.kernel_size),
@@ -318,6 +331,10 @@ class MergeAndRunBlock(nn.Module):
                 norm_fctn = nn.BatchNorm3d
             elif norm.lower().startswith('inst'):
                 norm_fctn = nn.InstanceNorm3d
+            elif norm.lower().startswith('no_z_'):
+                norm_fctn = no_z_InstNorm
+            elif norm.lower().startswith('layer'):
+                norm_fctn = my_LayerNorm
         self.conv1 = conv_fctn(self.in_channels, self.out_channels, self.kernel_size,
                                padding=get_padding(self.kernel_size), stride=self.first_stride,
                                groups=2, **self.conv_params)

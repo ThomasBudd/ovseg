@@ -2,15 +2,20 @@ import os
 import pydicom
 import numpy as np
 # from ovseg.utils.io import read_dcms
+from tqdm import tqdm
 
 dp = 'D:\PhD\Data\ov_data_base\\raw_data\\ICON8_14_Derby_Burton'
 
-scans = os.listdir(dp)
+#scans = os.listdir(dp)
+scans = []
+for root, dirs, files in os.walk(dp):
+    if len(files) > 5:
+        scans.append(root)
 
 spacings = []
-
+slice_thicknesses = []
 weird_scans = []
-for scan in scans:
+for scan in tqdm(scans):
     
     dcms = os.listdir(os.path.join(dp, scan))
     ds_list = [pydicom.dcmread(os.path.join(dp, scan, dcm)) for dcm in dcms]
@@ -21,6 +26,7 @@ for scan in scans:
     if np.min(diff) < np.median(diff):
         weird_scans.append(scan)
     spacings.append(np.median(diff))
+    slice_thicknesses.append(ds_list[0].SliceThickness)
 
 spacings = np.round(np.array(spacings),1)
 
