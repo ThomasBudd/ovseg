@@ -24,6 +24,11 @@ class my_LayerNorm(nn.Module):
     
     def __init__(self, n_channels, **kwargs):
         super().__init__()
+        
+        if 'affine' in kwargs:
+            kwargs['elementwise_affine'] = kwargs['affine']
+            del kwargs['affine']
+        
         self.norm = nn.LayerNorm(n_channels, **kwargs)
     
     def forward(self, xb):
