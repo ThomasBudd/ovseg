@@ -31,11 +31,13 @@ model_params = get_model_params_3d_res_encoder_U_Net(patch_size,
                                                      use_prg_trn=use_prg_trn)
 model_params['data']['trn_dl_params']['batch_size'] = 4
 model_params['data']['val_dl_params']['batch_size'] = 4
+model_params['data']['trn_dl_params']['min_biased_samples'] = 2
+model_params['data']['val_dl_params']['min_biased_samples'] = 2
 model_params['training']['opt_params']['momentum'] = 0.98
 model_params['training']['opt_params']['weight_decay'] = wd
 
 # change the model name when using other hyper-paramters
-model_name = 'clara_model'
+model_name = 'clara_model_2_bias_samples'
 
 model = SegmentationModel(val_fold=vf,
                           data_name=data_name,
