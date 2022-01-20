@@ -5,8 +5,9 @@ import argparse
 import numpy as np
 
 parser = argparse.ArgumentParser()
-parser.add_argument("raw_data", default='OV04', nargs='+',)
+parser.add_argument("raw_data", default='OV04', nargs='+')
 parser.add_argument("vf", type=int)
+parser.add_argument("--debug", default=False, action='store_true')
 args = parser.parse_args()
 
 vf = args.vf
@@ -24,34 +25,40 @@ out_shape = [[20, 128, 128],
              [32, 216, 216]]
 larger_res_encoder = False
 
-for norm in ['no_z_inst']:
     
-    model_params = get_model_params_3d_res_encoder_U_Net(patch_size,
-                                                         z_to_xy_ratio=5.0/0.8,
-                                                         out_shape=out_shape,
-                                                         n_fg_classes=2,
-                                                         use_prg_trn=use_prg_trn)
-    model_params['data']['trn_dl_params']['batch_size'] = 4
-    model_params['data']['val_dl_params']['batch_size'] = 4
-    model_params['training']['opt_params']['momentum'] = 0.98
-    model_params['training']['opt_params']['weight_decay'] = wd
-    model_params['network']['norm'] = norm
-    # change the model name when using other hyper-paramters
-    model_name = 'clara_model_norm_'+norm
-    
-    model = SegmentationModel(val_fold=vf,
-                              data_name=data_name,
-                              model_name=model_name,
-                              preprocessed_name=preprocessed_name,
-                              model_parameters=model_params)
-    model.training.train()
-    model.eval_raw_dataset('BARTS')
-    model.eval_raw_dataset('ApolloTCGA')
-    
-    ens = SegmentationEnsemble(val_fold=[5,6,7],
-                               data_name=data_name,
-                               model_name=model_name,
-                               preprocessed_name=preprocessed_name)
-    ens.wait_until_all_folds_complete()
-    ens.eval_raw_dataset('BARTS')
-    ens.eval_raw_dataset('ApolloTCGA')
+model_params = get_model_params_3d_res_encoder_U_Net(patch_size,
+                                                     z_to_xy_ratio=5.0/0.8,
+                                                     out_shape=out_shape,
+                                                     n_fg_classes=2,
+                                                     use_prg_trn=use_prg_trn)
+model_params['data']['trn_dl_params']['batch_size'] = 4
+model_params['data']['val_dl_params']['batch_size'] = 4
+model_params['training']['opt_params']['momentum'] = 0.98
+model_params['training']['opt_params']['weight_decay'] = wd
+model_params['network']['norm'] = 'layer'
+# by default bias=False because of the normalization
+# turn default off here
+model_params['network']['conv_params'] = {}
+# change the model name when using other hyper-paramters
+model_name = 'clara_model_norm_layer'
+
+if args.debug:
+    model_params['training']['num_epochs'] = 8
+    model_name += '_debug'
+
+model = SegmentationModel(val_fold=vf,
+                          data_name=data_name,
+                          model_name=model_name,
+                          preprocessed_name=preprocessed_name,
+                          model_parameters=model_params)
+model.training.train()
+model.eval_raw_dataset('BARTS')
+model.eval_raw_dataset('ApolloTCGA')
+
+ens = SegmentationEnsemble(val_fold=[5,6,7],
+                           data_name=data_name,
+                           model_name=model_name,
+                           preprocessed_name=preprocessed_name)
+ens.wait_until_all_folds_complete()
+ens.eval_raw_dataset('BARTS')
+ens.eval_raw_dataset('ApolloTCGA')

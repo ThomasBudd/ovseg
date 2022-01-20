@@ -22,24 +22,28 @@ class no_z_InstNorm(nn.Module):
 
 class my_LayerNorm(nn.Module):
     
-    def __init__(self, n_channels, **kwargs):
+    def __init__(self, n_channels, affine=True, eps=1e-5):
         super().__init__()
         
-        if 'affine' in kwargs:
-            kwargs['elementwise_affine'] = kwargs['affine']
-            del kwargs['affine']
+        self.n_channels = n_channels
+        self.affine = affine
+        self.eps = eps
         
-        self.norm = nn.LayerNorm(n_channels, **kwargs)
+        self.gamma = nn.Parameter(torch.ones((1, self.n_channels, 1, 1, 1)))
+        
+        if self.affine:
+            self.beta = nn.Parameter(torch.zeros((1, self.n_channels, 1, 1, 1)))
+            
     
     def forward(self, xb):
         
-        nb, nc, nz, nx, ny = xb.shape
+        # normalize
+        xb = (xb - torch.mean(xb, 1, keepdim=True))/(torch.std(xb, 1, keepdim=True) + self.eps)
+        # affine trafo
+        xb = xb * self.gamma
         
-        # move channels to last dimension
-        xb = xb.permute((0, 2, 3, 4, 1))
-        xb = self.norm(xb)
-        # undo
-        xb = xb.permute((0, 4, 1, 2, 3))
+        if self.affine:
+            xb = xb + self.beta
         
         return xb
         
