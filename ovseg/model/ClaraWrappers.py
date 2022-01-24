@@ -8,8 +8,7 @@ from ovseg.prediction.SlidingWindowPrediction import SlidingWindowPrediction
 
 def ClaraWrapperOvarian(data_tpl,
                         models,
-                        path_to_clara_models='/aiaa_workspace/aiaa-1/lib/ovseg_zxy/clara_models',
-                        forced_z_spacing=None):
+                        path_to_clara_models='/aiaa_workspace/aiaa-1/lib/ovseg_zxy/clara_models'):
     '''
     General wrapper for HGSOC segmentation.
     Can run the segmentation for different and multiple locations
@@ -22,9 +21,6 @@ def ClaraWrapperOvarian(data_tpl,
         name of the folder in which the model parameters and weights are stored
     path_to_clara_models : str, optional
         location of the models on the server. The default is '/aiaa_workspace/aiaa-1/lib/ovseg_zxy/clara_models'.
-    forced_z_spacing : float, optional
-        Can be used to turn dynamic z spacing off and always use a given spacing.
-        Default: using dynamic z spacing
 
     Returns
     -------
@@ -39,15 +35,13 @@ def ClaraWrapperOvarian(data_tpl,
     
     pred = evaluate_segmentation_ensemble(data_tpl,
                                           models[0],
-                                          path_to_clara_models,
-                                          forced_z_spacing)
+                                          path_to_clara_models)
     
     for model in models[1:]:
         
         arr = evaluate_segmentation_ensemble(data_tpl,
                                           models[0],
-                                          path_to_clara_models,
-                                          forced_z_spacing)
+                                          path_to_clara_models)
         
         # fill in new prediction and overwrite previous one
         pred = pred * (arr == 0).type(torch.float) + arr
@@ -61,8 +55,7 @@ def ClaraWrapperOvarian(data_tpl,
 
 # %%
 def preprocess_dynamic_z_spacing(data_tpl,
-                                 prep_params,
-                                 forced_z_spacing=None):
+                                 prep_params):
     '''
     This function implements the dynamic z resizing used during inference.
     When given an image with a low slice thickness, it is resized to multiple
@@ -75,9 +68,6 @@ def preprocess_dynamic_z_spacing(data_tpl,
         Need to contain 'image', 3D or 4D np.ndarray and 'spacing' of len 3.
     prep_params : dict
         preprocessing parameters as used for the network training
-    forced_z_spacing : float, optional
-        Can be used to turn dynamic z spacing off and always use a given spacing.
-        Default: using dynamic z spacing
 
     Returns
     -------
@@ -94,13 +84,7 @@ def preprocess_dynamic_z_spacing(data_tpl,
     im = torch.from_numpy(im).type(torch.float).unsqueeze(0).cuda()
         
     # %% resizing, the funny part
-    if forced_z_spacing is not None:
-        if not np.isscalar(forced_z_spacing):
-            raise TypeError(f'Got forced z spacing of type {type(forced_z_spacing())} '
-                            'required scalar or None.')
-        z_sp = forced_z_spacing
-    else:
-        z_sp = data_tpl['spacing'][0]
+    z_sp = data_tpl['spacing'][0]
     
     target_spacing = prep_params['target_spacing']
     target_z_spacing = target_spacing[0]
@@ -143,8 +127,7 @@ def preprocess_dynamic_z_spacing(data_tpl,
 # %%
 def evaluate_segmentation_ensemble(data_tpl,
                                    model,
-                                   path_to_clara_models='/aiaa_workspace/aiaa-1/lib/ovseg_zxy/clara_models',
-                                   forced_z_spacing=None):
+                                   path_to_clara_models='/aiaa_workspace/aiaa-1/lib/ovseg_zxy/clara_models'):
 
     print(f'*** EVALUATING {model} ***')
     # At this path the model parameters and networks weights should be
@@ -155,8 +138,7 @@ def evaluate_segmentation_ensemble(data_tpl,
     model_params = load_pkl(path_to_model_params)
 
     im_list = preprocess_dynamic_z_spacing(data_tpl,
-                                           model_params['preprocessing'],
-                                           forced_z_spacing)
+                                           model_params['preprocessing'])
     
     # dimensions of target tensor
     nz = np.sum([im.shape[1] for im in im_list])
