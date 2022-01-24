@@ -158,8 +158,8 @@ def evaluate_segmentation_ensemble(data_tpl,
                                            forced_z_spacing)
     
     # dimensions of target tensor
-    nz = np.sum([im.shape[0] for im in im_list])
-    nx, ny = im_list[0].shape[1], im_list[0].shape[2]
+    nz = np.sum([im.shape[1] for im in im_list])
+    nx, ny = im_list[0].shape[2], im_list[0].shape[3]
     
     print('*** RUNNING THE MODEL ***')
     print('the fun starts...')
@@ -193,7 +193,7 @@ def evaluate_segmentation_ensemble(data_tpl,
         pred = torch.zeros((n_ch, nz, nx, ny), device='cuda', dtype=torch.float)
         
         # for each image in the list, evaluate sliding window and fill in
-        for i, im in enumerate(im_list):
+        for i, im in enumerate(im_list):            
             pred[:, i::len(im_list)] = prediction(im)
         
         pred_list.append(pred)
