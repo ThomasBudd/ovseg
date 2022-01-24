@@ -92,14 +92,6 @@ def preprocess_dynamic_z_spacing(data_tpl,
 
     # now the image should be 5d
     im = torch.from_numpy(im).type(torch.float).unsqueeze(0).cuda()
-    
-    # first we apply windowing            
-    if prep_params['apply_windowing']:
-        im = im.clamp(*prep_params['window'])
-    
-    # now rescaling
-    scaling = prep_params['scaling']
-    im = (im - scaling[1]) / scaling[0]
         
     # %% resizing, the funny part
     if forced_z_spacing is not None:
@@ -122,12 +114,21 @@ def preprocess_dynamic_z_spacing(data_tpl,
                     data_tpl['spacing'][1] / target_spacing[1],
                     data_tpl['spacing'][2] / target_spacing[2]]
     
-    im_rsz = F.interpolate(im,
-                           scale_factor=scale_factor,
-                           mode='trilinear')
+    # resizing
+    im = F.interpolate(im,
+                       scale_factor=scale_factor,
+                       mode='trilinear')
     
-    im_list = [im_rsz[:, :, i::n_ims] for i in range(n_ims)]
+    # apply windowing            
+    if prep_params['apply_windowing']:
+        im = im.clamp(*prep_params['window'])
     
+    # now rescaling
+    scaling = prep_params['scaling']
+    im = (im - scaling[1]) / scaling[0]
+    
+    # split images
+    im_list = [im[:, :, i::n_ims] for i in range(n_ims)]
     
     # %% finally pooling
     if prep_params['apply_pooling']:
