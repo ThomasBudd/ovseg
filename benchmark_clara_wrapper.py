@@ -32,8 +32,8 @@ for i in tqdm(range(len(ds))):
     pred = ClaraWrapperOvarian(data_tpl, models=['pod_om'],
                                path_to_clara_models=path_to_clara_models)
     
-    # save predictions
-    data_tpl[pred_key] = pred
+    # save predictions move the z axis back to the front
+    data_tpl[pred_key] = np.moveaxis(pred, -1, 0)
     ens.save_prediction(data_tpl, ds_name+'_clara')
     
 
