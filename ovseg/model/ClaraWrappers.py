@@ -145,7 +145,7 @@ def evaluate_segmentation_ensemble(data_tpl,
                                    path_to_clara_models='/aiaa_workspace/aiaa-1/lib/ovseg_zxy/clara_models',
                                    forced_z_spacing=None):
 
-    print(f'*** EVALUATING {model}')
+    print(f'*** EVALUATING {model} ***')
     # At this path the model parameters and networks weights should be
     # stored
     path_to_model = os.path.join(path_to_clara_models, model)
@@ -209,12 +209,15 @@ def evaluate_segmentation_ensemble(data_tpl,
     
     # first trilinear resizing
     size = [int(s) for s in data_tpl['image'].shape[-3:]]
+    print(pred.shape)
     pred = F.interpolate(pred.unsqueeze(0),
                          size=size,
                          mode='trilinear')[0]
+    print(pred.shape)
 
     # now applying argmax
     pred = torch.argmax(pred, 0).type(torch.float)
+    print(pred.shape)
     
     # now convert labels back to their orig. classes
     pred_lb = torch.zeros_like(pred)
@@ -222,4 +225,5 @@ def evaluate_segmentation_ensemble(data_tpl,
         # this should be the fastest way on the GPU to get the job done
         pred_lb = pred_lb + lb * (pred == i+1).type(torch.float)
     
+    print(pred_lb.shape)
     return pred_lb
