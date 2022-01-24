@@ -9,7 +9,7 @@ import numpy as np
 ds_name = 'ICON8_14_Derby_Burton'
 data_name = 'OV04'
 preprocessed_name = 'pod_om'
-model_name = 'clara_model'
+model_name = 'clara_model_no_tta'
 
 path_to_clara_models = os.path.join(os.environ['OV_DATA_BASE'], 'clara_models')
 
@@ -49,15 +49,18 @@ def mc_DSC(p1, p2):
     
     return DSC((p1==1).astype(float),(p2==1).astype(float)) + DSC((p1==9).astype(float),(p2==9).astype(float))
 
-predp = os.path.join(os.environ['OV_DATA_BASE'], 'predictions',
-                     data_name, preprocessed_name, model_name, ds_name)
+predbp = os.path.join(os.environ['OV_DATA_BASE'], 'predictions',
+                      data_name, preprocessed_name, model_name, ds_name)
 
-nii_files = [f for f in os.listdir(predp) if f.endswith('.nii.gz')]
+predp1 = predbp + '_ensemble_5_6_7'
+predp2 = predbp + '_clara'
+
+nii_files = [f for f in os.listdir(predp1) if f.endswith('.nii.gz')]
 
 for nii_file in nii_files:
     
-    pred1, _, _ = read_nii(os.path.join(predp, nii_file))
-    pred2, _, _ = read_nii(os.path.join(predp+'_clara', nii_file))
+    pred1, _, _ = read_nii(os.path.join(predp1, nii_file))
+    pred2, _, _ = read_nii(os.path.join(predp2, nii_file))
     
     dsc = mc_DSC(pred1, pred2) / 2
     
