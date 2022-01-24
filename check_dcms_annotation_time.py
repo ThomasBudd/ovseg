@@ -17,7 +17,7 @@ slice_thicknesses = []
 weird_scans = []
 for scan in tqdm(scans):
     
-    dcms = os.listdir(os.path.join(dp, scan))
+    dcms = [dcm for dcm in os.listdir(os.path.join(dp, scan)) if dcm.endswith('.dcm')]
     ds_list = [pydicom.dcmread(os.path.join(dp, scan, dcm)) for dcm in dcms]
     z_im = [ds.ImagePositionPatient[2] for ds in ds_list]
     diff = np.diff(np.sort(z_im))
@@ -35,4 +35,4 @@ scan = weird_scans[0]
 dcms = os.listdir(os.path.join(dp, scan))
 ds_list = [pydicom.dcmread(os.path.join(dp, scan, dcm)) for dcm in dcms]
 z_im = [ds.ImagePositionPatient[2] for ds in ds_list]
-diff = np.diff(np.sort(z_im))
+diff = np.round(np.diff(np.sort(z_im)),2)

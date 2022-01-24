@@ -38,7 +38,7 @@ class my_LayerNorm(nn.Module):
     def forward(self, xb):
         
         # normalize
-        xb = (xb - torch.mean(xb, 1, keepdim=True))/(torch.std(xb, 1, keepdim=True) + self.eps)
+        xb = (xb - torch.mean(xb, 1, keepdim=True))/(torch.std(xb, 1, unbiased=False, keepdim=True) + self.eps)
         # affine trafo
         xb = xb * self.gamma
         
