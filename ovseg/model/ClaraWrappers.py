@@ -218,7 +218,7 @@ def evaluate_segmentation_ensemble(data_tpl,
     
     # now convert labels back to their orig. classes
     pred_lb = torch.zeros_like(pred)
-    for i, lb in model_params['preprocessing']['lb_classes']:
+    for i, lb in enumerate(model_params['preprocessing']['lb_classes']):
         # this should be the fastest way on the GPU to get the job done
         pred_lb = pred_lb + lb * (pred == i+1).type(torch.float)
     
