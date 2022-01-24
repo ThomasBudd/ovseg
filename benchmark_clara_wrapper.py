@@ -43,7 +43,7 @@ ens.eval_raw_dataset(ds_name, save_preds=True)
 # %% compare results
 
 def DSC(p1, p2):
-    return 200 * (np.sum(p1*p2) + 1)/(np.sum(p1 + p2) + 1)
+    return 200 * (np.sum(p1*p2) + 1e-5)/(np.sum(p1 + p2) + 1e-5)
 
 def mc_DSC(p1, p2):
     
