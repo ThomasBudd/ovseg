@@ -6,7 +6,7 @@ from ovseg.utils.io import read_nii
 from tqdm import tqdm
 import numpy as np
 
-ds_name = 'ICON8_14_Derby_Burton'
+ds_name = 'BARTS'
 data_name = 'OV04'
 preprocessed_name = 'pod_om'
 model_name = 'clara_model_no_tta'
@@ -23,7 +23,7 @@ ens = SegmentationEnsemble(val_fold=[5,6,7],
 pred_key = ens.models[0].pred_key
 
 # %%
-
+results = []
 for i in tqdm(range(len(ds))):
     
     # load data_tpl    
@@ -35,38 +35,12 @@ for i in tqdm(range(len(ds))):
     
     # save predictions move the z axis back to the front
     data_tpl[pred_key] = np.moveaxis(pred, -1, 0)
+    results.append(ens.compute_error_metrics(data_tpl))
     ens.save_prediction(data_tpl, ds_name+'_clara')
     
 
 # %%
-ens.eval_raw_dataset(ds_name, save_preds=True)
-
-# %% compare results
-
-def DSC(p1, p2):
-    return 200 * (np.sum(p1*p2) + 1e-5)/(np.sum(p1 + p2) + 1e-5)
-
-def mc_DSC(p1, p2):
-    
-    return DSC((p1==1).astype(float),(p2==1).astype(float)) + DSC((p1==9).astype(float),(p2==9).astype(float))
-
-predbp = os.path.join(os.environ['OV_DATA_BASE'], 'predictions',
-                      data_name, preprocessed_name, model_name, ds_name)
-
-predp1 = predbp + '_ensemble_5_6_7'
-predp2 = predbp + '_clara'
-
-nii_files = [f for f in os.listdir(predp1) if f.endswith('.nii.gz')]
-
-for nii_file in nii_files:
-    
-    pred1, _, _ = read_nii(os.path.join(predp1, nii_file))
-    pred2, _, _ = read_nii(os.path.join(predp2, nii_file))
-    
-    dsc = mc_DSC(pred1, pred2) / 2
-    
-    nmp = np.sum(np.abs(pred1-pred2))
-    
-    print(nii_file.split('.')[0] + ': {:.3f}, {}'.format(dsc, nmp))
-    
-    
+print('DSC 1:')
+print(np.nanmean([res['dice_1'] for res in results]))
+print('DSC 9:')
+print(np.nanmean([res['dice_9'] for res in results]))

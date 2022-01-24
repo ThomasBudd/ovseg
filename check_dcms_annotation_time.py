@@ -15,6 +15,8 @@ for root, dirs, files in os.walk(dp):
 spacings = []
 slice_thicknesses = []
 weird_scans = []
+thin_slices = []
+
 for scan in tqdm(scans):
     
     dcms = [dcm for dcm in os.listdir(os.path.join(dp, scan)) if dcm.endswith('.dcm')]
@@ -25,6 +27,9 @@ for scan in tqdm(scans):
     print('{:.3f}, {:.3f}, {:.3f}'.format(np.min(diff), np.median(diff), np.max(diff)))
     if np.min(diff) < np.median(diff):
         weird_scans.append(scan)
+    
+    if np.median(diff) < 5.0:
+        thin_slices.append(scan)
     spacings.append(np.median(diff))
     slice_thicknesses.append(ds_list[0].SliceThickness)
 

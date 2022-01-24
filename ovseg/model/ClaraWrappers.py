@@ -17,7 +17,7 @@ def ClaraWrapperOvarian(data_tpl,
     Parameters
     ----------
     data_tpl : dict
-        contains 'image', 3D or 4D np array, and 'spacing' of len 3
+        contains 'image', 3D or 4D np array z first, and 'spacing' of len 3
     models : str or list of strings
         name of the folder in which the model parameters and weights are stored
     path_to_clara_models : str, optional
