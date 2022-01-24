@@ -177,7 +177,7 @@ def evaluate_segmentation_ensemble(data_tpl,
                                          **model_params['prediction'])
     
     # collect all weights we got from the ensemble
-    weight_files = [os.path.join(path_to_clara_models, file) for file in os.listdir(path_to_clara_models)
+    weight_files = [os.path.join(path_to_model, file) for file in os.listdir(path_to_model)
                     if file.startswith('network_weights')]
     
     # list of predictions from each weight
