@@ -8,29 +8,29 @@ def benchmark(layer, xb):
     layer = layer.cuda()
     xb = xb.cuda()
     
-    with torch.cuda.amp.autocast():
-        for _ in range(10):
-            out = layer(xb)
-            l = out.abs().mean()
-            l.backward()
-        
-        layer.zero_grad()
-        
-        st = perf_counter()
-        with torch.no_grad():
-            for _ in range(100):
-                out = layer(xb)
-        et = perf_counter()
-        
-        print(et-st)
-        st = perf_counter()
+    # with torch.cuda.amp.autocast():
+    for _ in range(10):
+        out = layer(xb)
+        l = out.abs().mean()
+        l.backward()
+    
+    layer.zero_grad()
+    
+    st = perf_counter()
+    with torch.no_grad():
         for _ in range(100):
             out = layer(xb)
-            l = out.abs().mean()
-            l.backward()
-            layer.zero_grad()
-        et = perf_counter()
-        print(et-st)
+    et = perf_counter()
+    
+    print(et-st)
+    st = perf_counter()
+    for _ in range(100):
+        out = layer(xb)
+        l = out.abs().mean()
+        l.backward()
+        layer.zero_grad()
+    et = perf_counter()
+    print(et-st)
 
 class convnormnonlin(nn.Module):
     
