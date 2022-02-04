@@ -43,10 +43,15 @@ def compute_r1_r2(label, pred):
     
     prec = np.sum(label * pred) / np.sum(pred)
     if prec < 1:
-        while prec < 2 and r2 < r_max:
+        while prec < 1 and r2 < r_max:
             r2 += 1
             pred_eros = seg_eros(pred, r2, z_to_xy_ratio=z_to_xy_ratio, use_3d_ops=True)
-            prec = np.sum(pred_eros * label) / np.sum(pred_eros)
+            vol_pred = np.sum(pred_eros)
+            if vol_pred == 0:
+                prec = 1
+            else:
+                prec = np.sum(pred_eros * label) / vol_pred
+    
         
     return r1, r2
 
