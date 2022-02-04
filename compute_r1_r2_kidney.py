@@ -37,7 +37,7 @@ def compute_r1_r2(label, pred):
             r1 += 1
             pred_dial = seg_fg_dial(pred, r1, z_to_xy_ratio=z_to_xy_ratio, use_3d_ops=True)
             ovlp = np.sum(label * pred_dial)
-            sens = vol_lb < ovlp
+            sens = ovlp / vol_lb
     
     r2 = 0
     
