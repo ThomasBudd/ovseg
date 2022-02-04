@@ -23,6 +23,8 @@ class ContourRefinementPreprocessing(SegmentationPreprocessing):
         
         assert len(self.prev_stages) == 1, 'One previous stage must be given'
         self.r_max = r_max
+        self.r1 = r1
+        self.r2 = r2
         
         self.preprocessing_parameters.extend(['r1', 'r2'])
         
