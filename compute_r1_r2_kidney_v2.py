@@ -49,14 +49,14 @@ def compute_r1_r2(label, pred):
     pred_coords = edge_coordinates(pred)
     
     r1 = max_dist(lb_coords, pred_coords)
-    r1 = np.ceil(r1 / target_spacing[1])
+    r1 = int(np.ceil(r1 / target_spacing[1]))
     
     # compute r2
     lb_coords = edge_coordinates(label)
     pred_coords = edge_coordinates(pred - ovlp)
     
     r2 = max_dist(pred_coords, lb_coords)
-    r2 = np.ceil(r2 / target_spacing[1])
+    r2 = int(np.ceil(r2 / target_spacing[1]))
         
     return r1, r2
 
