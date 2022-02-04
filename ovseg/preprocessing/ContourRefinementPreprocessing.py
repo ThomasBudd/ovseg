@@ -181,7 +181,7 @@ class ContourRefinementPreprocessing(SegmentationPreprocessing):
             for i in tqdm(range(len(dataset))):
                 
                 data_tpl = dataset[i]
-                r_list.append(self.compute_r1_r2(data_tpl))
+                r_list.append(self._compute_r1_r2(data_tpl))
         
         # we add the 1 just for to be safe
         self.r1, self.r2 = np.percentile(r_list, precentile_r, 0) + 1
