@@ -75,7 +75,7 @@ for i in tqdm(range(len(ds))):
     
     r_list.append(compute_r1_r2(label, pred))
     
-    break
+    #break
 
 
 print(r_list)
