@@ -90,53 +90,52 @@ class SegmentationPostprocessing(object):
 
             reg = maybe_add_channel_dim(reg)
         
-        with torch.no_grad():  
         
-            # first fun step: let's reshape to original size
-            # before going to hard labels
-            if orig_shape is not None:
-                if np.any(orig_shape != inpt_shape):
-                    orig_shape = np.array(orig_shape)
-                    if torch.cuda.is_available():
-                        with torch.no_grad():
-                            if is_np:
-                                volume = torch.from_numpy(volume).to('cuda').type(torch.float)
-                            size = [int(s) for s in orig_shape]
-                            volume = interpolate(volume.unsqueeze(0),
-                                                 size=size,
-                                                 mode='trilinear')[0]
-                            if self.mask_with_reg:
-                                if isinstance(reg, np.ndarray):
-                                    reg = torch.from_numpy(reg).to('cuda').type(torch.float)
-                                reg = interpolate(reg.unsqueeze(0),
-                                                       size=size,
-                                                       mode='nearest')[0]
-                    else:
-                        if not is_np:
-                            volume = volume.cpu().numpy()
-                        volume = np.stack([resize(volume[c], orig_shape, 1)
-                                           for c in range(volume.shape[0])])
-                        
+        # first fun step: let's reshape to original size
+        # before going to hard labels
+        if orig_shape is not None:
+            if np.any(orig_shape != inpt_shape):
+                orig_shape = np.array(orig_shape)
+                if torch.cuda.is_available():
+                    with torch.no_grad():
+                        if is_np:
+                            volume = torch.from_numpy(volume).to('cuda').type(torch.float)
+                        size = [int(s) for s in orig_shape]
+                        volume = interpolate(volume.unsqueeze(0),
+                                             size=size,
+                                             mode='trilinear')[0]
                         if self.mask_with_reg:
-                            if torch.is_tensor(reg):
-                                reg = reg.cpu().numpy()
-                            reg = np.stack([resize(reg[c], orig_shape, 0)
-                                               for c in range(reg.shape[0])])
-    
-            # convert to hard labels
+                            if isinstance(reg, np.ndarray):
+                                reg = torch.from_numpy(reg).to('cuda').type(torch.float)
+                            reg = interpolate(reg.unsqueeze(0),
+                                                   size=size,
+                                                   mode='nearest')[0]
+                else:
+                    if not is_np:
+                        volume = volume.cpu().numpy()
+                    volume = np.stack([resize(volume[c], orig_shape, 1)
+                                       for c in range(volume.shape[0])])
+                    
+                    if self.mask_with_reg:
+                        if torch.is_tensor(reg):
+                            reg = reg.cpu().numpy()
+                        reg = np.stack([resize(reg[c], orig_shape, 0)
+                                           for c in range(reg.shape[0])])
+
+        # now change to CPU and numpy
+        if torch.is_tensor(volume):
+            volume = volume.cpu().numpy()
+            
+        volume = np.argmax(volume, 0).astype(np.float32)
+        
+        if self.apply_morph_cleaning:
             if not torch.is_tensor(volume):
                 volume = torch.from_numpy(volume)
                 if torch.cuda.is_available():
                     volume = volume.cuda()
-                
-            volume = torch.argmax(volume, 0).type(torch.float)
-            
-            if self.apply_morph_cleaning:
-                # this will work on GPU tensors
-                volume = morph_cleaning(volume)
+            # this will work on GPU tensors
+            volume = morph_cleaning(volume)
 
-        # now change to CPU and numpy
-        volume = volume.cpu().numpy()
         if self.mask_with_reg:
             if torch.is_tensor(reg):
                 reg = reg.cpu().numpy()
