@@ -19,7 +19,7 @@ except:
 class ContourRefinementPreprocessing(SegmentationPreprocessing):
     
     def __init__(self, *args, r1=None, r2=None, r_max=15, **kwargs):
-        super().__init__(*args, r_max=15, **kwargs)
+        super().__init__(*args, **kwargs)
         
         assert len(self.prev_stages) == 1, 'One previous stage must be given'
         self.r_max = r_max
