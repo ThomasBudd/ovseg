@@ -24,28 +24,29 @@ r_max = 30
 
 
 def compute_r1_r2(label, pred):
-        
-    # first r1
-    vol_lb = np.sum(label)
-    
+            
     r1 = 0
     
+    vol_lb = np.sum(label)
     ovlp = np.sum(label * pred)
-    if ovlp < vol_lb:
+    sens = ovlp / vol_lb
+    
+    if sens < 1:
         
-        while ovlp < vol_lb and r1 < r_max:
+        while sens < 1 and r1 < r_max:
             r1 += 1
             pred_dial = seg_fg_dial(pred, r1, z_to_xy_ratio=z_to_xy_ratio, use_3d_ops=True)
             ovlp = np.sum(label * pred_dial)
+            sens = vol_lb < ovlp
     
     r2 = 0
     
-    ovlp = np.sum(label * pred)
-    if ovlp > 0:
-        while ovlp > 0 and r2 < r_max:
+    prec = np.sum(label * pred) / np.sum(pred)
+    if prec < 1:
+        while prec < 2 and r2 < r_max:
             r2 += 1
             pred_eros = seg_eros(pred, r2, z_to_xy_ratio=z_to_xy_ratio, use_3d_ops=True)
-            ovlp = np.sum(pred_eros * label)
+            prec = np.sum(pred_eros * label) / np.sum(pred_eros)
         
     return r1, r2
 
@@ -76,6 +77,8 @@ for i in tqdm(range(len(ds))):
     
     break
 
+
+print(r_list)
 np.save(os.path.join(os.environ['OV_DATA_BASE'],
                      'predicitons',
                      'kits21',
