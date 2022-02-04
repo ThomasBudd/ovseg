@@ -80,7 +80,7 @@ for i in tqdm(range(len(ds))):
 
 print(r_list)
 np.save(os.path.join(os.environ['OV_DATA_BASE'],
-                     'predicitons',
+                     'predictions',
                      'kits21',
                      'r_list'),
         r_list)
