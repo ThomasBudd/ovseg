@@ -4,6 +4,7 @@ from ovseg.data.Dataset import raw_Dataset
 from torch.nn.functional import interpolate
 import torch
 from tqdm import tqdm
+from scipy.ndimage.morphology import binary_fill_holes
 import os
 
 prev_stage = {'data_name': 'kits21',
@@ -21,7 +22,10 @@ target_spacing = np.array([3.0, 0.8, 0.8])
 z_to_xy_ratio = 3.0/0.8
 
 r_max = 30
+sp_max = 0.995
 
+def fill_holes(volume):
+    return np.stack([binary_fill_holes(volume[z]) for z in range(volume.shape[0])], 0)
 
 def compute_r1_r2(label, pred):
             
@@ -58,7 +62,7 @@ def compute_r1_r2(label, pred):
 def get_label_pred(data_tpl):
     # reduce to binary label
     lb = (data_tpl['label'] > 0).astype(float)
-    pred = data_tpl[pred_key]
+    pred = fill_holes(data_tpl[pred_key])
     
     # compute rescaling factor
     spacing = data_tpl['spacing']

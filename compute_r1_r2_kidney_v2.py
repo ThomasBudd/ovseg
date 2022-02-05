@@ -102,18 +102,18 @@ for i in tqdm(range(len(ds))):
     
     sp_list.append(compute_sens_prec(label, pred, r1, r2))
     
-    if i == 10:
+    if i == 0:
         break
 
 
 print(r_list)
-np.save(os.path.join(os.environ['OV_DATA_BASE'],
-                     'predictions',
-                     'kits21',
-                     'r_list_v2'),
-        r_list)
-np.save(os.path.join(os.environ['OV_DATA_BASE'],
-                     'predictions',
-                     'kits21',
-                     'sp_list'),
-        sp_list)
+# np.save(os.path.join(os.environ['OV_DATA_BASE'],
+#                      'predictions',
+#                      'kits21',
+#                      'r_list_v2'),
+#         r_list)
+# np.save(os.path.join(os.environ['OV_DATA_BASE'],
+#                      'predictions',
+#                      'kits21',
+#                      'sp_list'),
+#         sp_list)
