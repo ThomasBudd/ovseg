@@ -35,9 +35,9 @@ def compute_r1_r2(label, pred):
     ovlp = np.sum(label * pred)
     sens = ovlp / vol_lb
     
-    if sens < 1:
+    if sens < sp_max:
         
-        while sens < 1 and r1 < r_max:
+        while sens < sp_max and r1 < r_max:
             r1 += 1
             pred_dial = seg_fg_dial(pred, r1, z_to_xy_ratio=z_to_xy_ratio, use_3d_ops=True)
             ovlp = np.sum(label * pred_dial)
@@ -46,8 +46,8 @@ def compute_r1_r2(label, pred):
     r2 = 0
     
     prec = np.sum(label * pred) / np.sum(pred)
-    if prec < 1:
-        while prec < 1 and r2 < r_max:
+    if prec < sp_max:
+        while prec < sp_max and r2 < r_max:
             r2 += 1
             pred_eros = seg_eros(pred, r2, z_to_xy_ratio=z_to_xy_ratio, use_3d_ops=True)
             vol_pred = np.sum(pred_eros)
