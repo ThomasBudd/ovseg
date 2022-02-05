@@ -91,5 +91,5 @@ print(r_list)
 np.save(os.path.join(os.environ['OV_DATA_BASE'],
                      'predictions',
                      'kits21',
-                     'r_list'),
+                     'r_list_'+str(sp_max)),
         r_list)
