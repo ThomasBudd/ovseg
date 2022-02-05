@@ -167,7 +167,7 @@ class UNet(nn.Module):
                  conv_params=None, norm=None, norm_params=None, nonlin_params=None,
                  kernel_sizes_up=None, skip_type='skip', use_trilinear_upsampling=False,
                  use_less_hid_channels_in_decoder=False, fac_skip_channels=1,
-                 p_dropout_logits=0.0):
+                 p_dropout_logits=0.0, stem_kernel_size=None):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -189,6 +189,8 @@ class UNet(nn.Module):
         assert fac_skip_channels <= 1 and fac_skip_channels > 0
         self.fac_skip_channels = fac_skip_channels
         self.p_dropout_logits = p_dropout_logits
+        self.stem_kernel_size = stem_kernel_size
+        
         # we double the amount of channels every downsampling step
         # up to a max of filters_max
         self.filters_list = [min([self.filters*2**i, self.filters_max])
@@ -196,7 +198,10 @@ class UNet(nn.Module):
 
         # first let's make the lists for the blocks on both pathes
         # number of input and output channels of the blocks on the contracting path
-        self.in_channels_down_list = [self.in_channels] + self.filters_list[:-1]
+        if self.stem_kernel_size is None:
+            self.in_channels_down_list = [self.in_channels] + self.filters_list[:-1]
+        else:
+            self.in_channels_down_list = [self.filters] + self.filters_list[:-1]
         self.out_channels_down_list = self.filters_list
         self.first_stride_list = [1] + [get_stride(ks) for ks in self.kernel_sizes[:-1]]
 
@@ -314,8 +319,28 @@ class UNet(nn.Module):
         self.upsamplings = nn.ModuleList(self.upsamplings)
         self.concats = nn.ModuleList(self.concats)
         self.all_logits = nn.ModuleList(self.all_logits)
+        
+        if self.stem_kernel_size is not None:
+            if self.is_2d:
+                self.stem = nn.Conv2d(self.in_channels,
+                                      self.filters,
+                                      self.stem_kernel_size,
+                                      self.stem_kernel_size)
+            else:
+                self.stem = nn.Conv3d(self.in_channels,
+                                      self.filters,
+                                      self.stem_kernel_size,
+                                      self.stem_kernel_size)
+            self.final_up_conv = UpConv(self.filters,
+                                        self.out_channels,
+                                        self.is_2d,
+                                        self.stem_kernel_size)                
 
     def forward(self, xb):
+        
+        if self.stem_kernel_size is not None:
+            xb = self.stem(xb)
+        
         # keep all out tensors from the contracting path
         xb_list = []
         logs_list = []
@@ -342,6 +367,9 @@ class UNet(nn.Module):
             xb = self.blocks_up[i](xb)
             logs = self.all_logits[i](xb)
             logs_list.append(logs)
+
+        if self.stem_kernel_size is not None:
+            logs_list.append(self.final_up_conv(xb))
 
         # as we iterate from bottom to top we have to flip the logits list
         return logs_list[::-1]
