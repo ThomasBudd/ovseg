@@ -24,7 +24,8 @@ model_params = get_model_params_3d_res_encoder_U_Net(patch_size,
                                                      z_to_xy_ratio=4,
                                                      out_shape=out_shape,
                                                      n_fg_classes=1,
-                                                     use_prg_trn=use_prg_trn)
+                                                     use_prg_trn=use_prg_trn,
+                                                     larger_res_encoder=larger_res_encoder)
 
 model_name = 'larger_res_encoder'
 
