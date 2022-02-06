@@ -14,7 +14,7 @@ args = parser.parse_args()
 n_warumup = 25
 n_benchmark = 100
 
-nb, nch, nz, nx, ny = 2, 1, 32, 256, 256
+nb, nch, nz, nx, ny = 4, 1, 32, 256, 256
 
 if args.net == 0:
     
@@ -57,6 +57,51 @@ elif args.net == 2:
              'nonlin_params': None,
              'kernel_sizes': [(1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)],
              'stem_kernel_size': [1, 2, 2]}
+    
+elif args.net == 3:
+    
+   
+    params = {'in_channels': 1,
+             'out_channels': 2,
+             'is_2d': False,
+             'filters': 128,
+             'filters_max': 320,
+             'conv_params': None,
+             'norm': None,
+             'norm_params': None,
+             'nonlin_params': None,
+             'kernel_sizes': [(3, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)],
+             'stem_kernel_size': [1, 4, 4]}
+    
+elif args.net == 4:
+    
+   
+    params = {'in_channels': 1,
+             'out_channels': 2,
+             'is_2d': False,
+             'filters': 64,
+             'filters_max': 320,
+             'conv_params': None,
+             'norm': None,
+             'norm_params': None,
+             'nonlin_params': None,
+             'kernel_sizes': [(3, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)],
+             'stem_kernel_size': [1, 4, 4]}
+    
+elif args.net == 5:
+    
+   
+    params = {'in_channels': 1,
+             'out_channels': 2,
+             'is_2d': False,
+             'filters': 32,
+             'filters_max': 320,
+             'conv_params': None,
+             'norm': None,
+             'norm_params': None,
+             'nonlin_params': None,
+             'kernel_sizes': [(3, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)],
+             'stem_kernel_size': [1, 4, 4]}
 
 else:
     raise NotImplementedError(f'Got unkown type of net {args.net}')
