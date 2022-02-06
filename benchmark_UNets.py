@@ -62,7 +62,7 @@ else:
     raise NotImplementedError(f'Got unkown type of net {args.net}')
 
 
-net = net().cuda()
+net = UNet(**params).cuda()
 xb = torch.zeros((nb, nch, nz, nx, ny), device='cuda')
 
 context = nullcontext() if args.fp32 else torch.cuda.amp.autocast()
