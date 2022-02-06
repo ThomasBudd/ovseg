@@ -168,7 +168,8 @@ class ContourRefinementPreprocessing(SegmentationPreprocessing):
                                  image_folder=image_folder,
                                  dcm_revers=dcm_revers,
                                  dcm_names_dict=dcm_names_dict,
-                                 create_missing_labels_as_zero=True)
+                                 create_missing_labels_as_zero=True,
+                                 prev_stages=self.prev_stages)
             datasets.append(raw_ds)
         
         # after all other parameters were infered, let's compute r1 and r2
@@ -263,7 +264,7 @@ class ContourRefinementPreprocessing(SegmentationPreprocessing):
                                  image_folder=image_folder,
                                  dcm_revers=dcm_revers,
                                  dcm_names_dict=dcm_names_dict,
-                                 prev_stages=[self.region_finding_model])
+                                 prev_stages=self.prev_stages)
             raw_ds_list.append(raw_ds)
 
         if not self.is_initalised:
