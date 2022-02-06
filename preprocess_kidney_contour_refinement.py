@@ -14,4 +14,4 @@ preprocessing = ContourRefinementPreprocessing(apply_resizing=True,
 preprocessing.plan_preprocessing_raw_data('kits21')
 
 preprocessing.preprocess_raw_data(raw_data='kits21',
-                                  preprocessed_name='kidney_full')
+                                  preprocessed_name='kidney_full_refine')
