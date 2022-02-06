@@ -14,7 +14,7 @@ args = parser.parse_args()
 n_warumup = 25
 n_benchmark = 100
 
-nb, nch, nz, nx, ny = 1, 1, 32, 256, 256
+nb, nch, nz, nx, ny = 2, 1, 32, 256, 256
 
 if args.net == 0:
     
