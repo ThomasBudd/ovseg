@@ -115,7 +115,7 @@ class ContourRefinementPreprocessing(SegmentationPreprocessing):
         sens = ovlp / lb_vol
         
         if lb_vol > 0:
-            while sens < 1 and r1 < self.r_max:
+            while sens < 0.995 and r1 < self.r_max:
                 r1 += 1
                 pred_dial = self._dial(pred_gpu, r1)
                 ovlp = (lb_gpu * pred_dial).sum().item()
@@ -128,7 +128,7 @@ class ContourRefinementPreprocessing(SegmentationPreprocessing):
         prec = ovlp / pred_vol
         
         if pred_vol > 0:
-            while prec < 1:
+            while prec < 0.995:
                 r2 += 1
                 pred_eros = self._eros(pred, r2)
                 pred_vol = pred_eros.sum().item()
