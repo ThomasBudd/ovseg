@@ -21,10 +21,10 @@ if args.block == 'cnn':
         
         return nn.Sequential(*[nn.Conv3d(nch,nch,(1,3,3), padding=(0, 1, 1), bias=False),
                                nn.InstanceNorm3d(nch, affine=True),
-                               nn.ReLU(),
+                               nn.ReLU(inplace=True),
                                nn.Conv3d(nch,nch,(1,3,3), padding=(0, 1, 1), bias=False),
                                nn.InstanceNorm3d(nch, affine=True),
-                               nn.ReLU()])
+                               nn.ReLU(inplace=True)])
 elif args.block == 'dws':
     
     class Block(nn.Module):
@@ -34,8 +34,43 @@ elif args.block == 'dws':
             
             self.conv = nn.Sequential(*[nn.Conv3d(nch,nch,(3,7,7), padding=(1, 3, 3), groups=nch, bias=False),
                                         nn.InstanceNorm3d(nch, affine=True),
-                                        nn.ReLU(),
+                                        nn.ReLU(inplace=True),
                                         nn.Conv3d(nch,nch,1, padding=0)])
+        def forward(self, xb):
+            
+            return xb + self.conv(xb)
+elif args.block == 'res':
+    
+    class Block(nn.Module):
+        
+        def __init__(self):
+            super().__init__()
+            
+            self.conv = nn.Sequential(*[nn.Conv3d(nch,nch,(1,3,3), padding=(0, 1, 1), bias=False),
+                               nn.InstanceNorm3d(nch, affine=True),
+                               nn.ReLU(inplace=True),
+                               nn.Conv3d(nch,nch,(1,3,3), padding=(0, 1, 1), bias=False),
+                               nn.InstanceNorm3d(nch, affine=True),
+                               nn.ReLU(inplace=True)])
+            
+        def forward(self, xb):
+            
+            return xb + self.conv(xb)
+        
+elif args.block == 'res_v2':
+    
+    class Block(nn.Module):
+        
+        def __init__(self):
+            super().__init__()
+            
+            self.conv = nn.Sequential(*[nn.Conv3d(nch,nch,(1,3,3), padding=(0, 1, 1), bias=False),
+                               nn.InstanceNorm3d(nch, affine=True),
+                               nn.ReLU(),
+                               nn.Conv3d(nch,nch,(1,3,3), padding=(0, 1, 1), bias=False),
+                               nn.InstanceNorm3d(nch, affine=True),
+                               nn.ReLU()])
+            
         def forward(self, xb):
             
             return xb + self.conv(xb)
