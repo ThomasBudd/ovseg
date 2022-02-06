@@ -70,7 +70,7 @@ context = nullcontext() if args.fp32 else torch.cuda.amp.autocast()
 with context:
     for _ in range(n_warumup):
         out = net(xb)
-        l = out.abs().mean()
+        l = out[0][:, :1].abs().mean()
         l.backward()
     
     net.zero_grad()
