@@ -16,17 +16,16 @@ except:
     tqdm = lambda x:x
 
 
-class ContourRefinementPreprocessing(SegmentationPreprocessing):
+class ContourRefinementV2Preprocessing(SegmentationPreprocessing):
     
-    def __init__(self, *args, r1=None, r2=None, r_max=15, **kwargs):
+    def __init__(self, *args, r_dial=None, r_max=15, **kwargs):
         super().__init__(*args, **kwargs)
         
         assert len(self.prev_stages) == 1, 'One previous stage must be given'
         self.r_max = r_max
-        self.r1 = r1
-        self.r2 = r2
+        self.r_dial = r_dial
         
-        self.preprocessing_parameters.extend(['r1', 'r2'])
+        self.preprocessing_parameters.extend(['r_dial'])
         
     def _get_selem(self, r):
         
@@ -41,32 +40,6 @@ class ContourRefinementPreprocessing(SegmentationPreprocessing):
         selem = torch.from_numpy(selem).cuda().unsqueeze(0).unsqueeze(0).type(torch.float)
         
         return selem
-    
-    def _eros(self, pred, r):
-        
-        
-        if not torch.is_tensor(pred):
-            pred = torch.from_numpy(pred)
-            if torch.cuda.is_available():
-                pred = pred.cuda()
-        
-        if len(pred.shape) < 5:
-            while len(pred.shape) < 5:
-                pred = pred.unsqueeze(0)
-        
-        
-        z_to_xy_ratio = self.target_spacing[0] / self.target_spacing[1]
-        # radius in different directions
-        rz = int(r/z_to_xy_ratio + 0.5)
-        rxy = int(r)
-
-        pred_conv = torch.nn.functional.conv3d(pred,
-                                               self.get_selem(r),
-                                               padding=(rz,rxy,rxy))
-    
-        pred_eros = (pred_conv >= 1).type(torch.float)
-        
-        return pred_eros
     
     def _dial(self, pred, r):
         
@@ -86,16 +59,16 @@ class ContourRefinementPreprocessing(SegmentationPreprocessing):
         rxy = int(r)
 
         pred_conv = torch.nn.functional.conv3d(pred,
-                                               self.get_selem(r),
+                                               self._get_selem(r),
                                                padding=(rz,rxy,rxy))
     
         pred_dial = (pred_conv > 0).type(torch.float)
         
         return pred_dial
 
-    def _compute_r1_r2(self, data_tpl):
+    def _compute_r_dial(self, data_tpl):
         
-        r1,r2 = 0, 0
+        r_dial = 0
         
         # get the clean label (with reduced classes)
         lb = self.maybe_clean_label_from_data_tpl(data_tpl)
@@ -109,34 +82,20 @@ class ContourRefinementPreprocessing(SegmentationPreprocessing):
         lb_gpu = torch.from_numpy(pred).unsqueeze(0).unsqueeze(0).type(torch.float)
         pred_gpu = torch.from_numpy(pred).unsqueeze(0).unsqueeze(0).type(torch.float)
         
-        # compute r1
+        # compute r_dial
         lb_vol = lb_gpu.sum().item()
         ovlp = (lb_gpu * pred_gpu).sum().item()
         sens = ovlp / lb_vol
         
         if lb_vol > 0:
-            while sens < 0.995 and r1 < self.r_max:
-                r1 += 1
-                pred_dial = self._dial(pred_gpu, r1)
+            while sens < 0.995 and r_dial < self.r_max:
+                r_dial += 1
+                pred_dial = self._dial(pred_gpu, r_dial)
                 ovlp = (lb_gpu * pred_dial).sum().item()
                 sens = ovlp / lb_vol
         
-        # compute r2
-        pred_vol = pred_gpu.sum().item()
+        return r_dial
         
-        ovlp = (lb_gpu * pred_gpu).sum().item()
-        prec = ovlp / pred_vol
-        
-        if pred_vol > 0:
-            while prec < 0.995:
-                r2 += 1
-                pred_eros = self._eros(pred, r2)
-                pred_vol = pred_eros.sum().item()
-                ovlp = (lb_gpu * pred_eros).sum().item()
-                prec = ovlp / pred_vol
-        
-        return r1, r2
-
     def plan_preprocessing_raw_data(self,
                                     raw_data,
                                     percentiles=[0.5, 99.5],
@@ -153,7 +112,7 @@ class ContourRefinementPreprocessing(SegmentationPreprocessing):
                                             dcm_names_dict=dcm_names_dict,
                                             force_planning=force_planning)
         
-        if np.isscalar(self.r1) and np.isscalar(self.r2):
+        if np.isscalar(self.r_dial):
             return
         
         if isinstance(raw_data, str):
@@ -182,10 +141,10 @@ class ContourRefinementPreprocessing(SegmentationPreprocessing):
             for i in tqdm(range(len(dataset))):
                 
                 data_tpl = dataset[i]
-                r_list.append(self._compute_r1_r2(data_tpl))
+                r_list.append(self._compute_r_dial(data_tpl))
         
         # we add the 1 just for to be safe
-        self.r1, self.r2 = np.percentile(r_list, precentile_r, 0) + 1
+        self.r_dial = np.percentile(r_list, precentile_r) + 1
         
     def get_xb_from_data_tpl(self, data_tpl, get_only_im=False):
         
@@ -225,9 +184,7 @@ class ContourRefinementPreprocessing(SegmentationPreprocessing):
         pred = xb_prep[self.n_im_channels:self.n_im_channels+1]
         
         # create the mask by dilation and erosing (after preprocessing)
-        pred_dial = self._dial(pred, self.r1)[0]
-        pred_eros = self._eros(pred, self.r2)[0]
-        mask = pred_dial - pred_eros
+        mask = self._dial(pred, self.r_dial)[0]
         
         if return_np:
             mask = mask.cpu().numpy()
@@ -282,7 +239,7 @@ class ContourRefinementPreprocessing(SegmentationPreprocessing):
         plot_folder = join(environ['OV_DATA_BASE'], 'plots', data_name, preprocessed_name)
         print(outfolder, plot_folder)
         # now let's create the output folders
-        for f in ['images', 'labels', 'fingerprints', 'masks', 'prev_preds']:
+        for f in ['images', 'labels', 'fingerprints', 'regions']:
             maybe_create_path(join(outfolder, f))
         maybe_create_path(plot_folder)
 
@@ -314,7 +271,6 @@ class ContourRefinementPreprocessing(SegmentationPreprocessing):
                 # get the preprocessed volumes from the data_tpl
                 xb = self.__call__(data_tpl, return_np=True)
                 im = xb[:self.n_im_channels].astype(im_dtype)
-                prev_pred = xb[self.n_im_channels:self.n_im_channels+1].astype(np.uint8)
                 mask = xb[-2:-1].astype(np.uint8)
                 lb = xb[-1:].astype(np.uint8)
 
@@ -347,6 +303,5 @@ class ContourRefinementPreprocessing(SegmentationPreprocessing):
                 # predictions from previous stages
                 np.save(join(outfolder, 'images', scan), im)
                 np.save(join(outfolder, 'labels', scan), lb)
-                np.save(join(outfolder, 'prev_preds', scan), prev_pred)
-                np.save(join(outfolder, 'masks', scan), mask)
+                np.save(join(outfolder, 'regions', scan), mask)
                 np.save(join(outfolder, 'fingerprints', scan), fingerprint)
