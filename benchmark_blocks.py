@@ -25,6 +25,14 @@ if args.block == 'cnn':
                                nn.Conv3d(nch,nch,(1,3,3), padding=(0, 1, 1), bias=False),
                                nn.InstanceNorm3d(nch, affine=True),
                                nn.ReLU(inplace=True)])
+elif args.block == 'cn':
+    
+    def Block():
+        
+        return nn.Sequential(*[nn.Conv3d(nch,nch,(1,3,3), padding=(0, 1, 1)),
+                               nn.ReLU(inplace=True),
+                               nn.Conv3d(nch,nch,(1,3,3), padding=(0, 1, 1)),
+                               nn.ReLU(inplace=True)])
 elif args.block == 'dws':
     
     class Block(nn.Module):
@@ -74,6 +82,28 @@ elif args.block == 'res_v2':
         def forward(self, xb):
             
             return xb + self.conv(xb)
+
+elif args.block == 'rep_vgg':
+    
+    class my_conv(nn.Module):
+        
+        def __init__(self):
+            super().__init__()
+            self.conv0 = nn.BatchNorm3d(nch)
+            self.conv1 = nn.Sequential(*[nn.Conv3d(nch, nch, 1, bias=False),
+                                         nn.BatchNorm3d(nch)])
+            self.conv3 = nn.Sequential(*[nn.Conv3d(nch, nch, (1,3,3), bias=False, padding=(0,1,1)),
+                                         nn.BatchNorm3d(nch)])
+        
+        def forward(self, xb):
+            
+            return self.conv0(xb) + self.conv1(xb) + self.conv3(xb)
+        
+    def Block():
+        return nn.Sequential(*[my_conv(),
+                               nn.ReLU(inplace=True),
+                               my_conv(),
+                               nn.ReLU(inplace=True)])
 
 elif args.block == 'next':
     
