@@ -85,7 +85,7 @@ with context:
     st = perf_counter()
     for _ in range(n_benchmark):
         out = net(xb)
-        l = out.abs().mean()
+        l = out[0][:, :1].abs().mean()
         l.backward()
         net.zero_grad()
     et = perf_counter()
