@@ -186,6 +186,8 @@ class ContourRefinementV2Preprocessing(SegmentationPreprocessing):
         # create the mask by dilation and erosing (after preprocessing)
         mask = self._dial(pred, self.r_dial)[0]
         
+        # we only return the image, the mask and the label, not the previous
+        # prediction
         if return_np:
             mask = mask.cpu().numpy()
             xb_prep = np.concatenate([xb_prep[:self.n_im_channels],
