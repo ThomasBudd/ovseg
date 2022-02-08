@@ -9,6 +9,7 @@ parser.add_argument("vf", type=int)
 args = parser.parse_args()
 
 patch_size = [24, 96, 96]
+data_name = 'kits21'
 
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
                                                      z_to_xy_ratio=3.0/0.8,
@@ -33,7 +34,7 @@ model_params['postprocessing'] = {'mask_with_reg': True}
 model_name = 'UNet'
 
 model = ContourRefinementV2Model(val_fold=args.vf,
-                                  data_name='OV04',
+                                  data_name=data_name,
                                   preprocessed_name='kideny_full_refine', 
                                   model_name=model_name,
                                   model_parameters=model_params)
@@ -60,7 +61,7 @@ model_params['training']['batches_have_masks'] = True
 model_params['postprocessing'] = {'mask_with_reg': True}
 
 model = ContourRefinementV2Model(val_fold=args.vf,
-                                  data_name='OV04',
+                                  data_name=data_name,
                                   preprocessed_name='kideny_full_refine', 
                                   model_name=model_name,
                                   model_parameters=model_params)
