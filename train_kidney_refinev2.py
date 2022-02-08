@@ -43,7 +43,10 @@ model = ContourRefinementV2Model(val_fold=args.vf,
 while model.training.epochs_done < 1000:
 
     model.training.train()
-    model.eval_ds(model.data.val_ds, save_preds=False, merge_to_CV_results=True)
+    model.eval_ds(model.data.val_ds,
+                  f'validation_{model.training.epochs_done}',
+                  save_preds=False,
+                  merge_to_CV_results=True)
     
 model.eval_validation_set(force_evaluation=True)
 
@@ -69,6 +72,9 @@ model = ContourRefinementV2Model(val_fold=args.vf,
 while model.training.epochs_done < 1000:
 
     model.training.train()
-    model.eval_ds(model.data.val_ds, save_preds=False, merge_to_CV_results=True)
+    model.eval_ds(model.data.val_ds,
+                  f'validation_{model.training.epochs_done}',
+                  save_preds=False,
+                  merge_to_CV_results=True)
     
 model.eval_validation_set(force_evaluation=True)
