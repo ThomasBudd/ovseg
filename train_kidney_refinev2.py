@@ -40,7 +40,7 @@ model = ContourRefinementV2Model(val_fold=args.vf,
                                   model_name=model_name,
                                   model_parameters=model_params)
 
-while model.trainin.epochs_done < 1000:
+while model.training.epochs_done < 1000:
 
     model.training.train()
     model.eval_ds(model.data.val_ds, save_preds=False, merge_to_CV_results=True)
@@ -66,7 +66,7 @@ model = ContourRefinementV2Model(val_fold=args.vf,
                                   preprocessed_name=p_name, 
                                   model_name=model_name,
                                   model_parameters=model_params)
-while model.trainin.epochs_done < 1000:
+while model.training.epochs_done < 1000:
 
     model.training.train()
     model.eval_ds(model.data.val_ds, save_preds=False, merge_to_CV_results=True)
