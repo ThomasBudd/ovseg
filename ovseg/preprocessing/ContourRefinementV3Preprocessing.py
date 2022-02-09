@@ -16,7 +16,7 @@ except:
     tqdm = lambda x:x
 
 
-class ContourRefinementV2Preprocessing(SegmentationPreprocessing):
+class ContourRefinementV3Preprocessing(SegmentationPreprocessing):
     
     def __init__(self, *args, r_dial=None, r_max=15, **kwargs):
         super().__init__(*args, **kwargs)
