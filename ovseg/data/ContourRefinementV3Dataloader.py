@@ -71,7 +71,7 @@ class ContourRefinementV3BatchDataset(object):
 
     def _get_bias_coords(self, pred, label):
 
-        error = np.abs(pred-label) > 0
+        error = np.abs(pred[0]-label[0]) > 0
         return np.stack(np.where(error > 0)).astype(np.int16)
         
 
