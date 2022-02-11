@@ -5,11 +5,13 @@ import numpy as np
 from os.path import join, exists
 from time import perf_counter
 from torch.cuda import amp
-from torch.optim import SGD, Adam
+from torch.optim import SGD, Adam, AdamW
 
 default_SGD_params = {'momentum': 0.99, 'weight_decay': 3e-5, 'nesterov': True,
                       'lr': 10**-2}
 default_ADAM_params = {'lr': 10**-4}
+default_ADAMW_params = {'lr': 0.001, 'betas': (0.9, 0.999),
+                        'eps': 1e-08, 'weight_decay': 0.01}
 default_lr_params_almost_linear = {'beta': 0.9, 'lr_min': 0}
 default_lr_params_lin_ascent_cos_decay = {'n_warmup_epochs': 50, 'lr_max': 0.02}
 default_lr_params = {'lin_ascent_cos_decay': default_lr_params_lin_ascent_cos_decay,
@@ -76,6 +78,8 @@ class NetworkTraining(TrainingBase):
                 self.opt_params = default_SGD_params
             elif self.opt_name.lower() == 'adam':
                 self.opt_params = default_ADAM_params
+            elif self.opt_name.lower() == 'adamw':
+                self.opt_params = default_ADAMW_params
             else:
                 print('Default opt params only implemented for SGD and ADAM.')
                 self.opt_params = {}
@@ -141,6 +145,9 @@ class NetworkTraining(TrainingBase):
         elif self.opt_name.lower() == 'adam':
             print('initialise Adam')
             self.opt = Adam(params, **opt_params)
+        elif self.opt_name.lower() == 'adamw':
+            print('initialise AdamW')
+            self.opt = AdamW(params, **opt_params)
         else:
             raise ValueError('Optimiser '+self.opt_name+' was not does not '
                              'have a recognised implementation.')
