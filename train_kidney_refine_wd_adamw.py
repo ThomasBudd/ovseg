@@ -19,7 +19,7 @@ model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
                                                      larger_res_encoder=False,
                                                      n_fg_classes=1)
 
-lr = 0.0001
+lr = 1e-4
 wd = np.logspace(-1, -3, 6)[args.k]
 
 model_params['architecture'] = 'UNet'
