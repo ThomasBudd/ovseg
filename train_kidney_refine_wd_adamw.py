@@ -20,7 +20,7 @@ model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
                                                      n_fg_classes=1)
 
 lr = 1e-4
-wd = np.logspace(-1, -3, 6)[args.k]
+wd = np.logspace(-1, -3, 10)[args.k]
 
 model_params['architecture'] = 'UNet'
 model_params['network']['kernel_sizes'] = [(1, 3, 3), (1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
