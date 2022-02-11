@@ -43,7 +43,7 @@ model_params['training']['opt_params'] = {'lr': lr,
 
 model_params['postprocessing'] = {'mask_with_reg': True}
 
-model_name = f'ADAMW_wd_{lr:.3e}'
+model_name = f'ADAMW_wd_{wd:.3e}'
 
 model = ContourRefinementV3Model(val_fold=0,
                                   data_name=data_name,
