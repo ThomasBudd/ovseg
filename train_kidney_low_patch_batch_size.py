@@ -44,7 +44,7 @@ for patch_size, batch_size, wd, min_biased_samples, momentum in zip(patch_size_l
                                                          n_fg_classes=1)
     
     model_params['architecture'] = 'UNet'
-    model_params['network']['kernel_sizes'] = 5*[(3, 3, 3)]
+    model_params['network']['kernel_sizes'] = 4*[(3, 3, 3)]
     model_params['network']['norm'] = norm
     # model_params['network']['stem_kernel_size'] = [1, 4, 4]
     del model_params['network']['block']
