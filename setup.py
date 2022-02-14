@@ -16,7 +16,8 @@ setup(
             "scikit-image>=0.14",
             "scipy",
             "numpy",
-            "nibabel"
+            "nibabel",
+	    "rt_utils"
       ],
     # *strongly* suggested for sharing
     version='0.1',
