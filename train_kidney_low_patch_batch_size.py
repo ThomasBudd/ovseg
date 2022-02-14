@@ -53,16 +53,14 @@ for patch_size, batch_size, wd, min_biased_samples, momentum in zip(patch_size_l
     del model_params['network']['n_blocks_list']
     del model_params['network']['stochdepth_rate']
     
-    model_params['data']['folders'] = ['images', 'labels', 'regions', 'prev_preds']
-    model_params['data']['keys'] = ['image', 'label', 'region', 'prev_pred']
+    model_params['data']['folders'] = ['images', 'labels']
+    model_params['data']['keys'] = ['image', 'label']
     model_params['data']['trn_dl_params']['batch_size'] = batch_size
     model_params['data']['trn_dl_params']['min_biased_samples'] = 4
-    model_params['training']['batches_have_masks'] = True
     model_params['training']['opt_params']['weight_decay'] = wd
     model_params['training']['opt_params']['momentum'] = momentum
     model_params['training']['save_additional_weights_after_epochs'] = [750]
     
-    model_params['postprocessing'] = {'mask_with_reg': True}
     
     model_name = f'ps_{patch_size[0]}_bs{batch_size}'
 
