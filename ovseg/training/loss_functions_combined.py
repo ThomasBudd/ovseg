@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.nn.functional as F
 import numpy as np
 from ovseg.training.loss_functions import cross_entropy, dice_loss
 from ovseg.training.loss_functions import __dict__ as loss_functions_dict
@@ -77,6 +78,18 @@ class weighted_combined_loss(nn.Module):
         return l
 
 def downsample_yb(logs_list, yb):
+    
+    # get pytorch 2d or 3d adaptive max pooling function
+    f = F.adaptive_max_pool3d if len(yb.shape) == 5 else F.adaptive_max_pool2d
+    
+    # target downsampled to same size as logits
+    return [f(yb, logs.size[2:]) for logs in logs_list]
+    
+
+def downsample_yb_old(logs_list, yb):
+    # NOT IN USAGE ANYMORE
+    # ugly implementation of maxpooling, replaced by function 'downsample_yb'
+    
     # this function downsamples the target (or masks) to the same shapes as the outputs
     # from the different resolutions of the decoder path of the U-Net.
     yb_list = [yb]
