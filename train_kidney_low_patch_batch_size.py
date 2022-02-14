@@ -1,4 +1,4 @@
-from ovseg.model.ContourRefinementV3Model import ContourRefinementV3Model
+from ovseg.model.SegmentationModel import SegmentationModel
 from ovseg.model.model_parameters_segmentation import get_model_params_3d_res_encoder_U_Net
 import numpy as np
 import matplotlib.pyplot as plt
@@ -64,12 +64,12 @@ for patch_size, batch_size, wd, min_biased_samples, momentum in zip(patch_size_l
     
     model_name = f'ps_{patch_size[0]}_bs{batch_size}'
 
-model = ContourRefinementV3Model(val_fold=args.vf,
-                                  data_name=data_name,
-                                  preprocessed_name=p_name, 
-                                  model_name=model_name,
-                                  model_parameters=model_params)
-
-
-model.training.train()
-model.eval_validation_set()
+    model = SegmentationModel(val_fold=args.vf,
+                              data_name=data_name,
+                              preprocessed_name=p_name, 
+                              model_name=model_name,
+                              model_parameters=model_params)
+    
+    
+    model.training.train()
+    model.eval_validation_set()
