@@ -176,6 +176,9 @@ class SegmentationTraining(NetworkTraining):
                    ds.vol_ds.folders[ds.vol_ds.keys.index(ds.label_key)]]
         if self.batches_have_masks:
             folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.mask_key)])
+        if hasattr(ds, 'prev_pred_key'):
+            if ds.prev_pred_key is not None:
+                folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.prev_pred_key)])
         # folders with all downsampled data
         all_fols = []
         for fol in folders:
@@ -224,14 +227,14 @@ class SegmentationTraining(NetworkTraining):
                         # old code for cascade model
                         # here the predictions from the previous stages have been 
                         
-                        # if len(tpl) == 4:
-                        #     # in this case we're in the second stage and also resize the
-                        #     # prediction from the previous stage
-                        #     prd = tpl[1]
-                        #     prd_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)]
+                        if len(tpl) == 4:
+                            # in this case we're in the second stage and also resize the
+                            # prediction from the previous stage
+                            prd = tpl[1]
+                            prd_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)]
                             
-                        #     self._rescale_and_save_arr(prd, scales, extensions, prepp,
-                        #                                prd_folder, scan, is_lb=True)
+                            self._rescale_and_save_arr(prd, scales, extensions, prepp,
+                                                        prd_folder, scan, is_lb=True)
                     
                     # else:
                     #     if len(tpl) == 3:
