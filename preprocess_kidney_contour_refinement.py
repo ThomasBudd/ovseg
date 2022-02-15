@@ -3,7 +3,7 @@ from ovseg.preprocessing.ContourRefinementV3Preprocessing import ContourRefineme
 
 prev_stages = {'data_name': 'kits21',
                'preprocessed_name': 'kidney_low',
-               'model_name': 'first_try'}
+               'model_name': 'ps_64_bs16'}
 
 preprocessing = ContourRefinementV3Preprocessing(apply_resizing=True,
                                                apply_pooling=False,
@@ -16,4 +16,4 @@ preprocessing = ContourRefinementV3Preprocessing(apply_resizing=True,
                                                r_dial=10)
 
 preprocessing.preprocess_raw_data(raw_data='kits21',
-                                  preprocessed_name='kidney_full_refine_v3')
+                                  preprocessed_name='kidney_full_refine_new')

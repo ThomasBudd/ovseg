@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 lbp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', 'kits21',
                    'labels')
-
+# %%
 sizes = []
 
 for case in tqdm(os.listdir(lbp)):
@@ -23,3 +23,6 @@ for case in tqdm(os.listdir(lbp)):
         sizes.append([np.ptp(a)*s for a, s in zip(np.where(comp), sp)])
 
 np.save(os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', 'kits21', 'tumour_sizes'), sizes)
+
+# %%
+sizes = np.load(os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', 'kits21', 'tumour_sizes.npy'))
