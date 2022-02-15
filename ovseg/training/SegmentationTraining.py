@@ -231,20 +231,20 @@ class SegmentationTraining(NetworkTraining):
                             # in this case we're in the second stage and also resize the
                             # prediction from the previous stage
                             prd = tpl[1]
-                            prd_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)]
+                            prd_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.prev_pred_key)]
                             
                             self._rescale_and_save_arr(prd, scales, extensions, prepp,
                                                         prd_folder, scan, is_lb=True)
                     
-                    # else:
-                    #     if len(tpl) == 3:
-                    #         # in this case we're in the second stage and also resize the
-                    #         # prediction from the previous stage
-                    #         prd = tpl[1]
-                    #         prd_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)]
+                    else:
+                        if len(tpl) == 3:
+                            # in this case we're in the second stage and also resize the
+                            # prediction from the previous stage
+                            prd = tpl[1]
+                            prd_folder = ds.vol_ds.folders[ds.vol_ds.keys.index(ds.prev_pred_key)]
                             
-                    #         self._rescale_and_save_arr(prd, scales, extensions, prepp,
-                    #                                    prd_folder, scan, is_lb=True)
+                            self._rescale_and_save_arr(prd, scales, extensions, prepp,
+                                                        prd_folder, scan, is_lb=True)
 
         # now we need the new_keys and new_folders for each stage to update the datasets
         self.prg_trn_new_keys = [ds.image_key, ds.label_key]
@@ -256,9 +256,9 @@ class SegmentationTraining(NetworkTraining):
                 self.prg_trn_new_keys.append(ds.prev_pred_key)
                 folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.prev_pred_key)])
                 
-        # if ds.pred_fps_key is not None:
-        #     self.prg_trn_new_keys.append(ds.pred_fps_key)
-        #     folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.pred_fps_key)])
+        if ds.prev_pred_key is not None:
+            self.prg_trn_new_keys.append(ds.prev_pred_key)
+            folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.prev_pred_key)])
         if self.batches_have_masks:
             self.prg_trn_new_keys.append(ds.mask_key)
             folders.append(ds.vol_ds.folders[ds.vol_ds.keys.index(ds.mask_key)])
