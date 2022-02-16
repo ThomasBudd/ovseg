@@ -33,8 +33,10 @@ model_params['network']['norm'] = 'batch'
 # data and training
 model_params['data']['folders'] = ['images', 'labels', 'regions', 'prev_preds']
 model_params['data']['keys'] = ['image', 'label', 'region', 'prev_pred']
-model_params['data']['trn_dl_params']['batch_size'] = 32
-model_params['data']['trn_dl_params']['min_biased_samples'] = 11
+for s in ['trn_dl_params', 'val_dl_params']:
+    model_params['data'][s]['batch_size'] = 32
+    model_params['data'][s]['min_biased_samples'] = 11
+    model_params['data'][s]['num_workers'] = 14
 model_params['training']['batches_have_masks'] = True
 model_params['training']['opt_params']['weight_decay'] = 2e-4
 model_params['training']['opt_params']['momentum'] = 0.9
