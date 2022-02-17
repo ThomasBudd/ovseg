@@ -379,22 +379,10 @@ class ModelBase(object):
         names_for_txt = {}
         print('Evaluating '+ds_name+'...\n\n')
         sleep(1)
-        for i in tqdm(range(len(ds))):
-            # get the data
-            data_tpl = ds[i]
+        for data_tpl in tqdm(ds):
             # first let's try to find the name
-            if 'scan' in data_tpl.keys():
-                scan = data_tpl['scan']
-            else:
-                d = str(int(np.ceil(np.log10(len(ds)))))
-                scan = 'case_%0'+d+'d'
-                scan = scan % i
-                if not NO_NAME_FOUND_WARNING_PRINTED:
-                    print('Warning! Could not find an scan name in the data_tpl.'
-                          'Please make sure that the items of the dataset have a key \'scan\'.'
-                          'A simple choice could be the name of a raw (e.g. segmentation) file.'
-                          'Choose generic naming case_xxx as names.\n')
-                    NO_NAME_FOUND_WARNING_PRINTED = True
+            scan = data_tpl['scan']
+
             if 'name' in data_tpl.keys():
                 names_for_txt[scan] = data_tpl['name']
             else:

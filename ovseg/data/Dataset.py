@@ -92,6 +92,18 @@ class Dataset(object):
         self.keys = new_keys
         self._set_path_dics_and_scans()
 
+    def __iter__(self):
+        self.counter = 0
+        return self
+    
+    def __next__(self):
+        
+        if self.counter >= self.__len__():
+            raise StopIteration
+        
+        self.counter += 1
+        
+        return self.__getitem__(self.counter-1)
 
 class raw_Dataset(object):
 
@@ -249,6 +261,18 @@ class raw_Dataset(object):
 
         return data_tpl
 
+    def __iter__(self):
+        self.counter = 0
+        return self
+    
+    def __next__(self):
+        
+        if self.counter >= self.__len__():
+            raise StopIteration
+        
+        self.counter += 1
+        
+        return self.__getitem__(self.counter-1)
 # %%
 class low_res_ds_wrapper(object):
     # this is usefull when combining early stopping parameter tuning with
