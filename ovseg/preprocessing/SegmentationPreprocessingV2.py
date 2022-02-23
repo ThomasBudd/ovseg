@@ -123,7 +123,7 @@ class SegmentationPreprocessingV2(object):
             if self.has_ps_mask:
                 self.prev_stages.append(self.prev_stage_for_mask)
         
-            self.prev_stages = list(set(self.prev_stages))
+            #self.prev_stages = list(set(self.prev_stages))
         else:
             self.prev_stages = None
 
