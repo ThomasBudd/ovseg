@@ -1,5 +1,6 @@
 from ovseg.model.SegmentationModel import SegmentationModel
 from ovseg.preprocessing.SegmentationPreprocessingV2 import SegmentationPreprocessingV2
+from ovseg.data.SegmentationDataV2 import SegmentationDataV2
 from ovseg.utils.io import save_nii_from_data_tpl, save_npy_from_data_tpl, load_pkl, read_nii, save_dcmrt_from_data_tpl, is_dcm_path
 from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 from ovseg.utils.dict_equal import dict_equal, print_dict_diff
@@ -53,6 +54,30 @@ class SegmentationModelV2(SegmentationModel):
                           'output channels....')
         else:
             self.lb_classes = self.preprocessing.lb_classes
+
+    def initialise_data(self):
+        # the data object holds the preprocessed data (training and validation)
+        # for each it has both a dataset returning the data tuples and the dataloaders
+        # returning the batches
+        if 'data' not in self.model_parameters:
+            raise AttributeError('model_parameters must have key '
+                                 '\'data\'. These must contain the '
+                                 'dict of training paramters.')
+
+        # Let's get the parameters and add the cpu augmentation
+        params = self.model_parameters['data'].copy()
+
+        # if we don't want to store our data in ram...
+        if self.dont_store_data_in_ram:
+            for key in ['trn_dl_params', 'val_dl_params']:
+                params[key]['store_data_in_ram'] = False
+                params[key]['store_coords_in_ram'] = False
+        self.data = SegmentationDataV2(val_fold=self.val_fold,
+                                       preprocessed_path=self.preprocessed_path,
+                                       augmentation= self.augmentation.np_augmentation,
+                                       **params)
+        print('Data initialised')
+
 
     def __call__(self, data_tpl, do_postprocessing=True):
         '''
