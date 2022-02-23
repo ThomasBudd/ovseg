@@ -31,6 +31,6 @@ for data_tpl in tqdm(ds):
         data_tpl[pred_key] = pred
         
         # export as nifti
-        out_file = os.path.join(predp, model, data_tpl['scan'])
+        out_file = os.path.join(predp, model, data_tpl['scan']+'.nii.gz')
         save_nii_from_data_tpl(data_tpl, out_file, pred_key)        
         

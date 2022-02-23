@@ -1,0 +1,17 @@
+from ovseg.preprocessing.SegmentationPreprocessingV2 import SegmentationPreprocessingV2
+
+
+prev_stage_for_mask = {'data_name': 'kits21',
+                       'preprocessed_name': 'kidney_full_refine_refine',
+                       'model_name': 'refine_model'}
+
+prep = SegmentationPreprocessingV2(apply_resizing=True,
+                                   apply_pooling=False,
+                                   apply_windowing=True,
+                                   target_spacing=None,
+                                   lb_classes=[2],
+                                   save_only_fg_scans=False,
+                                   prev_stage_for_mask=prev_stage_for_mask)
+
+prep.plan_preprocessing_raw_data('kits21')
+prep.preprocess_raw_data('kits21', 'kidney_tumour')
