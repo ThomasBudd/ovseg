@@ -141,7 +141,7 @@ class SegmentationBatchDatasetV2(object):
         for ind in tqdm(range(self.n_volumes)):
             volumes = self._get_volume_tuple(ind)
             
-            coords, weight = self._compute_bias_coordinates_and_weights(volumes)
+            coords, weight = self._compute_bias_coordinates_and_weight(volumes)
             self.bias_coords_list.append(coords)
             self.weight_list.append(weight)
 
