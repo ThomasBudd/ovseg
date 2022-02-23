@@ -58,7 +58,7 @@ class SegmentationBatchDatasetV2(object):
             self.padded_patch_size = np.array(padded_patch_size)
 
         # now check if we're considerin masks and previous predictions
-        self.has_masks = 'mask' in self.vol_ds.keys
+        self.has_mask = 'mask' in self.vol_ds.keys
         self.has_pp = 'prev_pred' in self.vol_ds.keys
 
         self._maybe_store_data_in_ram()
@@ -72,7 +72,7 @@ class SegmentationBatchDatasetV2(object):
         # now this is needed for the progressive learning
         self.image_key = 'image'
         self.label_key = 'label'
-        if self.has_masks:
+        if self.has_mask:
             self.mask_key = 'mask'
         if self.has_pp:
             self.prev_pred_key = 'prev_pred'
@@ -132,7 +132,7 @@ class SegmentationBatchDatasetV2(object):
         self.contains_bias_list = [[] for _ in range(self.n_fg_classes)]
         self.weight_list = []
         
-        if self.has_masks:
+        if self.has_mask:
             # if we have masks we only want to sample inside them
             self.mask_coords_list = []
             self.contains_mask_list = []
@@ -151,7 +151,7 @@ class SegmentationBatchDatasetV2(object):
                     self.contains_bias_list[i].append(ind)
             
             # now if we have masks we will only sample inside them
-            if self.has_masks:
+            if self.has_mask:
                 mask_coords = np.stack(np.where(volumes[-2] > 0)).astype(np.int16)
                 self.mask_coords_list.append(mask_coords)
                 if mask_coords.shape[1] > 0:
@@ -298,7 +298,7 @@ class SegmentationBatchDatasetV2(object):
             coord = coords[:, np.random.randint(n_coords)] - self.patch_size//2
         else:
             
-            if self.has_masks:
+            if self.has_mask:
                 # let's get the list of bias coordinates from RAM
                 coords = self.mask_coords_list[ind][cl]
                 

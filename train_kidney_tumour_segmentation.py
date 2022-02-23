@@ -37,8 +37,8 @@ del model_params['network']['z_to_xy_ratio']
 del model_params['network']['n_blocks_list']
 del model_params['network']['stochdepth_rate']
 
-model_params['data']['folders'] = ['images', 'labels', 'masks', 'prev_preds']
-model_params['data']['keys'] = ['image', 'label', 'mask', 'prev_pred']
+model_params['data']['folders'] = ['images', 'labels', 'masks']
+model_params['data']['keys'] = ['image', 'label', 'mask']
 
 for s in ['trn_dl_params', 'val_dl_params']:
     model_params['data'][s]['batch_size'] = bs
