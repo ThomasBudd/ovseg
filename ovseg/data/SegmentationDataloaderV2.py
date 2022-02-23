@@ -80,10 +80,10 @@ class SegmentationBatchDatasetV2(object):
     def _compute_bias_coordinates_and_weight(self, volumes):
         
         if self.bias == 'fg':
-            coords = [np.stack(np.where(volumes[-1] > 0)).astype(np.int16)]
+            coords = [np.stack(np.where(volumes[-1][0] > 0)).astype(np.int16)]
             weight = 1
         elif self.bias == 'cl_fg':
-            coords = [np.stack(np.where(volumes[-1] == cl)).astype(np.int16)
+            coords = [np.stack(np.where(volumes[-1][0] == cl)).astype(np.int16)
                     for cl in range(1, self.n_fg_classes + 1)]
             weight = 1
         elif self.bias == 'error':
@@ -93,8 +93,8 @@ class SegmentationBatchDatasetV2(object):
             coords = []
             weight = 0
             
-            lb = volumes[-1]
-            pp = volumes[1]
+            lb = volumes[-1][0]
+            pp = volumes[1][0]
             
             for cl in range(1, self.n_fg_classes):
                 
