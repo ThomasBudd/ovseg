@@ -344,7 +344,7 @@ class SegmentationPreprocessingV2(object):
             if self.r_dial_mask > 0:
                 mask = self._dial(mask > 0)[0]
             
-            if torch.is_tensor(pred):
+            if torch.is_tensor(mask):
                 mask = mask.cpu().numpy()
             
             # make sure the mask is binary (if no dialation was applied)

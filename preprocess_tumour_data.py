@@ -11,7 +11,10 @@ prep = SegmentationPreprocessingV2(apply_resizing=True,
                                    target_spacing=None,
                                    lb_classes=[2],
                                    save_only_fg_scans=False,
+                                   scaling=[60.1791, 63.9565],
+                                   target_spacing=[3.0, 0.78, 0.78],
+                                   window=[-52, 286],
                                    prev_stage_for_mask=prev_stage_for_mask)
 
-prep.plan_preprocessing_raw_data('kits21')
+# prep.plan_preprocessing_raw_data('kits21')
 prep.preprocess_raw_data('kits21', 'kidney_tumour')
