@@ -152,7 +152,7 @@ class SegmentationBatchDatasetV2(object):
             
             # now if we have masks we will only sample inside them
             if self.has_mask:
-                mask_coords = np.stack(np.where(volumes[-2] > 0)).astype(np.int16)
+                mask_coords = np.stack(np.where(volumes[-2][0] > 0)).astype(np.int16)
                 self.mask_coords_list.append(mask_coords)
                 if mask_coords.shape[1] > 0:
                     self.contains_mask_list.append(ind)
