@@ -300,7 +300,7 @@ class SegmentationBatchDatasetV2(object):
             
             if self.has_mask:
                 # let's get the list of bias coordinates from RAM
-                coords = self.mask_coords_list[ind][cl]
+                coords = self.mask_coords_list[ind]
                 
                 # pick a random item from the list and compute the upper left corner of the patch
                 n_coords = coords.shape[1]
