@@ -6,6 +6,9 @@ from ovseg.utils.io import load_pkl
 from ovseg.networks.resUNet import UNetResEncoder
 from ovseg.prediction.SlidingWindowPrediction import SlidingWindowPrediction
 
+FLIP_AND_ROTATE_IMAGE = True
+
+
 def ClaraWrapperOvarian(data_tpl,
                         models,
                         path_to_clara_models='/aiaa_workspace/aiaa-1/lib/ovseg_zxy/clara_models'):
@@ -79,6 +82,11 @@ def preprocess_dynamic_z_spacing(data_tpl,
     im = data_tpl['image']
     if len(im.shape) == 3:
         im = im[np.newaxis]
+
+    if FLIP_AND_ROTATE_IMAGE:
+        # this corrects for differences in how dcms are read in ov_seg
+        # and how clara creates nifti files from dcms
+        im = np.rot90(im[:, ::-1, :, ::-1], -1, (1,2))
 
     # now the image should be 5d
     im = torch.from_numpy(im).type(torch.float).unsqueeze(0).cuda()

@@ -327,7 +327,6 @@ class SegmentationPreprocessingV2(object):
             # ensure the array is 4d
             pred = maybe_add_channel_dim(pred)
             
-            
             if self.lb_classes is not None:
                 pred = reduce_classes(pred, self.lb_classes, self.reduce_lb_to_single_class)
             
