@@ -214,8 +214,6 @@ class SegmentationPreprocessingV2(object):
 
     def maybe_clean_label_from_data_tpl(self, data_tpl):
 
-        spacing = data_tpl['spacing'] if 'spacing' in data_tpl else None
-
         if 'label' not in data_tpl:
             
             return np.zeros(data_tpl['image'].shape[-3:])
@@ -328,6 +326,10 @@ class SegmentationPreprocessingV2(object):
                 pred = pred.cpu().numpy()
             # ensure the array is 4d
             pred = maybe_add_channel_dim(pred)
+            
+            
+            if self.lb_classes is not None:
+                pred = reduce_classes(pred, self.lb_classes, self.reduce_lb_to_single_class)
             
             if pred.max() > 1:
                 raise NotImplementedError('Didn\'t implement the casacde for multiclass'
