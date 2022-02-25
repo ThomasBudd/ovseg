@@ -47,6 +47,7 @@ for vf, p in vf_p_list:
         model_params['data'][s]['n_fg_classes'] = 1
         del model_params['data'][s]['store_coords_in_ram']
         del model_params['data'][s]['memmap']
+    
     model_params['training']['batches_have_masks'] = True
     model_params['training']['opt_params']['weight_decay'] = wd
     model_params['training']['opt_params']['momentum'] = 0.9
@@ -60,7 +61,7 @@ for vf, p in vf_p_list:
                                 preprocessed_name=p_name, 
                                 model_name=model_name,
                                 model_parameters=model_params)
-    
+
     
     model.training.train()
     model.eval_validation_set()

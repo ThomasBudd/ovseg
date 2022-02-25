@@ -260,7 +260,7 @@ class SegmentationBatchDatasetV2(object):
                 else:
                     ind = np.random.randint(self.n_volumes)
             
-                classes_present = [cl for cl in range(self.availble_classes) if ind in self.contains_bias_list[cl]]
+                classes_present = [cl for cl in self.availble_classes if ind in self.contains_bias_list[cl]]
                 cl = np.random.choice(classes_present)
                 return ind, cl
             else:
