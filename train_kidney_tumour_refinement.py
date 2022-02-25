@@ -6,7 +6,7 @@ import argparse
 from itertools import product
 
 parser = argparse.ArgumentParser()
-parser.add_argument("exp", type=int)
+parser.add_argument("i", type=int)
 args = parser.parse_args()
 
 patch_size = [24, 96, 96]
@@ -44,6 +44,7 @@ for vf, p in vf_p_list:
         model_params['data'][s]['num_workers'] = 8
         model_params['data'][s]['bias'] = 'error'
         model_params['data'][s]['p_weighted_volume_sampling'] = p
+        model_params['data'][s]['n_fg_classes'] = 1
         del model_params['data'][s]['store_coords_in_ram']
         del model_params['data'][s]['memmap']
     model_params['training']['batches_have_masks'] = True
