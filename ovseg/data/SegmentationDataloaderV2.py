@@ -96,7 +96,7 @@ class SegmentationBatchDatasetV2(object):
             lb = volumes[-1][0]
             pp = volumes[1][0]
             
-            for cl in range(1, self.n_fg_classes):
+            for cl in range(1, self.n_fg_classes+1):
                 
                 lb_cl = (lb == cl).astype(float)
                 pp_cl = (pp == cl).astype(float)
