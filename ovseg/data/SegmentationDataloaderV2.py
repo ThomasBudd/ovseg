@@ -101,7 +101,7 @@ class SegmentationBatchDatasetV2(object):
                 lb_cl = (lb == cl).astype(float)
                 pp_cl = (pp == cl).astype(float)
                 
-                error = (lb_cl - pp_cl).abs() > 0
+                error = np.abs(lb_cl - pp_cl) > 0
                 
                 coords.append(np.stack(np.where(error)).astype(np.int16))
                 if lb_cl.max() > 0 or pp_cl.max() > 0:
