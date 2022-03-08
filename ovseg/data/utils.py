@@ -19,7 +19,8 @@ def crop_and_pad_image(volume, coord, patch_size, padded_patch_size, mode='minim
     None.
 
     '''
-    shape = np.array(volume.shape)
+    assert len(volume.shape) == 4
+    shape = np.array(volume.shape)[1:]
 
     # global coordinates, possible outside volume
     cmn_in = coord - (padded_patch_size - patch_size)//2
@@ -30,15 +31,18 @@ def crop_and_pad_image(volume, coord, patch_size, padded_patch_size, mode='minim
     cmx_vol = np.minimum(cmx_in, shape)
 
     # let's cut out of the volume as much as we can
-    crop = volume[cmn_vol[0]:cmx_vol[0], cmn_vol[1]:cmx_vol[1],
+    crop = volume[:, cmn_vol[0]:cmx_vol[0], cmn_vol[1]:cmx_vol[1],
                   cmn_vol[2]:cmx_vol[2]]
 
     # now the padding
     pad_low = -1 * np.minimum(0, cmn_in)
-    pad_up = np.maximum(0, cmn_in - cmx_vol)
-    pad_width = [(pl, pu) for pl, pu in zip(pad_low, pad_up)]
+    # pad_up = np.maximum(0, cmn_in - cmx_vol)
+    pad_up = np.maximum(0, cmx_in - cmx_vol)
+    pad_width = [(int(pl), int(pu)) for pl, pu in zip(pad_low, pad_up)]
 
-    return np.pad(crop, pad_width, mode=mode)
+    # we apply the mode for each channel, e.g. when the mode is minium we pad with the minmal value
+    # in each channel
+    return np.stack([np.pad(crop[c], pad_width, mode=mode) for c in range(crop.shape[0])])
 
 
 def folds_to_splits(folds):

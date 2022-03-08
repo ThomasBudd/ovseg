@@ -59,7 +59,7 @@ class Reconstruction2dSimModel(ModelBase):
         elif architecture in ['lpd', 'learnedprimaldual', 'learned-primal-dual']:
             self.network = learned_primal_dual(self.operator, **params)
         else:
-            self.network = post_processing_U_Net()
+            self.network = post_processing_U_Net(self.operator)
         self.network = self.network.to(self.dev)
 
     def initialise_postprocessing(self):
@@ -108,7 +108,10 @@ class Reconstruction2dSimModel(ModelBase):
 
         '''
         im_HU = self.preprocessing.scaling[0] * im + self.preprocessing.scaling[1]
-
+        if torch.is_tensor(im):
+            im = im.clamp(-1000)
+        else:
+            im = im.clip(-1000)
         return im_HU
 
     def predict(self, data_tpl, return_torch=False):
@@ -131,25 +134,25 @@ class Reconstruction2dSimModel(ModelBase):
             proj = proj.cuda()
 
         # add channel axes
-        proj = proj.unsqueeze(0)
+        proj = proj.unsqueeze(1)
 
-        nz = proj.shape[-1]
+        nz = proj.shape[0]
         bs = self.batch_size_val
-        pred = torch.zeros((512, 512, nz), device='cuda')
+        pred = torch.zeros((nz, 512, 512), device='cuda')
         z_list = list(range(0, nz - bs, bs)) + [nz - bs]
 
         # do the iterations
         with torch.no_grad():
             for z in z_list:
-                batch = torch.stack([proj[..., zb] for zb in range(z, z + bs)])
+                batch = torch.stack([proj[zb] for zb in range(z, z + bs)])
                 if self.fp32_val:
                     out = self.network(batch)
                 else:
                     with torch.cuda.amp.autocast():
                         out = self.network(batch)
                 # out back to gpu and reshape
-                out = torch.stack([out[b, 0] for b in range(bs)], -1)
-                pred[..., z: z + bs] = out
+                out = torch.stack([out[b, 0] for b in range(bs)])
+                pred[z: z + bs] = out
 
             # convert to HU
             pred = self.postprocessing(pred)
@@ -168,12 +171,12 @@ class Reconstruction2dSimModel(ModelBase):
 
     def fbp(self, proj):
 
-        proj = torch.tensor(proj).type(torch.float)
+        proj = torch.tensor(proj).type(torch.float).cuda()
         shape = np.array(proj.shape)
         if len(shape) == 2:
             proj = proj.reshape(1, 1, *shape)
         elif len(shape) == 3:
-            proj = torch.stack([proj[..., z] for z in range(shape[-1])]).unsqueeze(1)
+            proj = proj.unsqueeze(1)
         elif not len(shape) == 4:
             raise ValueError('proj must be 2d projection, 3d stacked in last '
                              'dim or 4d in batch form.')
@@ -188,6 +191,8 @@ class Reconstruction2dSimModel(ModelBase):
         elif len(shape == 3):
             # stack again in last dim
             fbp = np.moveaxis(fbp, 0, -1)[0]
+
+        fbp = self.preprocessing.scaling_before_proj[0] * fbp + self.preprocessing.scaling_before_proj[1]
 
         # if fbp is in batch from we don't have to do reshaping
         return fbp
@@ -236,12 +241,11 @@ class Reconstruction2dSimModel(ModelBase):
         proj = data_tpl['projection']
         pred = data_tpl[self.pred_key]
         # extract slices
-        z = np.random.randint(im.shape[-1])
-        im_sl = im[..., z]
-        pred_sl = pred[..., z].clip(*self.plot_window)
+        z = np.random.randint(im.shape[0])
+        im_sl = im[z]
+        pred_sl = pred[z].clip(*self.plot_window)
         # compute fbp
-        fbp_sl = self.fbp(proj[..., z])
-        fbp_sl = self.postprocessing(fbp_sl).clip(*self.plot_window)
+        fbp_sl = self.fbp(proj[z]).clip(*self.plot_window)
         # compute PSNR
         mse_fbp = np.mean((im_sl - fbp_sl) ** 2)
         mse_pred = np.mean((im_sl - pred_sl) ** 2)
@@ -273,14 +277,14 @@ class Reconstruction2dSimModel(ModelBase):
         plt.close(fig)
 
     def compute_error_metrics(self, data_tpl):
-        pred = data_tpl[self.pred_key]
-        im = data_tpl['image']
+        pred = data_tpl[self.pred_key].astype(float)
+        im = data_tpl['image'].astype(float)
         if 'projection' in data_tpl:
             # in this case the image is not in HU, let's convert
             im = self.postprocessing(im)
         mse = np.mean((pred - im)**2)
         Imax2 = (im - im.min()).max()**2
-        PSNR = 10 * np.log10(Imax2 / mse)
+        PSNR = 10 * np.log10(Imax2 / mse) if mse > 0 else np.nan
         im_win = im.clip(*self.plot_window)
         pred_win = pred.clip(*self.plot_window)
         mse_win = np.mean((pred_win - im_win)**2)

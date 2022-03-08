@@ -22,3 +22,17 @@ def check_type(inpt):
         raise TypeError('Expected input to be np.ndarray or torch.tensor. '
                         'Got {}'.format(type(inpt)))
     return is_np, is_torch
+
+
+def maybe_add_channel_dim(inpt):
+
+    is_np, _ = check_type(inpt)
+    if len(inpt.shape) == 3:
+        if is_np:
+            return inpt[np.newaxis]
+        else:
+            return inpt.unsqueeze(0)
+    elif len(inpt.shape) == 4:
+        return inpt
+    else:
+        raise ValueError('Expected input to be 3d or 4d, got {}d'.format(len(inpt.shape)))

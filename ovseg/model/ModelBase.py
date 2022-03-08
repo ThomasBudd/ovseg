@@ -1,8 +1,11 @@
-from os.path import join, exists, basename
+from os.path import join, exists
 from ovseg.utils import io, path_utils
-from ovseg.utils.dict_equal import dict_equal
+from ovseg.utils.dict_equal import dict_equal, print_dict_diff
+from ovseg.data.Dataset import raw_Dataset
+from ovseg import OV_PREPROCESSED
 import os
 import torch
+from time import sleep, asctime
 try:
     from tqdm import tqdm
 except ModuleNotFoundError:
@@ -30,7 +33,7 @@ class ModelBase(object):
     network and to evaluate it on a full 3d volume.
     '''
 
-    def __init__(self, val_fold: int, data_name: str, model_name: str,
+    def __init__(self, val_fold, data_name: str, model_name: str,
                  model_parameters=None, preprocessed_name=None,
                  network_name='network', is_inference_only: bool = False,
                  fmt_write='{:.4f}', model_parameters_name='model_parameters'):
@@ -44,61 +47,49 @@ class ModelBase(object):
         self.is_inference_only = is_inference_only
         self.fmt_write = fmt_write
         self.model_parameters_name = model_parameters_name
+        self.ov_data_base = os.environ['OV_DATA_BASE']
+
+        if isinstance(self.val_fold, int):
+            self.val_fold_str = 'fold_' + str(self.val_fold)
+        else:
+            assert isinstance(self.val_fold, (tuple, list)), "val_fold must be int, list or tuple"
+            self.val_fold_str = 'ensemble_'+'_'.join([str(f) for f in self.val_fold])
+
+        # just to enable CPU execution where the GPU is missing
+        self.dev = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+        if self.preprocessed_name is None:
+            path_to_preprocessed_data = join(OV_PREPROCESSED,
+                                             self.data_name)
+            if not exists(path_to_preprocessed_data):
+                raise FileNotFoundError('Path to preprocessed data doesn\'t exsist. Make sure '
+                                        'to preprocess your raw data before using models.')
+
+            preprocessed_folders = os.listdir(path_to_preprocessed_data)
+
+            if not len(preprocessed_folders) == 1:
+                raise FileNotFoundError('No input \'preprocessed_name\' was given and it could '
+                                        'not be identified automatically. Available preprocessed '
+                                        'data folders are {}'.format(preprocessed_folders))
+            else:
+                print('No preprocessed_name given, chose {}.'.format(preprocessed_folders[0]))
+                self.preprocessed_name = preprocessed_folders[0]
+
+        # set the path to the preprocessed data
+        self.preprocessed_path = join(OV_PREPROCESSED,
+                                      self.data_name,
+                                      self.preprocessed_name)
 
         # the model path will be pointing to the model of this particular fold
         # weights and (hyper) parameters are stored here
-        self.ov_data_base = os.environ['OV_DATA_BASE']
         self.model_cv_path = join(self.ov_data_base,
                                   'trained_models',
                                   self.data_name,
+                                  self.preprocessed_name,
                                   self.model_name)
-        self.model_path = join(self.model_cv_path, 'fold_%d' % self.val_fold)
+        self.model_path = join(self.model_cv_path, self.val_fold_str)
         path_utils.maybe_create_path(self.model_path)
         self.path_to_params = join(self.model_cv_path, self.model_parameters_name+'.pkl')
-        if self.preprocessed_name is None:
-            if not self.is_inference_only:
-                print('Model was called not in inference mode and no '
-                      'preprocessed path was given. Searching for preprocessed data...\n')
-                preprocessed_folders = os.listdir(join(self.ov_data_base,
-                                                       'preprocessed',
-                                                       self.data_name))
-                if len(preprocessed_folders) == 1:
-                    self.preprocessed_name = preprocessed_folders[0]
-                    print('Only one folder of preprocessed data found ({}). '
-                          'It is assumed that is it the right one.\n'
-                          ''.format(self.preprocessed_name))
-                elif self.model_name is preprocessed_folders:
-                    print('Found preprocessed folder of the same name as the '
-                          'model. Assume this is the right one.\n')
-                    self.preprocessed_name = self.model_name
-                elif 'default' in preprocessed_folders:
-                    print('Found default preprocessed folder (default). Assume this is '
-                          'the right one.\n')
-                    self.preprocessed_name = 'default'
-                else:
-                    raise ValueError('No name for preprocessed data was given,'
-                                     ' even though the model was not '
-                                     'initialised in inference mode. If you '
-                                     'want to train you have to know where the'
-                                     ' data is.')
-
-                # if we've made it until here there was no error raised.
-                self.preprocessed_path = join(self.ov_data_base,
-                                              'preprocessed',
-                                              self.data_name,
-                                              self.preprocessed_name)
-            # else:
-            # in inference mode we shouldn't have a preprocessed path
-            #     self.preprocessed_path = join(self.ov_data_base,
-            #                                   'preprocessed',
-            #                                   self.data_name,
-            #                                   'default')
-
-        else:
-            self.preprocessed_path = join(self.ov_data_base,
-                                          'preprocessed',
-                                          self.data_name,
-                                          self.preprocessed_name)
 
         # %% check and load model_parameters
         params_given = isinstance(self.model_parameters, dict)
@@ -125,8 +116,11 @@ class ModelBase(object):
                 print('Input model parameters match pickled ones.\n')
                 self.parameters_match_saved_ones = True
             else:
-                print('Found conflict between saved and inputed model parameters. '
-                      'New paramters added will not be stored in the .pkl file automatically. '
+                print('-------Found conflict between saved and inputed model parameters-------')
+                print_dict_diff(self.model_parameters, model_params_from_pkl, 'input paramters'
+                                'pkl paramters')
+                print('-----------------------------------------------------------------------')
+                print('The inputed paramters will are NOT overwriting the pkl parameter. \n '
                       'If you want to overwrite, call model.save_model_parameters(). '
                       'Make sure you want to alter the parameters stored at '+self.path_to_params)
 
@@ -134,27 +128,27 @@ class ModelBase(object):
 
         # %% now initialise everything we need
 
-        if 'prediction_key' in self.model_parameters:
-            self.pred_key = self.model_parameters['prediction_key']
-        else:
-            print('\'prediction_key\' was not found in model_parameters.'
-                  'Init as \'prediction\'.')
-            self.pred_key = 'prediction'
-            self.model_parameters['prediction_key'] = 'prediction'
-            if self.parameters_match_saved_ones:
-                self.save_model_parameters()
+        # this is what we once did, not let's just identify the prediction by the ugly long key...
+        self.pred_key = '_'.join(['prediction', self.data_name, self.preprocessed_name,
+                                  self.model_name])
+        # if 'prediction_key' in self.model_parameters:
+        #     self.pred_key = self.model_parameters['prediction_key']
+        # else:
+        #     print('\'prediction_key\' was not found in model_parameters.'
+        #           'Init as \'prediction\'.')
+        #     self.pred_key = 'prediction'
+        #     self.model_parameters['prediction_key'] = 'prediction'
+        #     if self.parameters_match_saved_ones:
+        #         self.save_model_parameters()
 
         self.initialise_preprocessing()
         self.initialise_augmentation()
         self.initialise_network()
         path_to_weights = join(self.model_path, self.network_name + '_weights')
         if exists(path_to_weights):
-            print('Found '+self.network_name+' weights. Loading...\n\n')
-            try:
-                self.network.load_state_dict(torch.load(path_to_weights))
-                print('Done!\n')
-            except RuntimeError:
-                print('WARNING! Weights could not be loaded. Something seems to be missmatching.')
+            print('Found '+self.network_name+' weights. Loading from '+path_to_weights+'\n\n')
+            self.network.load_state_dict(torch.load(path_to_weights,
+                                         map_location=torch.device(self.dev)))
         else:
             print('Found no preivous existing '+self.network_name+' weights. '
                   'Using random initialisation.\n')
@@ -180,8 +174,7 @@ class ModelBase(object):
             self._write_parameter_dict_to_txt(self.model_parameters_name,
                                               self.model_parameters, file, 0)
 
-    def _write_parameter_dict_to_txt(self, dict_name, param_dict, file,
-                                     n_tabs):
+    def _write_parameter_dict_to_txt(self, dict_name, param_dict, file, n_tabs):
         # recurively go down all dicts and print their content
         # each time we go a dict deeper we add another tab for more beautiful
         # nested printing
@@ -232,7 +225,7 @@ class ModelBase(object):
                                   ' implement an empty function, or use '
                                   '\'is_inferece_only=True.')
 
-    def predict(self, data_tpl, is_preprocessed):
+    def predict(self, data_tpl):
         raise NotImplementedError('predict function must be implemented in '
                                   'childclass.')
 
@@ -276,11 +269,13 @@ class ModelBase(object):
         medians = np.nanmedian(metrics, 0)
         with open(join(path_to_store, file_name+'.txt'), 'w') as file:
             # first we write the global stats
-            file.write('GLOBAL RESULTS:\n')
-            file.write('\n')
-            for metric in self.global_metrics:
-                s = metric+': '+self.fmt_write+'\n'
-                file.write(s.format(self.global_metrics[metric]))
+            file.write(asctime() + '\n')
+            if hasattr(self, 'global_metrics'):
+                file.write('GLOBAL RESULTS:\n')
+                file.write('\n')
+                for metric in self.global_metrics:
+                    s = metric+': '+self.fmt_write+'\n'
+                    file.write(s.format(self.global_metrics[metric]))
 
             # now the per volume results from the results dict
             # here the mean and median
@@ -300,7 +295,7 @@ class ModelBase(object):
                                        for metric in metric_names])
                 file.write(s.format(*metrics[j]) + '\n')
 
-    def eval_ds(self, ds, ds_name: str, save_preds: bool = True, save_plots: bool = True,
+    def eval_ds(self, ds, ds_name: str, save_preds: bool = True, save_plots: bool = False,
                 force_evaluation: bool = False, merge_to_CV_results: bool = False,
                 save_folder_name=None):
         '''
@@ -330,10 +325,15 @@ class ModelBase(object):
         None.
 
         '''
+
+        if len(ds) == 0:
+            print('Got empty dataset for evaluation. Nothing to do here --> leaving!')
+            return
+
         global NO_NAME_FOUND_WARNING_PRINTED
 
         if save_folder_name is None:
-            save_folder_name = ds_name + '_{}'.format(int(self.val_fold))
+            save_folder_name = ds_name + '_' + self.val_fold_str
 
         # first check if the evaluation is already done and quit in case we don't want to force
         # the evaluation
@@ -348,6 +348,7 @@ class ModelBase(object):
                 # next check if the prediction folder exists
                 pred_folder = os.path.join(os.environ['OV_DATA_BASE'], 'predictions',
                                            self.data_name,
+                                           self.preprocessed_name,
                                            self.model_name,
                                            save_folder_name)
                 if not exists(pred_folder):
@@ -357,6 +358,7 @@ class ModelBase(object):
                 # same for the plot folder, if it doesn't exsist we do the prediction
                 plot_folder = os.path.join(os.environ['OV_DATA_BASE'], 'plots',
                                            self.data_name,
+                                           self.preprocessed_name,
                                            self.model_name,
                                            save_folder_name)
                 if not exists(plot_folder):
@@ -367,35 +369,27 @@ class ModelBase(object):
                       '). Their content wasn\'t checked, but the evaluation will be skipped.\n'
                       'If you want to force the evaluation please delete the old files and folders '
                       'or pass force_evaluation=True.\n\n')
+                if merge_to_CV_results:
+                    print('Merging resuts to CV....')
+                    self._merge_results_to_CV(ds_name)
                 return
 
         self._init_global_metrics()
         results = {}
         names_for_txt = {}
-        print('Evaluation '+ds_name+'...\n\n')
-        for i in tqdm(range(len(ds))):
-            # get the data
-            data_tpl = ds[i]
+        print('Evaluating '+ds_name+'...\n\n')
+        sleep(1)
+        for data_tpl in tqdm(ds):
             # first let's try to find the name
-            if 'scan' in data_tpl.keys():
-                scan = data_tpl['scan']
-            else:
-                d = str(int(np.ceil(np.log10(len(ds)))))
-                scan = 'case_%0'+d+'d'
-                scan = scan % i
-                if not NO_NAME_FOUND_WARNING_PRINTED:
-                    print('Warning! Could not find an scan name in the data_tpl.'
-                          'Please make sure that the items of the dataset have a key \'scan\'.'
-                          'A simple choice could be the name of a raw (e.g. segmentation) file.'
-                          'Choose generic naming case_xxx as names.\n')
-                    NO_NAME_FOUND_WARNING_PRINTED = True
+            scan = data_tpl['scan']
+
             if 'name' in data_tpl.keys():
                 names_for_txt[scan] = data_tpl['name']
             else:
                 names_for_txt[scan] = scan
 
             # predict from this datapoint
-            pred = self.predict(data_tpl)
+            pred = self.__call__(data_tpl)
             if torch.is_tensor(pred):
                 pred = pred.cpu().numpy()
 
@@ -417,30 +411,49 @@ class ModelBase(object):
         # first we store the results for this fold in the validation folder
         self._save_results_to_pkl_and_txt(results, self.model_path, ds_name=ds_name)
 
+        if merge_to_CV_results:
+            print('Merging resuts to CV....')
+            self._merge_results_to_CV(ds_name)
+
+    def _merge_results_to_CV(self, ds_name='validation'):
         # we also store the results in the CV folder and merge them with
         # possible other results from other folds
-        path_to_results = join(self.model_cv_path, ds_name+'_CV_results.pkl')
         # to differentiate by name what comes from which fold we add fold_x to the names
-        results_fold = {key+'_fold_{}'.format(self.val_fold): results[key] for key in results}
-        if exists(path_to_results):
-            print('Found exsiting results of other folds in CV path. Merge and save!\n')
-            merged_results = io.load_pkl(path_to_results)
-            merged_results.update(results_fold)
-        else:
-            print('Found no existing results of other folds in CV path. Saving only '
-                  'these results.\n')
-            merged_results = results_fold
-
+        merged_results = {}
+        all_folds = [fold for fold in os.listdir(self.model_cv_path) if fold.startswith('fold')]
+        for fold in all_folds:
+            if ds_name+'_results.pkl' in os.listdir(os.path.join(self.model_cv_path, fold)):
+                fold_results = io.load_pkl(os.path.join(self.model_cv_path, fold,
+                                                        ds_name+'_results.pkl'))
+                merged_results.update({key+'_'+fold: fold_results[key] for key in fold_results})
         # the merged results are kept in the model_cv_path
-        self._save_results_to_pkl_and_txt(merged_results, self.model_cv_path, ds_name=ds_name+'_CV')
+        self._save_results_to_pkl_and_txt(merged_results,
+                                          self.model_cv_path,
+                                          ds_name=ds_name+'_CV')
 
-    def eval_validation_set(self, save_preds=True, save_plots=True, force_evaluation=False):
+    def eval_validation_set(self, save_preds=True, save_plots=False, force_evaluation=False):
+        if not hasattr(self.data, 'val_ds'):
+            print('No validation data found! Skipping prediction...')
+            return
+
         self.eval_ds(self.data.val_ds, ds_name='validation',
                      save_preds=save_preds, save_plots=save_plots,
                      force_evaluation=force_evaluation,
                      merge_to_CV_results=True, save_folder_name='cross_validation')
 
-    def eval_training_set(self, save_preds=False, save_plots=True, force_evaluation=False):
+    def eval_training_set(self, save_preds=False, save_plots=False, force_evaluation=False):
         self.eval_ds(self.data.trn_ds, ds_name='training',
                      save_preds=save_preds, save_plots=save_plots,
+                     force_evaluation=force_evaluation)
+
+    def eval_raw_dataset(self, data_name, save_preds=True, save_plots=False,
+                         force_evaluation=False, scans=None, image_folder=None, dcm_revers=True,
+                         dcm_names_dict=None):
+        ds = raw_Dataset(join(os.environ['OV_DATA_BASE'], 'raw_data', data_name),
+                         scans=scans,
+                         image_folder=image_folder,
+                         dcm_revers=dcm_revers,
+                         dcm_names_dict=dcm_names_dict,
+                         prev_stages=self.prev_stages if hasattr(self, 'prev_stages') else None)
+        self.eval_ds(ds, ds_name=data_name, save_preds=save_preds, save_plots=save_plots,
                      force_evaluation=force_evaluation)

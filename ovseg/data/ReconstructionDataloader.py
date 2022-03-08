@@ -27,7 +27,7 @@ class Reconstruction2dDataset(object):
         self.projection_key = projection_key
         self.store_data_in_ram = store_data_in_ram
         self.return_fp16 = return_fp16
-        self.n_max_volumes = len(self.vol_ds) if n_max_volumes is None else n_max_volumes
+        self.n_max_volumes = len(self.vol_ds) if n_max_volumes is None else min([n_max_volumes, len(self.vol_ds)])
         self.n_bias = n_bias
 
         if self.store_data_in_ram:
@@ -72,9 +72,9 @@ class Reconstruction2dDataset(object):
             bias = self.bias_slices[ind]
             z = np.random.choice(bias)
         else:
-            z = np.random.randint(im.shape[-1])
-        proj = proj[np.newaxis, ..., z]
-        im = im[np.newaxis, ..., z]
+            z = np.random.randint(im.shape[0])
+        proj = proj[np.newaxis, z]
+        im = im[np.newaxis, z]
         if self.return_fp16:
             proj, im = proj.astype(np.float16), im.astype(np.float16)
         else:

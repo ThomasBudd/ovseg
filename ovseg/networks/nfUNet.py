@@ -5,7 +5,6 @@ import numpy as np
 from time import perf_counter
 from ovseg.networks.blocks import nfConvResStage, nfConvBlock, get_stride, WSConv2d, WSConv3d
 
-
 # %% transposed convolutions
 class UpConv(nn.Module):
 
@@ -54,11 +53,10 @@ class concat_attention(nn.Module):
     def __init__(self, in_channels, is_2d=False):
         super().__init__()
         if is_2d:
-            self.logits = nn.Conv2d(in_channels, 1, 1)
+            self.logits = nn.Conv2d(in_channels, 1, 1, bias=False)
         else:
-            self.logits = nn.Conv3d(in_channels, 1, 1)
+            self.logits = nn.Conv3d(in_channels, 1, 1, bias=False)
 
-        nn.init.zeros_(self.logits.bias)
         nn.init.zeros_(self.logits.weight)
         self.nonlin = torch.sigmoid
 
@@ -82,13 +80,12 @@ class Logits(nn.Module):
     def __init__(self, in_channels, out_channels, is_2d=False, dropout_rate=0):
         super().__init__()
         if is_2d:
-            self.logits = nn.Conv2d(in_channels, out_channels, 1)
+            self.logits = nn.Conv2d(in_channels, out_channels, 1, bias=False)
             self.dropout = nn.Dropout2d(dropout_rate)
         else:
-            self.logits = nn.Conv3d(in_channels, out_channels, 1)
+            self.logits = nn.Conv3d(in_channels, out_channels, 1, bias=False)
             self.dropout = nn.Dropout3d(dropout_rate)
         nn.init.kaiming_normal_(self.logits.weight, nonlinearity='relu')
-        nn.init.zeros_(self.logits.bias)
 
     def forward(self, xb):
         return self.dropout(self.logits(xb))
@@ -100,8 +97,12 @@ class nfUNet(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_sizes,
                  is_2d=False, filters=32, filters_max=384, n_pyramid_scales=None,
                  conv_params=None, nonlin_params=None, use_attention_gates=False, upsampling='conv',
+<<<<<<< HEAD
                  align_corners=True, factor_skip_conn=0.5, is_inference_network=False,
                  is_efficient=False):
+=======
+                 align_corners=True, factor_skip_conn=1.0, is_inference_network=False):
+>>>>>>> zxy_branch
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -117,7 +118,10 @@ class nfUNet(nn.Module):
         self.align_corners = align_corners
         self.factor_skip_conn = factor_skip_conn
         self.is_inference_network = is_inference_network
+<<<<<<< HEAD
         self.is_efficient = is_efficient
+=======
+>>>>>>> zxy_branch
         assert self.factor_skip_conn <= 1 and self.factor_skip_conn > 0
         # we double the amount of channels every downsampling step up to a max of filters_max
         self.filters_list = [min([self.filters*2**i, self.filters_max])
@@ -127,8 +131,11 @@ class nfUNet(nn.Module):
         # input and output channels for contracting path
         self.in_channels_down_list = [self.in_channels] + self.filters_list[:-1]
         self.hid_channels_down_list = [None for _ in range(len(self.filters_list))]
+<<<<<<< HEAD
         if self.is_efficient:
             self.hid_channels_down_list[0] = self.filters // 4
+=======
+>>>>>>> zxy_branch
         self.out_channels_down_list = self.filters_list
         # initial strides for downsampling
         self.first_stride_list = [1] + [get_stride(ks) for ks in self.kernel_sizes[:-1]]
@@ -139,10 +146,14 @@ class nfUNet(nn.Module):
         # input and output for exanding path
         self.in_channels_up_list = [2 * n_ch for n_ch in self.n_skip_channels]
         self.hid_channels_up_list = self.n_skip_channels
+<<<<<<< HEAD
         if self.is_efficient:
             self.out_channels_up_list = [n_ch // 4 for n_ch in self.in_channels_up_list]
         else:
             self.out_channels_up_list = [n_ch // 2 for n_ch in self.in_channels_up_list]
+=======
+        self.out_channels_up_list = [n_ch // 2 for n_ch in self.in_channels_up_list]
+>>>>>>> zxy_branch
 
         # now the upsampling
         self.up_conv_in_list = self.out_channels_up_list[1:] + self.out_channels_down_list[-1:]
@@ -518,8 +529,12 @@ if __name__ == '__main__':
                  is_2d=False,
                  filters=8,
                  factor_skip_conn=1.0,
+<<<<<<< HEAD
                  upsampling='linear',
                  is_efficient=True).cuda()
+=======
+                 upsampling='linear').cuda()
+>>>>>>> zxy_branch
     xb = torch.randn((1, 1, 32, 128, 128), device=gpu)
     # xb = torch.randn((3, 1, 512, 512), device=gpu)
     with torch.no_grad():

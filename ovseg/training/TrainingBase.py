@@ -33,7 +33,7 @@ class TrainingBase():
         # these attributes will be stored and recovered, append this list
         # with the attributes you want to save
         self.checkpoint_attributes = ['epochs_done', 'trn_start_time', 'trn_end_time',
-                                      'total_train_time']
+                                      'total_train_time', 'num_epochs']
         self.print_attributes = ['model_path', 'num_epochs']
         # make model_path and training_log
         maybe_create_path(self.model_path)
@@ -65,15 +65,25 @@ class TrainingBase():
         Basic training function where everything is happening
         '''
 
+        if self.epochs_done >= self.num_epochs:
+            # do nothing if the traing was already finished
+            print('Training was already completed. Doing nothing here.')
+            return
+        else:
+            # if we've stopped the training before by setting stop_training = True
+            # this resumes it
+            self.stop_training = False
+        
         self.on_training_start()
 
-        while self.epochs_done < self.num_epochs:
+        # we're using the stop_training flag to easily allow early stopping in the training
+        while not self.stop_training:
 
             self.on_epoch_start()
 
-            for batch in self.trn_dl:
+            for step, batch in enumerate(self.trn_dl):
 
-                self.do_trn_step(batch)
+                self.do_trn_step(batch, step)
 
             self.on_epoch_end()
             # we save the checkpoint after calling on_epoch_end so that
@@ -81,7 +91,8 @@ class TrainingBase():
             self.save_checkpoint()
             self.print_and_log('', 1)
 
-        self.on_training_end()
+        if self.epochs_done >= self.num_epochs:
+            self.on_training_end()
 
     def on_training_start(self):
 
@@ -110,7 +121,7 @@ class TrainingBase():
         self.print_and_log('Epoch:%d' % self.epochs_done)
         self.epoch_start_time = time.time()
 
-    def do_trn_step(self, data_tpl):
+    def do_trn_step(self, data_tpl, step):
 
         raise NotImplementedError('\'do_trn_step\' must be overloaded in the child class.\n It has '
                                   'a data tpl as input and performs one optimisation step.')
@@ -123,16 +134,22 @@ class TrainingBase():
         epoch_time = time.time() - self.epoch_start_time
         self.total_train_time += epoch_time
 
-        self.print_and_log('Epoch {} done after {:.2f} seconds'
+        self.print_and_log('Epoch training {} done after {:.2f} seconds'
                            .format(self.epochs_done, epoch_time))
         self.epochs_done += 1
-        self.print_and_log('Average epoch time: {:.2f} seconds'
+        self.print_and_log('Average epoch training time: {:.2f} seconds'
                            .format(self.total_train_time/self.epochs_done))
+        if self.epochs_done >= self.num_epochs:
+            self.stop_training = True
 
     def on_training_end(self):
 
         self.print_and_log('Training finished!')
-        self.trn_end_time = time.asctime()
+        if self.trn_end_time == -1:
+            self.trn_end_time = time.asctime()
+        self.print_and_log('Training time: {} - {} ({:.3f}h)'.format(self.trn_start_time,
+                                                                     self.trn_end_time,
+                                                                     self.total_train_time/3600))
         self.save_checkpoint()
 
     def save_checkpoint(self, path=None):
@@ -168,9 +185,11 @@ class TrainingBase():
                 attribute_dict = pickle.load(pickle_file)
 
             for key in self.checkpoint_attributes:
-
-                item = attribute_dict[key]
-                self.__setattr__(key, item)
+                try:
+                    item = attribute_dict[key]
+                    self.__setattr__(key, item)
+                except KeyError:
+                    print('key {} was not found in loaded checkpoint. Skipping!'.format(key))
             return True
         else:
             return False

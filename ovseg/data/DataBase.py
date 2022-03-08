@@ -9,7 +9,7 @@ from ovseg.data.Dataset import Dataset
 
 class DataBase():
 
-    def __init__(self, val_fold, preprocessed_path, keys, folders, n_folds=4,
+    def __init__(self, val_fold, preprocessed_path, keys, folders, n_folds=5,
                  fixed_shuffle=True, trn_dl_params={}, ds_params={},
                  val_dl_params={}):
         '''
@@ -51,17 +51,31 @@ class DataBase():
             self.scans = listdir(join(self.preprocessed_path, self.folders[0]))
             patient_ids = {}
             for scan in self.scans:
-                fngprnt = np.load(join(self.preprocessed_path, 'fingerprints', scan),
-                                  allow_pickle=True).item()
-                patient_ids[scan] = fngprnt['dataset'] + '_' + fngprnt['pat_id']
+                path_to_fingerprint = join(self.preprocessed_path, 'fingerprints', scan)
+                if exists(path_to_fingerprint):                    
+                    fngprnt = np.load(path_to_fingerprint,
+                                      allow_pickle=True).item()
+                    patient_ids[scan] = fngprnt['dataset'] + '_' + fngprnt['pat_id']
+                else:
+                    patient_ids[scan] = scan[:-4]
+
             self.splits = split_scans_by_patient_id(self.scans,
                                                     patient_ids,
                                                     self.n_folds,
                                                     self.fixed_shuffle)
+            # we add an additional fold with 100% of the data being used as training data
+            # this is usefull for hyperparameter tuning where we can train on this
+            # fold instead of doing a full CV
+            self.splits.append({'train': self.scans, 'val': []})
             io.save_pkl(self.splits, path_to_splits)
-            print('New split saved')
+            print('New split saved.\n')
 
-        self.split = self.splits[self.val_fold]
+        if self.val_fold >= len(self.splits):
+            print('WARNING! More val_fold > len(splits)! Picking the last fold. Unless you have '
+                  'created a custom split this will be the 100% training, no validation data fold.')
+            self.split = self.splits[-1]
+        else:
+            self.split = self.splits[self.val_fold]
         self.trn_scans = self.split['train']
         self.val_scans = self.split['val']
 
@@ -77,7 +91,7 @@ class DataBase():
         if is_train:
             self.trn_ds = Dataset(self.trn_scans, self.preprocessed_path,
                                   self.keys, self.folders, **self.ds_params)
-        else:
+        elif len(self.val_scans) > 0:
             self.val_ds = Dataset(self.val_scans, self.preprocessed_path,
                                   self.keys, self.folders, **self.ds_params)
 

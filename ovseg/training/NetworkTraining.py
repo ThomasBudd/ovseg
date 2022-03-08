@@ -5,12 +5,17 @@ import numpy as np
 from os.path import join, exists
 from time import perf_counter
 from torch.cuda import amp
-from torch.optim import SGD, Adam
+from torch.optim import SGD, Adam, AdamW
 
 default_SGD_params = {'momentum': 0.99, 'weight_decay': 3e-5, 'nesterov': True,
                       'lr': 10**-2}
 default_ADAM_params = {'lr': 10**-4}
-default_lr_params = {'beta': 0.9, 'lr_min': 0}
+default_ADAMW_params = {'lr': 0.001, 'betas': (0.9, 0.999),
+                        'eps': 1e-08, 'weight_decay': 0.01}
+default_lr_params_almost_linear = {'beta': 0.9, 'lr_min': 0}
+default_lr_params_lin_ascent_cos_decay = {'n_warmup_epochs': 50, 'lr_max': 0.02}
+default_lr_params = {'lin_ascent_cos_decay': default_lr_params_lin_ascent_cos_decay,
+                     'almost_linear': default_lr_params_almost_linear}
 
 
 class NetworkTraining(TrainingBase):
@@ -22,7 +27,8 @@ class NetworkTraining(TrainingBase):
                  num_epochs=1000, opt_params=None, lr_params=None,
                  augmentation=None, val_dl=None, dev='cuda', nu_ema_trn=0.99,
                  nu_ema_val=0.7, network_name='network', fp32=False,
-                 p_plot_list=[1, 0.5, 0.2], opt_name='SGD', lr_schedule='almost_linear'):
+                 p_plot_list=[1, 0.5, 0.2], opt_name='SGD', lr_schedule='almost_linear',
+                 no_bias_weight_decay=False, save_additional_weights_after_epochs=[]):
         super().__init__(trn_dl, num_epochs, model_path)
 
         self.network = network
@@ -38,6 +44,10 @@ class NetworkTraining(TrainingBase):
         self.p_plot_list = p_plot_list
         self.opt_name = opt_name
         self.lr_schedule = lr_schedule
+        self.no_bias_weight_decay = no_bias_weight_decay
+        self.save_additional_weights_after_epochs = save_additional_weights_after_epochs
+        assert self.lr_schedule in ['almost_linear', 'lin_ascent_cos_decay']
+        assert isinstance(self.save_additional_weights_after_epochs, list)
 
         self.checkpoint_attributes.extend(['nu_ema_trn', 'network_name',
                                            'opt_params', 'fp32', 'lr_params',
@@ -68,6 +78,8 @@ class NetworkTraining(TrainingBase):
                 self.opt_params = default_SGD_params
             elif self.opt_name.lower() == 'adam':
                 self.opt_params = default_ADAM_params
+            elif self.opt_name.lower() == 'adamw':
+                self.opt_params = default_ADAMW_params
             else:
                 print('Default opt params only implemented for SGD and ADAM.')
                 self.opt_params = {}
@@ -77,7 +89,7 @@ class NetworkTraining(TrainingBase):
         if self.lr_params is None:
             self.print_and_log('No modifications from standard lr parameters'
                                ' found, load default.')
-            self.lr_params = default_lr_params
+            self.lr_params = default_lr_params[self.lr_schedule]
             for key in self.lr_params.keys():
                 self.print_and_log(key+': '+str(self.lr_params[key]))
 
@@ -87,6 +99,15 @@ class NetworkTraining(TrainingBase):
         # setup optimizer
         self.initialise_opt()
 
+        # now we try to load the last checkpoint
+        loaded = False
+        if self.load_last_checkpoint():
+            self.print_and_log('Loaded checkpoint from previous training!')
+            loaded = True
+        if not loaded:
+            self.print_and_log('No previous checkpoint found,'
+                               ' start from scrtach.')
+
     def initialise_loss(self):
         raise NotImplementedError('initialise_loss must be implemented.')
 
@@ -94,27 +115,67 @@ class NetworkTraining(TrainingBase):
         raise NotImplementedError('compute_batch_loss must be implemented.')
 
     def initialise_opt(self):
+
+        opt_params = self.opt_params.copy()
+        if self.no_bias_weight_decay and 'weight_decay' in self.opt_params:
+            # implementation of no bias weight decay
+            # from https://raberrytv.wordpress.com/2017/10/29/pytorch-weight-decay-made-easy/
+            l2_value = self.opt_params['weight_decay']
+            del opt_params['weight_decay']      
+            decay, no_decay = [], []
+            for name, param in self.network.named_parameters():
+                if not param.requires_grad:
+                    continue # frozen weights		            
+                if len(param.shape) == 1 or name.endswith(".bias"):
+                    no_decay.append(param)
+                else:
+                    decay.append(param)
+            params = [{'params': no_decay, 'weight_decay': 0.0},
+                      {'params': decay, 'weight_decay': l2_value}]
+        else:
+            # we don't need to do anything
+            params = self.network.parameters()
+
         if self.opt_name is None:
             print('No specific optimiser was initialised. Taking SGD.')
             self.opt_name = 'sgd'
         if self.opt_name.lower() == 'sgd':
             print('initialise SGD')
-            self.opt = SGD(self.network.parameters(), **self.opt_params)
+            self.opt = SGD(params, **opt_params)
         elif self.opt_name.lower() == 'adam':
             print('initialise Adam')
-            self.opt = Adam(self.network.parameters(), **self.opt_params)
+            self.opt = Adam(params, **opt_params)
+        elif self.opt_name.lower() == 'adamw':
+            print('initialise AdamW')
+            self.opt = AdamW(params, **opt_params)
         else:
             raise ValueError('Optimiser '+self.opt_name+' was not does not '
                              'have a recognised implementation.')
         self.lr_init = self.opt_params['lr']
 
-    def update_lr(self):
+    def update_lr(self, step=0):
         if self.lr_schedule == 'almost_linear':
+            if step != -1:
+                return
             lr = (1-self.epochs_done/self.num_epochs)**self.lr_params['beta'] * \
                 (self.lr_init - self.lr_params['lr_min']) + \
                 self.lr_params['lr_min']
             self.opt.param_groups[0]['lr'] = lr
             self.print_and_log('Learning rate now: {:.4e}'.format(lr))
+        elif self.lr_schedule == 'lin_ascent_cos_decay':
+            n_warm = self.lr_params['n_warmup_epochs']
+            lr_max = self.lr_params['lr_max']
+            if self.epochs_done < n_warm:
+                lr = lr_max * (step + 1 + self.epochs_done * len(self.trn_dl)) \
+                    / len(self.trn_dl) / n_warm
+            else:
+                if step != -1:
+                    return
+                lr = lr_max * np.cos(np.pi/2*(self.epochs_done - n_warm) / (self.num_epochs - n_warm))
+            self.opt.param_groups[0]['lr'] = lr
+            if step == -1:
+                self.print_and_log('Learning rate now: {:.4e}'.format(lr))
+                
 
     def save_checkpoint(self, path=None):
         if path is None:
@@ -135,6 +196,13 @@ class NetworkTraining(TrainingBase):
 
         self.print_and_log(self.network_name + ' parameters and opt parameters'
                            ' saved.')
+
+        # the additioal weights after the fixed amount of epochs
+        if self.epochs_done in self.save_additional_weights_after_epochs:
+            
+            torch.save(self.network.state_dict(), join(path,
+                                                       self.network_name +
+                                                       '_weights_{}'.format(self.epochs_done)))
 
     def load_last_checkpoint(self, path=None):
         if path is None:
@@ -177,16 +245,8 @@ class NetworkTraining(TrainingBase):
                       'fp32 to fp16.')
         return True
 
-    def train(self, try_continue=True):
+    def train(self):
         self.network = self.network.to(self.dev)
-        loaded = False
-        if try_continue:
-            if self.load_last_checkpoint():
-                self.print_and_log('Loaded checkpoint from previous training!')
-                loaded = True
-        if not loaded:
-            self.print_and_log('No previous checkpoint found,'
-                               ' start from scrtach.')
         self.enable_autotune()
         super().train()
 
@@ -194,42 +254,10 @@ class NetworkTraining(TrainingBase):
         for param in self.network.parameters():
             param.grad = None
 
-    # def _prepare_data(self, data_tpl):
-    #     data_tpl = data_tpl[0].to(self.dev)
-    #     if self.fp32:
-    #         data_tpl = data_tpl.type(torch.float32)
-    #     else:
-    #         data_tpl = data_tpl.type(torch.float16)
-    #     if self.augmentation is not None:
-    #         data_tpl = self.augmentation.augment_batch(data_tpl)
-    #     xb, yb = data_tpl[:, :-1], data_tpl[:, -1:]
-    #     return xb, yb
-
-    # def _trn_step_fp32(self, xb, yb):
-    #     # classical fp32 training
-    #     self.zero_grad()
-    #     out = self.network(xb)
-    #     loss = self.loss_fctn(out, yb)
-    #     loss.backward()
-    #     self.opt.step()
-    #     return loss
-
-    # def _trn_step_fp16(self, xb, yb):
-    #     # fancy new mixed precision training of pytorch
-    #     self.zero_grad()
-    #     with amp.autocast():
-    #         out = self.network(xb)
-    #         loss = self.loss_fctn(out, yb)
-    #     self.scaler.scale(loss).backward()
-    #     self.scaler.unscale_(self.opt)
-    #     torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
-    #     self.scaler.step(self.opt)
-    #     self.scaler.update()
-    #     return loss
-
-    def do_trn_step(self, batch):
+    def do_trn_step(self, batch, step):
 
         self.zero_grad()
+        self.update_lr(step)
         if self.fp32:
             loss = self.compute_batch_loss(batch)
             loss.backward()
@@ -243,13 +271,16 @@ class NetworkTraining(TrainingBase):
             self.scaler.step(self.opt)
             self.scaler.update()
 
-        if self.trn_loss is None:
-            self.trn_loss = loss.detach().item()
-        else:
-            self.trn_loss = self.nu_ema_trn * self.trn_loss + \
-                (1 - self.nu_ema_trn) * loss.detach().item()
+        l = loss.detach().item()
+        if not np.isnan(l):
+            if self.trn_loss is None:
+                self.trn_loss = loss.detach().item()
+            else:
+                self.trn_loss = self.nu_ema_trn * self.trn_loss + \
+                    (1 - self.nu_ema_trn) * loss.detach().item()
 
     def on_epoch_start(self):
+        self.total_epoch_time = -1*perf_counter()
         super().on_epoch_start()
         self.network.train()
 
@@ -261,8 +292,13 @@ class NetworkTraining(TrainingBase):
         else:
             self.print_and_log('Warning: computed NaN for trn loss, continuing EMA with previous '
                                'value.')
-            self.trn_losses.append(self.trn_losses[-1])
-            self.trn_loss = self.trn_losses[-1]
+            if len(self.trn_losses) > 0:
+                self.trn_losses.append(self.trn_losses[-1])
+                self.trn_loss = self.trn_losses[-1]
+            else:
+                self.trn_losses.append(None)
+                self.trn_loss = None
+                
         self.print_and_log('Traning loss: {:.4e}'.format(self.trn_loss))
 
         # evaluate network on val_dl if given
@@ -270,7 +306,9 @@ class NetworkTraining(TrainingBase):
 
         # now make some nice plots and we're happy!
         self.plot_training_progess()
-        self.update_lr()
+        self.update_lr(-1)
+        self.total_epoch_time += perf_counter()
+        self.print_and_log('The total epoch time was {:.2f} seconds'.format(self.total_epoch_time))
 
     def on_training_end(self):
         super().on_training_end()

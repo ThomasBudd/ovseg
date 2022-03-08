@@ -9,9 +9,7 @@ GAMMA_RELU = 1.7128585504496627  # =np.sqrt(2 / (1 - 1/np.pi))
 # %% nonlinearities
 
 class scaledReLU(nn.ReLU):
-
-    #TODO integrate the scale here so that we can put the alpha and beta in here
-
+    # TODO integrate the scale here so that we can put the alpha and beta in here
     def forward(self, input):
         return GAMMA_RELU * super().forward(input)
 
@@ -195,10 +193,10 @@ class nfConvBlock(nn.Module):
             self.nonlin2 = scaledReLU(**self.nonlin_params)
 
     def forward(self, xb):
-        xb = self.nonlin1(xb)
         xb = self.conv1(xb)
-        xb = self.nonlin2(xb)
+        xb = self.nonlin1(xb)
         xb = self.conv2(xb)
+        xb = self.nonlin2(xb)
         return xb
 
 

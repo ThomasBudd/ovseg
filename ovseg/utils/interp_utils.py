@@ -4,7 +4,7 @@ import numpy as np
 try:
     from scipy.ndimage import map_coordinates
 except ImportError:
-    print('Caught Import Error while importing some function from scipy or skimage. '
+    print('Caught Import Error while importing some function from scipy or skimage (scikit-image). '
           'Please use a newer version of gcc.')
 from ovseg.utils.grid_utils import get_resize_np_grid, get_resize_torch_grid
 from ovseg.utils.torch_np_utils import stack, check_type
@@ -185,9 +185,8 @@ def np_interp_img(img, grid, order, cval=None):
 
     elif dim == 3 and idim == 2:
         # 2.5d interpolation, we will perform interpolation onyl in xy plane
-        return np.stack([map_coordinates(img[..., z], grid,
-                                         order=order, cval=cval)
-                         for z in range(img.shape[-1])], -1)
+        return np.stack([map_coordinates(img[z], grid, order=order, cval=cval)
+                         for z in range(img.shape[0])], 0)
 
 
 def interp_img(img, grid, order, cval=None):
