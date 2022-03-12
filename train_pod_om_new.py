@@ -18,7 +18,7 @@ use_prg_trn = True
 
 sizes = 8*np.round(patch_size[1] / np.arange(4,0,-1)**(1/3) / 8)
 
-out_shape = [ [int(s/patch_size[1]*patch_size[0]),int(s),int(s)] for s in sizes]
+out_shape = [ [int(s/patch_size[1]*patch_size[0]/2)*2,int(s),int(s)] for s in sizes]
 larger_res_encoder = False
 
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size,
@@ -52,7 +52,7 @@ use_prg_trn = True
 
 sizes = 8*np.round(patch_size[1] / np.arange(4,0,-1)**(1/3) / 8)
 
-out_shape = [ [int(s/patch_size[1]*patch_size[0]),int(s),int(s)] for s in sizes]
+out_shape = [ [int(s/patch_size[1]*patch_size[0]/2)*2,int(s),int(s)] for s in sizes]
 larger_res_encoder = False
 
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size,
