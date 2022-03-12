@@ -1426,7 +1426,6 @@ class UNetResEncoderV2(nn.Module):
             self.all_logits.append(Logits(in_channels=in_channels,
                                           out_channels=self.out_channels,
                                           is_2d=self.is_2d,
-                                          p_dropout=self.p_dropout_logits,
                                           use_bias=self.use_logit_bias))
 
         # now important let's turn everything into a module list
