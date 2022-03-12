@@ -8,7 +8,7 @@ from time import perf_counter
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("bs", type=str)
+parser.add_argument("bs", type=int)
 parser.add_argument("--more_filters", default=False, action='store_true')
 parser.add_argument("--blocks", nargs='+', default=None)
 parser.add_argument('--fp32', default=False, action='store_true')
@@ -45,7 +45,7 @@ context = nullcontext() if args.fp32 else torch.cuda.amp.autocast()
 with context:
     for _ in range(n_warumup):
         out = net(xb)
-        l = out.abs().mean()
+        l = out[0].abs().mean()
         l.backward()
     
     net.zero_grad()
@@ -60,7 +60,7 @@ with context:
     st = perf_counter()
     for _ in range(n_benchmark):
         out = net(xb)
-        l = out.abs().mean()
+        l = out[0].abs().mean()
         l.backward()
         net.zero_grad()
     et = perf_counter()

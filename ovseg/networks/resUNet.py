@@ -133,7 +133,7 @@ class ConvNormNonlinBlockV2(nn.Module):
         self.conv = conv_fctn(self.in_channels, self.out_channels,
                                self.kernel_size, padding=self.padding,
                                stride=self.first_stride, **self.conv_params)
-        self.norm = norm_fctn(self.hid_channels, **self.norm_params)
+        self.norm = norm_fctn(self.out_channels, **self.norm_params)
 
         nn.init.kaiming_normal_(self.conv.weight)
         self.nonlin = nn.LeakyReLU(**self.nonlin_params)
