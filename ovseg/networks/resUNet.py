@@ -1385,14 +1385,14 @@ class UNetResEncoderV2(nn.Module):
         
         if self.use_5x5_on_full_res:
             
-            block = ConvNormNonlinBlock(in_channels=self.in_channels_up_list[0],
-                                        out_channels=self.out_channels_list[0],
-                                        is_2d=self.is_2d,
-                                        kernel_size=self.kernel_sizes_up[0],
-                                        conv_params=self.conv_params,
-                                        norm=self.norm,
-                                        norm_params=self.norm_params,
-                                        nonlin_params=self.nonlin_params)
+            block = ConvNormNonlinBlockV2(in_channels=self.in_channels_up_list[0],
+                                          out_channels=self.out_channels_list[0],
+                                          is_2d=self.is_2d,
+                                          kernel_size=self.kernel_sizes_up[0],
+                                          conv_params=self.conv_params,
+                                          norm=self.norm,
+                                          norm_params=self.norm_params,
+                                          nonlin_params=self.nonlin_params)
             self.blocks_up.append(block)
             j_start = 1
         else:
