@@ -88,6 +88,62 @@ class ConvNormNonlinBlock(nn.Module):
         xb = self.nonlin2(xb)
         return xb
 
+class ConvNormNonlinBlockV2(nn.Module):
+
+    def __init__(self, in_channels, out_channels, is_2d, kernel_size=3,
+                 first_stride=1, conv_params=None, norm=None, norm_params=None,
+                 nonlin_params=None, hid_channels=None):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = kernel_size
+        self.padding = get_padding(self.kernel_size)
+        self.first_stride = first_stride
+        self.is_2d = is_2d
+        self.conv_params = conv_params
+        self.norm_params = norm_params
+        self.nonlin_params = nonlin_params
+
+        if norm is None:
+            norm = 'batch' if is_2d else 'inst'
+
+        if self.conv_params is None:
+            self.conv_params = {'bias': False}
+        if self.nonlin_params is None:
+            self.nonlin_params = {'negative_slope': 0.01, 'inplace': True}
+        if self.norm_params is None:
+            self.norm_params = {'affine': True}
+        # init convolutions, normalisation and nonlinearities
+        if self.is_2d:
+            conv_fctn = nn.Conv2d
+            if norm.lower().startswith('batch'):
+                norm_fctn = nn.BatchNorm2d
+            elif norm.lower().startswith('inst'):
+                norm_fctn = nn.InstanceNorm2d
+        else:
+            conv_fctn = nn.Conv3d
+            if norm.lower().startswith('batch'):
+                norm_fctn = nn.BatchNorm3d
+            elif norm.lower().startswith('inst'):
+                norm_fctn = nn.InstanceNorm3d
+            elif norm.lower().startswith('no_z_'):
+                norm_fctn = no_z_InstNorm
+            elif norm.lower().startswith('layer'):
+                norm_fctn = my_LayerNorm
+        self.conv = conv_fctn(self.in_channels, self.out_channels,
+                               self.kernel_size, padding=self.padding,
+                               stride=self.first_stride, **self.conv_params)
+        self.norm = norm_fctn(self.hid_channels, **self.norm_params)
+
+        nn.init.kaiming_normal_(self.conv.weight)
+        self.nonlin = nn.LeakyReLU(**self.nonlin_params)
+
+    def forward(self, xb):
+        xb = self.conv(xb)
+        xb = self.norm(xb)
+        xb = self.nonlin(xb)
+        return xb
+
 # %%
 class ResBlock(nn.Module):
     # keeping this class general for the 3d case
@@ -1218,6 +1274,195 @@ class UNetResEncoder(nn.Module):
                             not_transfered += 1
 
         print('Done! Loaded {} and skipped {} modules'.format(transfered, not_transfered))
+
+# %%
+class UNetResEncoderV2(nn.Module):
+
+    def __init__(self, in_channels, out_channels, is_2d, z_to_xy_ratio,
+                 n_blocks_list=[1, 2, 6, 3], filters=32, filters_max=384,
+                 conv_params=None, norm=None, norm_params=None, nonlin_params=None,
+                 use_5x5_on_full_res=True, use_logit_bias=False):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.is_2d = is_2d
+        self.z_to_xy_ratio = z_to_xy_ratio
+        self.n_blocks_list = n_blocks_list
+        self.filters = filters
+        self.filters_max = filters_max
+        self.conv_params = conv_params
+        self.norm = norm
+        self.norm_params = norm_params
+        self.nonlin_params = nonlin_params
+        self.use_5x5_on_full_res = use_5x5_on_full_res
+        self.use_logit_bias = use_logit_bias
+        
+        
+        self.block = 'res'
+        # we double the amount of channels every downsampling step
+        # up to a max of filters_max
+        self.n_stages = len(n_blocks_list)
+        
+        if np.isscalar(self.filters):
+            self.filters_list = [min([self.filters*2**i, self.filters_max])
+                                 for i in range(self.n_stages)]
+        else:
+            self.filters_list = self.filters
+
+        # first let's make the lists for the blocks on both pathes
+        # number of input and output channels of the blocks on the contracting path
+        self.in_channels_down_list = [self.in_channels] + self.filters_list[:-1]
+        self.in_channels_up_list = [2*f for f in self.filters_list[:-1]]
+        self.out_channels_list = self.filters_list
+        self.z_to_xy_ratio_list = [max([self.z_to_xy_ratio / 2**i, 1])
+                                   for i in range(self.n_stages)]
+        if self.is_2d:
+            self.kernel_sizes_up = (self.n_stages-1) * [3]
+        else:
+            self.kernel_sizes_up = [(1, 3, 3) if z_to_xy >= 2 else 3 for z_to_xy in 
+                                    self.z_to_xy_ratio_list]
+        self.init_stride_list = [1] + [get_stride(ks) for ks in self.kernel_sizes_up]
+
+
+        # blocks on the contracting path
+        self.blocks_down = []
+        if self.n_blocks_list[0] == 1:
+            # we will do the first block slightly different: we're not using a residual block here
+            # as the skip connection might introduce additional memory during inference
+            
+            if self.use_5x5_on_full_res:
+            
+                if self.z_to_xy_ratio < 2:
+                    kernel_size = 5
+                elif self.z_to_xy_ratio < 4:
+                    kernel_size = (3, 5, 5)
+                else:
+                    kernel_size = (1, 5, 5)
+                    
+            
+                self.blocks_down.append(ConvNormNonlinBlockV2(in_channels=self.in_channels,
+                                                            out_channels=self.filters_list[0],
+                                                            is_2d=self.is_2d,
+                                                            kernel_size=kernel_size,
+                                                            first_stride=1,
+                                                            conv_params=self.conv_params,
+                                                            norm=self.norm,
+                                                            norm_params=self.norm_params,
+                                                            nonlin_params=self.nonlin_params))
+            else:
+                self.blocks_down.append(ConvNormNonlinBlock(in_channels=self.in_channels,
+                                                            out_channels=self.filters_list[0],
+                                                            is_2d=self.is_2d,
+                                                            kernel_size=3 if self.z_to_xy_ratio < 2 else (1, 3, 3),
+                                                            first_stride=1,
+                                                            conv_params=self.conv_params,
+                                                            norm=self.norm,
+                                                            norm_params=self.norm_params,
+                                                            nonlin_params=self.nonlin_params))
+            i_start = 1
+        else:
+            i_start = 0
+
+        for n_blocks, in_ch, out_ch, init_stride, z_to_xy in zip(self.n_blocks_list[i_start:],
+                                                                 self.in_channels_down_list[i_start:],
+                                                                 self.out_channels_list[i_start:],
+                                                                 self.init_stride_list[i_start:],
+                                                                 self.z_to_xy_ratio_list[i_start:]):
+            self.blocks_down.append(stackedResBlocks(block=self.block,
+                                                     n_blocks=n_blocks,
+                                                     in_channels=in_ch,
+                                                     out_channels=out_ch,
+                                                     init_stride=init_stride,
+                                                     is_2d=self.is_2d,
+                                                     z_to_xy_ratio=z_to_xy,
+                                                     conv_params=self.conv_params,
+                                                     norm=self.norm,
+                                                     norm_params=self.norm_params,
+                                                     nonlin_params=self.nonlin_params,
+                                                     bottleneck_ratio=self.bottleneck_ratio,
+                                                     stochdepth_rate=self.stochdepth_rate,
+                                                     use_se=self.use_se))
+
+        # blocks on the upsampling path
+        self.blocks_up = []
+        
+        if self.use_5x5_on_full_res:
+            
+            block = ConvNormNonlinBlock(in_channels=self.in_channels_up_list[0],
+                                        out_channels=self.out_channels_list[0],
+                                        is_2d=self.is_2d,
+                                        kernel_size=self.kernel_sizes_up[0],
+                                        conv_params=self.conv_params,
+                                        norm=self.norm,
+                                        norm_params=self.norm_params,
+                                        nonlin_params=self.nonlin_params)
+            self.blocks_up.append(block)
+            j_start = 1
+        else:
+            j_start = 0
+        
+        for in_channels, out_channels, kernel_size in zip(self.in_channels_up_list[j_start:],
+                                                          self.out_channels_list[j_start:],
+                                                          self.kernel_sizes_up[j_start:]):
+            block = ConvNormNonlinBlock(in_channels=in_channels,
+                                        out_channels=out_channels,
+                                        is_2d=self.is_2d,
+                                        kernel_size=kernel_size,
+                                        conv_params=self.conv_params,
+                                        norm=self.norm,
+                                        norm_params=self.norm_params,
+                                        nonlin_params=self.nonlin_params)
+            self.blocks_up.append(block)
+
+        # upsaplings
+        self.upsamplings = []
+        for in_channels, out_channels, kernel_size in zip(self.out_channels_list[1:],
+                                                          self.out_channels_list[:-1],
+                                                          self.kernel_sizes_up):
+            self.upsamplings.append(UpConv(in_channels=in_channels,
+                                           out_channels=out_channels,
+                                           is_2d=self.is_2d,
+                                           kernel_size=get_stride(kernel_size)))
+        # logits
+        self.all_logits = []
+        for in_channels in self.out_channels_list:
+            self.all_logits.append(Logits(in_channels=in_channels,
+                                          out_channels=self.out_channels,
+                                          is_2d=self.is_2d,
+                                          p_dropout=self.p_dropout_logits,
+                                          use_bias=self.use_logit_bias))
+
+        # now important let's turn everything into a module list
+        self.blocks_down = nn.ModuleList(self.blocks_down)
+        self.blocks_up = nn.ModuleList(self.blocks_up)
+        self.upsamplings = nn.ModuleList(self.upsamplings)
+        self.all_logits = nn.ModuleList(self.all_logits)
+
+    def forward(self, xb):
+        # keep all out tensors from the contracting path
+        xb_list = []
+        logs_list = []
+        # contracting path
+        for block in self.blocks_down[:-1]:
+            xb = block(xb)
+            xb_list.append(xb)
+
+        # bottom block
+        xb = self.blocks_down[-1](xb)
+        logs_list.append(self.all_logits[-1](xb))
+
+        # expanding path with logits
+        for i in range(self.n_stages - 2, -1, -1):
+            xb = self.upsamplings[i](xb)
+            xb = torch.cat([xb, xb_list[i]], 1)
+            del xb_list[i]
+            xb = self.blocks_up[i](xb)
+            logs = self.all_logits[i](xb)
+            logs_list.append(logs)
+
+        # as we iterate from bottom to top we have to flip the logits list
+        return logs_list[::-1]
+
 
 # %%
 class UResNet(nn.Module):
