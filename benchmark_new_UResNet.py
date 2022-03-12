@@ -34,7 +34,7 @@ else:
 
 net = UNetResEncoderV2(in_channels=1, out_channels=3, is_2d=False,
                        z_to_xy_ratio=6.25,
-                       n_blocks_list=blocks, filters=32,
+                       n_blocks_list=blocks, filters=filters,
                        use_5x5_on_full_res=args.use_5x5).cuda()
 
 print(net)

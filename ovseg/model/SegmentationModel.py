@@ -21,7 +21,7 @@ from ovseg.data.Dataset import raw_Dataset
 from ovseg.networks.UNet import UNet
 from ovseg.networks.nfUNet import nfUNet
 from ovseg.networks.iUNet import iUNet
-from ovseg.networks.resUNet import UNetResEncoder, UNetResDecoder, UResNet, UNetResStemEncoder, UNetResShuffleEncoder
+from ovseg.networks.resUNet import UNetResEncoder, UNetResEncoderV2, UNetResDecoder, UResNet, UNetResStemEncoder, UNetResShuffleEncoder
 from ovseg.networks.refine_res_networks import RefineResNet
 from ovseg.training.SegmentationTraining import SegmentationTraining, SegmentationTrainingV2
 from ovseg.training.ClassEnsemblingTraining import ClassEnsemblingTraining
@@ -177,6 +177,8 @@ class SegmentationModel(ModelBase):
             self.network = nfUNet(**params).to(self.dev)
         elif self.model_parameters['architecture'].lower() == 'unetresencoder':
             self.network = UNetResEncoder(**params).to(self.dev)
+        elif self.model_parameters['architecture'].lower() == 'unetresencoderv2':
+            self.network = UNetResEncoderV2(**params).to(self.dev)
         elif self.model_parameters['architecture'].lower() == 'unetresdecoder':
             self.network = UNetResDecoder(**params).to(self.dev)
         elif self.model_parameters['architecture'].lower() == 'refineresnet':
