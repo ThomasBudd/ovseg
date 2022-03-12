@@ -10,7 +10,7 @@ from time import perf_counter
 parser = argparse.ArgumentParser()
 parser.add_argument("bs", type=str)
 parser.add_argument("--more_filters", default=False, action='store_true')
-parser.add_argument("--nets", nargs='+', default=None)
+parser.add_argument("--blocks", nargs='+', default=None)
 parser.add_argument('--fp32', default=False, action='store_true')
 parser.add_argument('--use_5x5', default=False, action='store_true')
 args = parser.parse_args()
@@ -20,12 +20,12 @@ n_benchmark = 100
 
 nb, nch, nz, nx, ny = args.bs, 1, 32, 216, 216
 
-if args.nets is None:
+if args.blocks is None:
 
-    nets = [1,2,6,3]
+    blocks = [1,2,6,3]
 
 else:
-    nets = [int(b) for b in args.nets]
+    blocks = [int(b) for b in args.blocks]
 
 if args.more_filters:
     filters = [32, 64, 160, 384]
@@ -34,7 +34,7 @@ else:
 
 net = UNetResEncoderV2(in_channels=1, out_channels=3, is_2d=False,
                        z_to_xy_ratio=6.25,
-                       n_nets_list=nets, filters=32,
+                       n_nets_list=blocks, filters=32,
                        use_5x5_on_full_res=args.use_5x5).cuda()
 
 print(net)

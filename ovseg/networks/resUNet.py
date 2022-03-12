@@ -436,7 +436,7 @@ class stackedResBlocks(nn.Module):
 
     def __init__(self, block, n_blocks, in_channels, out_channels, init_stride, is_2d=False,
                  z_to_xy_ratio=1, conv_params=None, norm='inst', norm_params=None, 
-                 nonlin_params=None, bottleneck_ratio=2, stochdepth_rate=0.2, use_se=False):
+                 nonlin_params=None, bottleneck_ratio=2, stochdepth_rate=0.0, use_se=False):
         super().__init__()
         assert block in ['res', 'bottleneck', 'mergeandrun']
         self.block = block
@@ -1378,10 +1378,7 @@ class UNetResEncoderV2(nn.Module):
                                                      conv_params=self.conv_params,
                                                      norm=self.norm,
                                                      norm_params=self.norm_params,
-                                                     nonlin_params=self.nonlin_params,
-                                                     bottleneck_ratio=self.bottleneck_ratio,
-                                                     stochdepth_rate=self.stochdepth_rate,
-                                                     use_se=self.use_se))
+                                                     nonlin_params=self.nonlin_params))
 
         # blocks on the upsampling path
         self.blocks_up = []
