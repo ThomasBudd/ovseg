@@ -518,7 +518,6 @@ if __name__ == '__main__':
                  factor_skip_conn=1.0,
                  upsampling='linear',
                  is_efficient=True).cuda()
-                 upsampling='linear').cuda()
     xb = torch.randn((1, 1, 32, 128, 128), device=gpu)
     # xb = torch.randn((3, 1, 512, 512), device=gpu)
     with torch.no_grad():
