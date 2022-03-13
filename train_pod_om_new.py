@@ -36,8 +36,8 @@ model = SegmentationModel(val_fold=vf,
                           preprocessed_name=preprocessed_name,
                           model_parameters=model_params)
 model.training.train()
-model.eval_raw_dataset('BARTS')
-model.eval_raw_dataset('ApolloTCGA')
+model.eval_raw_data_npz('BARTS')
+model.eval_raw_data_npz('ApolloTCGA')
 
 ens = SegmentationEnsemble(val_fold=[5,6,7],
                            data_name=data_name,
@@ -70,8 +70,8 @@ model = SegmentationModel(val_fold=vf,
                           preprocessed_name=preprocessed_name,
                           model_parameters=model_params)
 model.training.train()
-model.eval_raw_dataset('BARTS')
-model.eval_raw_dataset('ApolloTCGA')
+model.eval_raw_data_npz('BARTS')
+model.eval_raw_data_npz('ApolloTCGA')
 
 ens = SegmentationEnsemble(val_fold=[5,6,7],
                            data_name=data_name,
