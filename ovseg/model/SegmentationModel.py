@@ -626,6 +626,8 @@ class SegmentationModel(ModelBase):
         # deletes (hopefully) all data from ram and the network from the GPU
         if hasattr(self, 'data'):
             self.data.clean()
+        
+        self.network = self.network.cpu()
         del self.network
         torch.cuda.empty_cache()
 

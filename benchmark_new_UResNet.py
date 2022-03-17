@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import argparse
 from contextlib import nullcontext
-from time import perf_counter
+from time import perf_counter, sleep
 
 
 parser = argparse.ArgumentParser()
@@ -35,7 +35,7 @@ else:
 net = UNetResEncoderV2(in_channels=1, out_channels=3, is_2d=False,
                        z_to_xy_ratio=6.25,
                        n_blocks_list=blocks, filters=filters,
-                       use_5x5_on_full_res=args.use_5x5).cuda()
+                       use_5x5_on_full_res=args.use_5x5, norm='batch').cuda()
 
 print(net)
 xb = torch.zeros((nb, nch, nz, nx, ny), device='cuda')
@@ -65,3 +65,15 @@ with context:
         net.zero_grad()
     et = perf_counter()
     print('{:.3e}'.format((et-st)/n_benchmark))
+
+
+print('Deleting network...')
+
+net = net.cpu()
+del net
+torch.cuda.empty_cache()
+
+print('Netowrk deleted!')
+sleep(15)
+
+print('Going home!')
