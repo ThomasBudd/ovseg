@@ -4,6 +4,10 @@ from ovseg.model.model_parameters_segmentation import get_model_params_3d_res_en
 import argparse
 import numpy as np
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--only_last_fold", default=False, action='store_true')
+args = parser.parse_args()
+
 data_name = 'OV04'
 preprocessed_name = 'pod_om_08_5'
 
@@ -39,8 +43,9 @@ model_params['training']['opt_params']['weight_decay'] = wd
 
 # change the model name when using other hyper-paramters
 model_name = f'bs{batch_size}_inst_more_filters'
-for vf in [5,6,7]:
-    model = SegmentationModel(val_fold=vf,
+if args.only_last_fold:
+
+    model = SegmentationModel(val_fold=9,
                               data_name=data_name,
                               model_name=model_name,
                               preprocessed_name=preprocessed_name,
@@ -49,28 +54,41 @@ for vf in [5,6,7]:
     model.eval_raw_data_npz('BARTS')
     model.eval_raw_data_npz('ApolloTCGA')
     model.clean()
-    
-ens = SegmentationEnsemble(val_fold=[5,6,7],
-                           data_name=data_name,
-                           model_name=model_name,
-                           preprocessed_name=preprocessed_name)
-ens.wait_until_all_folds_complete()
-ens.eval_raw_dataset('BARTS')
-ens.eval_raw_dataset('ApolloTCGA')
-for vf in [8, 9]:
-    model = SegmentationModel(val_fold=vf,
-                              data_name=data_name,
-                              model_name=model_name,
-                              preprocessed_name=preprocessed_name,
-                              model_parameters=model_params)
-    model.training.train()
-    model.eval_raw_data_npz('BARTS')
-    model.eval_raw_data_npz('ApolloTCGA')
-    model.clean()
-ens = SegmentationEnsemble(val_fold=[5,6,7, 8, 9],
-                           data_name=data_name,
-                           model_name=model_name,
-                           preprocessed_name=preprocessed_name)
-ens.wait_until_all_folds_complete()
-ens.eval_raw_dataset('BARTS')
-ens.eval_raw_dataset('ApolloTCGA')
+
+else:
+        
+    for vf in [5,6,7]:
+        model = SegmentationModel(val_fold=vf,
+                                  data_name=data_name,
+                                  model_name=model_name,
+                                  preprocessed_name=preprocessed_name,
+                                  model_parameters=model_params)
+        model.training.train()
+        model.eval_raw_data_npz('BARTS')
+        model.eval_raw_data_npz('ApolloTCGA')
+        model.clean()
+        
+    ens = SegmentationEnsemble(val_fold=[5,6,7],
+                               data_name=data_name,
+                               model_name=model_name,
+                               preprocessed_name=preprocessed_name)
+    ens.wait_until_all_folds_complete()
+    ens.eval_raw_dataset('BARTS')
+    ens.eval_raw_dataset('ApolloTCGA')
+    for vf in [8, 9]:
+        model = SegmentationModel(val_fold=vf,
+                                  data_name=data_name,
+                                  model_name=model_name,
+                                  preprocessed_name=preprocessed_name,
+                                  model_parameters=model_params)
+        model.training.train()
+        model.eval_raw_data_npz('BARTS')
+        model.eval_raw_data_npz('ApolloTCGA')
+        model.clean()
+    ens = SegmentationEnsemble(val_fold=[5,6,7, 8, 9],
+                               data_name=data_name,
+                               model_name=model_name,
+                               preprocessed_name=preprocessed_name)
+    ens.wait_until_all_folds_complete()
+    ens.eval_raw_dataset('BARTS')
+    ens.eval_raw_dataset('ApolloTCGA')
