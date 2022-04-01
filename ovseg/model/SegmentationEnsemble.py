@@ -244,12 +244,19 @@ class SegmentationEnsemble(ModelBase):
 
         if 'label' not in data_tpl:
             return
+
+        if self.models[0].preprocessing.is_preprocessed_data_tpl(data_tpl):
+            raise NotImplementedError('Ensemble prediction only implemented '
+                                      'for raw data not for preprocessed data.')
+
         label = data_tpl['label']
+        if self.models[0].preprocessing.reduce_lb_to_single_class:
+            label = (label > 0).astype(label.dtype)
         pred = data_tpl[self.pred_key]
 
         # volume of one voxel
         fac = np.prod(data_tpl['spacing'])
-        for c in range(1, self.n_fg_classes + 1):
+        for c in self.models[0].lb_classes:
             lb_c = (label == c).astype(float)
             pred_c = (pred == c).astype(float)
             ovlp = self.global_metrics_helper['overlap_'+str(c)] + np.sum(lb_c * pred_c) * fac

@@ -144,6 +144,26 @@ class cross_entropy_weighted_fg(nn.Module):
             l = l * mask[:, 0]
         return l.mean()
 
+class cross_entropy_weighted_fg_v2(nn.Module):
+
+    def __init__(self, weights_fg):
+        super().__init__()
+        self.weights_fg = weights_fg
+        assert isinstance(self.weights_fg, list), 'fg weights must be given as list'
+        self.weight = [2 - np.mean(self.weights_fg)] + self.weights_fg
+        self.weight = torch.tensor(self.weight).type(torch.float)
+        if torch.cuda.is_available():
+            self.weight = self.weight.cuda()
+        self.loss = torch.nn.CrossEntropyLoss(weight=self.weight, reduction='none')
+        
+    def forward(self, logs, yb_oh, mask=None):
+        assert logs.shape == yb_oh.shape
+        yb_int = torch.argmax(yb_oh, 1)
+        l = self.loss(logs, yb_int)
+        if mask is not None:
+            l = l * mask[:, 0]
+        return l.mean()
+
 
 class dice_loss_weighted(nn.Module):
 

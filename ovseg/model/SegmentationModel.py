@@ -482,7 +482,7 @@ class SegmentationModel(ModelBase):
                 sens = np.nan
             results.update({'dice_%d' % c: dice, 'sens_%d' % c: sens})
 
-            if pred_c_vol > 0:
+            if pred_c_vol > 0 and seg_c_vol > 0:
                 prec = 100 * tp / pred_c_vol
             else:
                 prec = np.nan
