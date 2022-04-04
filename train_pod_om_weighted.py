@@ -9,7 +9,7 @@ parser.add_argument("exp", type=int)
 args = parser.parse_args()
 
 exp = args.exp
-raw_data = args.raw_data
+#raw_data = args.raw_data
 data_name = 'ApolloTCGA_BARTS_OV04'
 preprocessed_name = 'pod_om'
 
@@ -34,9 +34,9 @@ model_params['data']['trn_dl_params']['batch_size'] = 4
 model_params['data']['val_dl_params']['batch_size'] = 4
 model_params['training']['opt_params']['momentum'] = 0.98
 model_params['training']['opt_params']['weight_decay'] = wd
-model_params['loss_params']['loss_names'] = ['cross_entropy_weighted_fg_v2', 
+model_params['training']['loss_params']['loss_names'] = ['cross_entropy_weighted_fg_v2', 
                                              'dice_loss_weighted']
-model_params['loss_params']['loss_kwargs'] = [{'weights_fg': [weight, weight]},
+model_params['training']['loss_params']['loss_kwargs'] = [{'weights_fg': [weight, weight]},
                                               {'weight': 2-weight}]
 
 # change the model name when using other hyper-paramters
