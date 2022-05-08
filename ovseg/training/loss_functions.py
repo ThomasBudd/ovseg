@@ -193,6 +193,8 @@ class dice_loss_sigm_weighted(nn.Module):
     def __init__(self, w_list, eps=1e-5):
         super().__init__()
         self.weights = torch.tensor([1 / (1 + np.exp(-1*w)) for w in w_list]).view(1, len(w_list))
+        if torch.cuda.is_available():
+            self.weights = self.weights.cuda()
         self.eps = eps
 
     def forward(self, logs, yb_oh, mask=None):
