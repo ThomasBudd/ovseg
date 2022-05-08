@@ -35,6 +35,8 @@ class cross_entropy_exp_weight(nn.Module):
     def __init__(self, w_list):
         super().__init__()
         weight = torch.tensor([1] + [np.exp(-1*w) for w in w_list])
+        if torch.cuda.is_available():
+            weight = weight.cuda()
         self.loss = torch.nn.CrossEntropyLoss(weight=weight,
                                               reduction='none')
 
