@@ -34,7 +34,7 @@ class cross_entropy_exp_weight(nn.Module):
 
     def __init__(self, w_list):
         super().__init__()
-        weight = torch.tensor([1] + [np.exp(-1*w) for w in w_list])
+        weight = torch.tensor([1] + [np.exp(-1*w) for w in w_list]).type(torch.float)
         if torch.cuda.is_available():
             weight = weight.cuda()
         self.loss = torch.nn.CrossEntropyLoss(weight=weight,
@@ -196,7 +196,7 @@ class dice_loss_sigm_weighted(nn.Module):
         super().__init__()
         self.weights = torch.tensor([1 / (1 + np.exp(-1*w)) for w in w_list]).view(1, len(w_list))
         if torch.cuda.is_available():
-            self.weights = self.weights.cuda()
+            self.weights = self.weights.cuda().type(torch.float)
         self.eps = eps
 
     def forward(self, logs, yb_oh, mask=None):
