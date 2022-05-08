@@ -30,6 +30,24 @@ class cross_entropy(nn.Module):
             l = l * mask[:, 0]
         return l.mean()
 
+class cross_entropy_exp_weight(nn.Module):
+
+    def __init__(self, w_list):
+        super().__init__()
+        weight = torch.tensor([1] + [np.exp(-1*w) for w in w_list])
+        self.loss = torch.nn.CrossEntropyLoss(weight=weight,
+                                              reduction='none')
+
+    def forward(self, logs, yb_oh, mask=None):
+        assert logs.shape == yb_oh.shape
+        yb_int = torch.argmax(yb_oh, 1)
+        l = self.loss(logs, yb_int)
+        if mask is not None:
+            l = l * mask[:, 0]
+        return l.mean()
+
+
+
 class bin_cross_entropy(nn.Module):
 
     def __init__(self):
@@ -46,63 +64,6 @@ class bin_cross_entropy(nn.Module):
             l = l * mask[:, 0]
         return l.mean()
 
-
-class dice_loss(nn.Module):
-
-    def __init__(self, eps=1e-5):
-        super().__init__()
-        self.eps = eps
-
-    def forward(self, logs, yb_oh, mask=None):
-        assert logs.shape == yb_oh.shape
-        pred = torch.nn.functional.softmax(logs, 1)
-        # dimension in which we compute the mean
-        dim = list(range(2, len(pred.shape)))
-        # remove the background channel from both as the dice will only
-        # be computed over foreground classes
-        pred = pred[:, 1:]
-        yb_oh = yb_oh[:, 1:]
-        if mask is not None:
-            pred = pred * mask
-            # Is this second line neseccary? Probably not! But better be safe than sorry.
-            yb_oh = yb_oh * mask
-        # now compute the metrics
-        tp = torch.sum(yb_oh * pred, dim)
-        yb_vol = torch.sum(yb_oh, dim)
-        pred_vol = torch.sum(pred, dim)
-        # the main formula
-        dice = (tp + self.eps) / (0.5 * yb_vol + 0.5 * pred_vol + self.eps)
-        # the mean is computed over the batch and channel axis (excluding background)
-        return 1 - 1 * dice.mean()
-
-class bin_dice_loss(nn.Module):
-
-    def __init__(self, eps=1e-5):
-        super().__init__()
-        self.eps = eps
-
-    def forward(self, logs, yb_oh, mask=None):
-        assert logs.shape == yb_oh.shape
-        pred = torch.nn.functional.softmax(logs, 1)
-        # dimension in which we compute the mean
-        dim = list(range(2, len(pred.shape)))
-        # remove the background channel from both as the dice will only
-        # be computed over foreground classes
-        pred = pred[:, 1:].max(1, keepdim=True)[0]
-        yb_oh = yb_oh[:, 1:].max(1, keepdim=True)[0]
-        
-        if mask is not None:
-            pred = pred * mask
-            # Is this second line neseccary? Probably not! But better be safe than sorry.
-            yb_oh = yb_oh * mask
-        # now compute the metrics
-        tp = torch.sum(yb_oh * pred, dim)
-        yb_vol = torch.sum(yb_oh, dim)
-        pred_vol = torch.sum(pred, dim)
-        # the main formula
-        dice = (tp + self.eps) / (0.5 * yb_vol + 0.5 * pred_vol + self.eps)
-        # the mean is computed over the batch and channel axis (excluding background)
-        return 1 - 1 * dice.mean()
 
 class cross_entropy_weighted_bg(nn.Module):
 
@@ -195,6 +156,93 @@ class dice_loss_weighted(nn.Module):
         pred_vol = torch.sum(pred, dim)
         # the main formula
         dice = (tp + self.eps) / (self.w1 * yb_vol + self.w2 * pred_vol + self.eps)
+        # the mean is computed over the batch and channel axis (excluding background)
+        return 1 - 1 * dice.mean()
+
+
+class dice_loss(nn.Module):
+
+    def __init__(self, eps=1e-5):
+        super().__init__()
+        self.eps = eps
+
+    def forward(self, logs, yb_oh, mask=None):
+        assert logs.shape == yb_oh.shape
+        pred = torch.nn.functional.softmax(logs, 1)
+        # dimension in which we compute the mean
+        dim = list(range(2, len(pred.shape)))
+        # remove the background channel from both as the dice will only
+        # be computed over foreground classes
+        pred = pred[:, 1:]
+        yb_oh = yb_oh[:, 1:]
+        if mask is not None:
+            pred = pred * mask
+            # Is this second line neseccary? Probably not! But better be safe than sorry.
+            yb_oh = yb_oh * mask
+        # now compute the metrics
+        tp = torch.sum(yb_oh * pred, dim)
+        yb_vol = torch.sum(yb_oh, dim)
+        pred_vol = torch.sum(pred, dim)
+        # the main formula
+        dice = (tp + self.eps) / (0.5 * yb_vol + 0.5 * pred_vol + self.eps)
+        # the mean is computed over the batch and channel axis (excluding background)
+        return 1 - 1 * dice.mean()
+
+class dice_loss_sigm_weighted(nn.Module):
+
+    def __init__(self, w_list, eps=1e-5):
+        super().__init__()
+        self.weights = torch.tensor([1 / (1 + np.exp(-1*w)) for w in w_list]).view(1, len(w_list))
+        self.eps = eps
+
+    def forward(self, logs, yb_oh, mask=None):
+        assert logs.shape == yb_oh.shape
+        pred = torch.nn.functional.softmax(logs, 1)
+        # dimension in which we compute the mean
+        dim = list(range(2, len(pred.shape)))
+        # remove the background channel from both as the dice will only
+        # be computed over foreground classes
+        pred = pred[:, 1:]
+        yb_oh = yb_oh[:, 1:]
+        if mask is not None:
+            pred = pred * mask
+            # Is this second line neseccary? Probably not! But better be safe than sorry.
+            yb_oh = yb_oh * mask
+        # now compute the metrics
+        tp = torch.sum(yb_oh * pred, dim)
+        fp = torch.sum((1 - yb_oh) * pred, dim)
+        fn = torch.sum((1 - pred) * yb_oh, dim)
+        # the main formula
+        dice = (tp + self.eps) / (tp + self.weights * fp + (1-self.weights) * fn + self.eps)
+        # the mean is computed over the batch and channel axis (excluding background)
+        return 1 - 1 * dice.mean()
+
+class bin_dice_loss(nn.Module):
+
+    def __init__(self, eps=1e-5):
+        super().__init__()
+        self.eps = eps
+
+    def forward(self, logs, yb_oh, mask=None):
+        assert logs.shape == yb_oh.shape
+        pred = torch.nn.functional.softmax(logs, 1)
+        # dimension in which we compute the mean
+        dim = list(range(2, len(pred.shape)))
+        # remove the background channel from both as the dice will only
+        # be computed over foreground classes
+        pred = pred[:, 1:].max(1, keepdim=True)[0]
+        yb_oh = yb_oh[:, 1:].max(1, keepdim=True)[0]
+        
+        if mask is not None:
+            pred = pred * mask
+            # Is this second line neseccary? Probably not! But better be safe than sorry.
+            yb_oh = yb_oh * mask
+        # now compute the metrics
+        tp = torch.sum(yb_oh * pred, dim)
+        yb_vol = torch.sum(yb_oh, dim)
+        pred_vol = torch.sum(pred, dim)
+        # the main formula
+        dice = (tp + self.eps) / (0.5 * yb_vol + 0.5 * pred_vol + self.eps)
         # the mean is computed over the batch and channel axis (excluding background)
         return 1 - 1 * dice.mean()
 
