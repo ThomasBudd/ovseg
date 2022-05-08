@@ -232,7 +232,7 @@ class SegmentationEnsemble(ModelBase):
     def _init_global_metrics(self):
         self.global_metrics_helper = {}
         self.global_metrics = {}
-        for c in range(1, self.n_fg_classes + 1):
+        for c in self.models[0].lb_classes:
             self.global_metrics_helper.update({s+str(c): 0 for s in ['overlap_',
                                                                      'gt_volume_',
                                                                      'pred_volume_']})
