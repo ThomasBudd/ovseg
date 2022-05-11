@@ -89,7 +89,7 @@ def preprocess_dynamic_z_spacing(data_tpl,
         im = np.rot90(im[:, ::-1, :, ::-1], -1, (1,2))
 
     # now the image should be 5d
-    im = torch.from_numpy(im).type(torch.float).unsqueeze(0).cuda()
+    im = torch.from_numpy(im.copy()).type(torch.float).unsqueeze(0).cuda()
         
     # %% resizing, the funny part
     z_sp = data_tpl['spacing'][0]

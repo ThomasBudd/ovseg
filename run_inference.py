@@ -15,7 +15,6 @@ parser.add_argument("--models", default=['pod_om', 'abdominal_lesions','lymph_no
 
 args = parser.parse_args()
 
-vf = args.vf
 trn_data = args.trn_data
 data_name = '_'.join(sorted(trn_data))
 models = args.models
@@ -72,11 +71,10 @@ def save_prediction(data_tpl):
 
 # %% iterate over the dataset and save predictions
 
-for i in tqdm(range(len(ds))):
+for data_tpl in tqdm(ds):
     
-    # load data_tpl    
-    data_tpl = ds[i]
-        
+    # FLIP AND ROTATE IMAGE
+    
     # compute prediciton
     pred = ClaraWrapperOvarian(data_tpl, 
                                models=models,
