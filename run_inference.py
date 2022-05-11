@@ -74,6 +74,11 @@ def save_prediction(data_tpl):
 for data_tpl in tqdm(ds):
     
     # FLIP AND ROTATE IMAGE
+    # the Clara wrapper flips and rotates the image as the monai reader
+    # applies these when reading the data.
+    # as we're reading the data with the ov_seg library, we have to flip
+    # and rotate in the opposite direction first
+    data_tpl['image'] = np.rot90(data_tpl['image'][::-1, :, ::-1], 1, (1,2))
     
     # compute prediciton
     pred = ClaraWrapperOvarian(data_tpl, 
