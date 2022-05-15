@@ -65,6 +65,7 @@ for w_list in w_list_list:
                                                  'cross_entropy_exp_weight'],
                                   'loss_kwargs': 2*[{'w_list':w_list}]}
     model.training.initialise_loss()
+    model.training.save_checkpoint()
     print(model.training.loss_fctn)
     model.training.train()
     model.eval_validation_set()
