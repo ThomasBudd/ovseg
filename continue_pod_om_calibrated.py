@@ -20,17 +20,11 @@ preprocessed_name = 'pod_om_4fCV'
 
 # equally scale down the patches to have ~half of the pixeld
 patch_size = [32, 216, 216]
-use_prg_trn = True
-
-out_shape = [[20, 128, 128],
-             [22, 152, 152],
-             [30, 192, 192],
-             [32, 216, 216]]
+use_prg_trn = False
 larger_res_encoder = False
 
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size,
                                                      z_to_xy_ratio=5.0/0.8,
-                                                     out_shape=out_shape,
                                                      n_fg_classes=2,
                                                      use_prg_trn=use_prg_trn)
 
