@@ -10,10 +10,13 @@ parser.add_argument("exp", type=int)
 args = parser.parse_args()
 
 vf = args.vf
-if args.exp == 0:
-    w_list_list = [[-2, -2]]
-else:
-    w_list_list = [[1, 1]]
+# if args.exp == 0:
+#     w_list_list = [[-2, -2]]
+# else:
+#     w_list_list = [[1, 1]]
+
+w_list_list = [[-2, -2]]
+# num_epochs = [1050, 1100][args.exp]
 
 data_name = 'OV04'
 preprocessed_name = 'pod_om_4fCV'
@@ -40,7 +43,7 @@ for w_list in w_list_list:
     
     model_params['training']['loss_params']['loss_kwargs'] = 2*[{'w_list':w_list}]
     # change the model name when using other hyper-paramters
-    model_name = f'new_loss_{w_list[0]}_continued'
+    model_name = f'new_loss_{w_list[0]}_continued_{args.exp}'
     
     model = SegmentationModel(val_fold=vf,
                               data_name=data_name,
