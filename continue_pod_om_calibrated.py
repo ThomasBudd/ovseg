@@ -15,7 +15,7 @@ vf = args.vf
 # else:
 #     w_list_list = [[1, 1]]
 
-w_list = [[-2, -2]]
+w_list = [-2, -2]
 # num_epochs = [1050, 1100][args.exp]
 
 data_name = 'OV04'
