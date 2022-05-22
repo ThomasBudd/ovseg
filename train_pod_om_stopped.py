@@ -8,8 +8,8 @@ parser.add_argument("vf", type=int)
 args = parser.parse_args()
 
 vf = args.vf
-data_name = 'OV04'
-preprocessed_name = 'pod_om_4fCV'
+data_name = 'ApolloTCGA_BARTS_OV04'
+preprocessed_name = 'pod_om'
 
 # equally scale down the patches to have ~half of the pixeld
 patch_size = [32, 216, 216]
@@ -27,7 +27,6 @@ model_params = get_model_params_3d_res_encoder_U_Net(patch_size,
                                                      n_fg_classes=2,
                                                      use_prg_trn=use_prg_trn)
 
-model_params['data']['n_folds'] = 4
 model_params['data']['trn_dl_params']['batch_size'] = 4
 model_params['data']['val_dl_params']['batch_size'] = 4
 model_params['training']['opt_params']['momentum'] = 0.98
@@ -35,7 +34,7 @@ model_params['training']['opt_params']['weight_decay'] = 1e-4
 model_params['training']['loss_params']['loss_names'] = ['dice_loss_sigm_weighted',
                                                          'cross_entropy_exp_weight']
 model_params['training']['stop_after_epochs'] = [750]
-model_params['training']['loss_params']['loss_kwargs'] = 2*[{'w_list':[0,0]}]
+model_params['training']['loss_params']['loss_kwargs'] = 2*[{'w_list':[-1.5,-0.5]}]
 # change the model name when using other hyper-paramters
 model_name = 'new_loss_stopped'
 

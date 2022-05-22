@@ -6,7 +6,7 @@ import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument("vf", type=int)
-parser.add_argument("exp", type=int)
+# parser.add_argument("exp", type=int)
 args = parser.parse_args()
 
 vf = args.vf

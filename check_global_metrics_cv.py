@@ -9,7 +9,8 @@ predbp = os.path.join(os.environ['OV_DATA_BASE'], 'predictions', 'OV04',
                       'pod_om_4fCV')
 
 model_names = ['n_bias_1', 'new_loss_1', 'new_loss_0', 'new_loss_-1',
-               'new_loss_-2','new_loss_-2_continued']
+               'new_loss_-2', 'new_loss_-2_continued', 'new_loss_-2_continued_0'
+               'new_loss_-2_continued_1']
 
 all_metrics = {model_name:{'fp1':0, 'tp1':0, 'fn1':0, 'fp9':0, 'tp9':0, 'fn9':0} for model_name in model_names}
 
