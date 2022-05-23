@@ -53,13 +53,20 @@ for delta in delta_list:
                               preprocessed_name=preprocessed_name,
                               model_parameters=model_params)
     
-    if model.training.load_last_checkpoint():
+    path_to_checkpoint = os.path.join(os.environ['OV_DATA_BASE'],
+                                      'trained_models',
+                                      data_name,
+                                      preprocessed_name,
+                                      model_name,
+                                      f'fold_{vf}',
+                                      'attribute_checkpoint.pkl')
+    if os.path.exists(path_to_checkpoint):
         print('Previous checkpoint found and loaded')
     else:
         print('Loading pretrained checkpoint')
         path_to_checkpoint = os.path.join(os.environ['OV_DATA_BASE'],
                                           'trained_models',
-                                          'OV04',
+                                          data_name,
                                           preprocessed_name,
                                           'new_loss_stopped',
                                           f'fold_{vf}')
