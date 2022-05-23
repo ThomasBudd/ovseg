@@ -10,16 +10,14 @@ parser.add_argument("vf", type=int)
 args = parser.parse_args()
 
 vf = args.vf
-# if args.exp == 0:
-#     w_list_list = [[-2, -2]]
-# else:
-#     w_list_list = [[1, 1]]
 
-w_list = [-2, -2]
-# num_epochs = [1050, 1100][args.exp]
+w_1 = -1.5
+w_9 = -0.5
 
-data_name = 'OV04'
-preprocessed_name = 'pod_om_4fCV'
+delta_list = [-2, -1, 0, 1, 2, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5]
+
+data_name = 'ApolloTCGA_BARTS_OV04'
+preprocessed_name = 'pod_om'
 
 # equally scale down the patches to have ~half of the pixeld
 patch_size = [32, 216, 216]
@@ -39,11 +37,15 @@ model_params['training']['opt_params']['weight_decay'] = 1e-4
 model_params['training']['loss_params']['loss_names'] = ['dice_loss_sigm_weighted',
                                                          'cross_entropy_exp_weight']
     
-model_params['training']['loss_params']['loss_kwargs'] = 2*[{'w_list':w_list}]
 # change the model name when using other hyper-paramters
 
-for exp in range(2):
-    model_name = f'new_loss_{w_list[0]}_continued_{exp}'
+for delta in delta_list:
+    
+    w_list = [w_1 + delta, w_9 + delta]
+    
+    model_params['training']['loss_params']['loss_kwargs'] = 2*[{'w_list':w_list}]
+    
+    model_name = f'calibrated_{w_list[0]}_{w_list[1]}'
     
     model = SegmentationModel(val_fold=vf,
                               data_name=data_name,
@@ -51,28 +53,21 @@ for exp in range(2):
                               preprocessed_name=preprocessed_name,
                               model_parameters=model_params)
     
-    path_to_checkpoint = os.path.join(os.environ['OV_DATA_BASE'],
-                                      'trained_models',
-                                      'OV04',
-                                      preprocessed_name,
-                                      'new_loss_stopped',
-                                      f'fold_{vf}')
-    model.training.load_last_checkpoint(path_to_checkpoint)
-    model.training.loss_params = {'loss_names': ['dice_loss_sigm_weighted',
-                                                 'cross_entropy_exp_weight'],
-                                  'loss_kwargs': 2*[{'w_list':w_list}]}
-    model.training.initialise_loss()
-    model.training.save_checkpoint()
-    print(model.training.loss_fctn)
+    if model.training.load_last_checkpoint():
+        print('Previous checkpoint found and loaded')
+    else:
+        print('Loading pretrained checkpoint')
+        path_to_checkpoint = os.path.join(os.environ['OV_DATA_BASE'],
+                                          'trained_models',
+                                          'OV04',
+                                          preprocessed_name,
+                                          'new_loss_stopped',
+                                          f'fold_{vf}')
+        model.training.load_last_checkpoint(path_to_checkpoint)
+        model.training.loss_params = {'loss_names': ['dice_loss_sigm_weighted',
+                                                     'cross_entropy_exp_weight'],
+                                      'loss_kwargs': 2*[{'w_list':w_list}]}
+        model.training.initialise_loss()
+        model.training.save_checkpoint()
     model.training.train()
     model.eval_validation_set()
-    model.eval_raw_data_npz('BARTS')
-    model.eval_raw_data_npz('ApolloTCGA')
-    
-    ens = SegmentationEnsemble(val_fold=list(range(4)),
-                               data_name=data_name,
-                               model_name=model_name,
-                               preprocessed_name=preprocessed_name)
-    ens.wait_until_all_folds_complete()
-    ens.eval_raw_dataset('BARTS')
-    ens.eval_raw_dataset('ApolloTCGA')
