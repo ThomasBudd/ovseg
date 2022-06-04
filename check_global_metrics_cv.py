@@ -44,7 +44,7 @@ for lbp in lbps:
                 all_metrics[model_name][f'fp{cl}'] += np.sum((1-gt_c) * pred_c)
                 all_metrics[model_name][f'fn{cl}'] += np.sum(gt_c * (1-pred_c))
     
-pickle.dump(all_metrics, os.path.join(os.environ['OV_DATA_BASE'], 'all_metrics_ovarian_full.pkl'))
+pickle.dump(all_metrics, open(os.path.join(os.environ['OV_DATA_BASE'], 'all_metrics_ovarian_full.pkl')),'wb')
 
 # %%
 for model_name in model_names:
