@@ -59,7 +59,7 @@ for delta in delta_list:
                                       data_name,
                                       preprocessed_name,
                                       model_name,
-                                      f'fold_{vf}',
+                                      'fold_5',
                                       'attribute_checkpoint.pkl')
     if os.path.exists(path_to_checkpoint):
         print('Previous checkpoint found and loaded')
