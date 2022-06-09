@@ -15,7 +15,9 @@ args = parser.parse_args()
 w_1 = -1.5
 w_9 = -0.5
 
-delta_list = np.linspace(-2, 2, 25)[args.exp::5]
+# delta_list = np.linspace(-2, 2, 25)[args.exp::5]
+
+delta_list = np.linspace(-3, 3, 37)[[args.exp, -1*args.exp]]
 
 data_name = 'OV04'
 preprocessed_name = 'pod_om_4fCV'
