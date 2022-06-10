@@ -19,13 +19,9 @@ w_9 = -0.5
 
 # delta_list = np.linspace(-3, 3, 37)[[args.exp, -1*args.exp]]
 
-if args.exp == -1:
-    delta_list = [2.0]
-else:
-    ind1, ind2 = 2*args.exp,2*args.exp+1 
-    delta_list = np.linspace(-4, 4, 49)[[ind1, ind2, 48 - ind1, 48 - ind2]]
-
-print(delta_list)
+sf = 6 + 4*args.exp
+vf_list = list(range(sf, sf+4))
+print(vf_list)
 
 data_name = 'OV04'
 preprocessed_name = 'pod_om_4fCV'
@@ -50,15 +46,15 @@ model_params['training']['loss_params']['loss_names'] = ['dice_loss_sigm_weighte
     
 # change the model name when using other hyper-paramters
 
-for delta in delta_list:
+for vf in vf_list:
     
-    w_list = [w_1 + delta, w_9 + delta]
+    w_list = [w_1 , w_9]
     
     model_params['training']['loss_params']['loss_kwargs'] = 2*[{'w_list':w_list}]
     
-    model_name = f'calibrated_{delta:.2f}'
+    model_name = 'calibrated_0.00'
     
-    model = SegmentationModel(val_fold=5,
+    model = SegmentationModel(val_fold=vf,
                               data_name=data_name,
                               model_name=model_name,
                               preprocessed_name=preprocessed_name,
@@ -69,7 +65,7 @@ for delta in delta_list:
                                       data_name,
                                       preprocessed_name,
                                       model_name,
-                                      'fold_5',
+                                      f'fold_{vf}',
                                       'attribute_checkpoint.pkl')
     if os.path.exists(path_to_checkpoint):
         print('Previous checkpoint found and loaded')
