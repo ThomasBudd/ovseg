@@ -1,6 +1,7 @@
 import os
 from ovseg.utils.io import save_nii_from_data_tpl, save_dcmrt_from_data_tpl, is_dcm_path
 from ovseg.utils.label_utils import reduce_classes
+from ovseg.utils.download_pretrained_utils import maybe_download_clara_models
 from ovseg.model.ClaraWrappers import ClaraWrapperOvarian
 from ovseg.data.Dataset import raw_Dataset
 from tqdm import tqdm
@@ -10,22 +11,19 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("tst_data")
 # add all the names of the labled training data sets as trn_data
-parser.add_argument("--trn_data", default=['OV04', 'BARTS', 'ApolloTCGA'], nargs='+')
 parser.add_argument("--models", default=['pod_om', 'abdominal_lesions','lymph_nodes'], nargs='+')
 
 args = parser.parse_args()
 
-trn_data = args.trn_data
-data_name = '_'.join(sorted(trn_data))
+data_name = 'clara_models'
 models = args.models
 tst_data = args.tst_data
 
-# change the model name when using other hyper-paramters
-model_name = 'clara_model'
-# if you store the weights and model parameters somewhere else, please change
-# this path
+# if the pretrained models were not downloaded yet, we're doing it now here
+maybe_download_clara_models()
 path_to_clara_models = os.path.join(os.environ['OV_DATA_BASE'], 'clara_models')
 
+# create the dataset to iterate over the scans
 ds = raw_Dataset(tst_data)
 
 # some variables we need for saving the predictions
