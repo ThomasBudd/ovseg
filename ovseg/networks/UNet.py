@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from ovseg.networks.nfUNet import concat_attention, concat
 
 
 def get_padding(kernel_size):
@@ -17,6 +16,31 @@ def get_stride(kernel_size):
         return [(k + 1)//2 for k in kernel_size]
     else:
         return (kernel_size + 1) // 2
+# %%
+class concat_attention(nn.Module):
+
+    def __init__(self, in_channels, is_2d=False):
+        super().__init__()
+        if is_2d:
+            self.logits = nn.Conv2d(in_channels, 1, 1, bias=False)
+        else:
+            self.logits = nn.Conv3d(in_channels, 1, 1, bias=False)
+
+        nn.init.zeros_(self.logits.weight)
+        self.nonlin = torch.sigmoid
+
+    def forward(self, xb_up, xb_skip):
+
+        # we multiply by 2 for the same reason we do it in S&E Units
+        # with zero init of the logits weights this attention gate is doing nothing
+        attention = 2.0 * self.nonlin(self.logits(xb_up))
+        return torch.cat([xb_up, attention * xb_skip], dim=1)
+
+
+class concat(nn.Module):
+
+    def forward(self, xb_up, xb_skip):
+        return torch.cat([xb_up, xb_skip], dim=1)
 
 
 # %%
