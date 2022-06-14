@@ -16,14 +16,20 @@ Before you can run inference or training, you have to set up an environment vari
 All predictions, (pre-)trained models, raw data, etc. will be stored in this location.
 If you're planning to run training on a multi-server system it is advised to set up the OV_DATA_BASE at a central location all servers can access (see run training).
 
+# Data management
+
+To run inference or training you first need to store the datasets in a particular way to make it accessible for the code. All datasets should be stored at $OV_DATA_BASE\raw_data and should be given a unique name. Currently the library supports datasets in which images (and segmentations) are stored as nifti or dicom files.
+
+If you're using nifti files create a folder called 'images' in $OV_DATA_BASE\raw_data\DATASET_NAME and simply put all images in there. In the case of training create a second folder called 'labels' with the corresponding segmentations. The segmentation files should have the same names as the image files or follow the Medical Decathlon naming convention (image: case_xyz_0000.nii.gz, seg: case_xyz.nii.gz).
+
+For dicom images any type of folder structure is allowed. Make sure that only axial reconstructions are contained in your dataset, the code won't remove other types of reconstructions such as topograms or sagital slices by itself. The code also assumes that all dicoms found in one folder belong to the same reconstruction, make sure that each reconstruction is contained in a seperate folder. If you're performing training, include the segmentations as dicomrt files. Each folder with reconstruction dicoms should have exactly one additional dicomrt file with the corresponding segmentation. Missing segmentations are interpreted as empty segmentations masks (only backgorund).
+
 # Run inference
 
-To run the inference you have to first copy your raw data (called tst_data from here on) to a subfolder called 'raw_data' at OV_DATA_BASE. Currently two datatypes for raw data are accepted: nifti and dicom.
+To run the inference navigate to the cloned repository and run the script 'run_inference.py' with the name of your dataset as input. For example if your dataset is called 'tst_data_name' run
 
-If you're using nifti files create a folder called 'images' in $OV_DATA_BASE\raw_data\tst_data and simply put all images in there.
-For dicom images any type of folder structure is allowed. Make sure that only axial reconstructions are contained in your test data, the code won't remove other types of reconstructions such as topograms or sagital slices by itself. The code also assumes that all dicoms found in one folder belong to the same reconstruction, make sure that each reconstruction is contained in a seperate folder.
+> python run_inference.py tst_data_name 
 
-To run the inference navigate to the cloned repository and run the script 'run_inference.py' with the name of your dataset (here tst_data) as input.
 By default the code will run the inference for all three models and segment all disease sites considered by this library. Optionally you can specify a subset of models to run using the --models handle. The options are the following:
 
 - pod_om: model for main disease sites in the pelvis/ovaries and the omentum. The two sites are encoded as 9 and 1.
@@ -33,7 +39,16 @@ lymph nodes (17).
 
 Any combination of the three are viable options. For example if you only want to run the segmentation of the main disease sites and lymph nodes run
 
-python run_inference.py tst_data --models pod_om lymph_nodes
+> python run_inference.py tst_data_name --models pod_om lymph_nodes
 
 # Run training
 
+Before the training can be started the raw data has to be preprocessed and stored. If you're running the training on a multi-sever system it is advised to place the OV_DATA_BASE in a central storage. However, this is not a good place for preprocessed data. The preprocessed data should be kept on a fast local disk to ensure that loading times do not become a bottleneck of the training. In this case create a second environment varibale called OV_PREPROCESSED that is located on such fast local disk. If this varibale is not created, the preprocessed data will be simply sotred at $OV_DATA_BASE/preprocessed.
+
+To perform preprocessing call the script 'preprocess_ovaraian_data.py' with the name of all datasets you want to use for training as arguments. For example
+> python preprocess_ovarian_data.py DATANAME1 DATANAME2
+
+Next the training can be strated by running 'run_training.py'. The first input needed is the number of the validation fold. By default the library will split the preprocessed data using a fivefold cross-validation scheme. For an input 0,1,...,4 the training will be launched using 80% of the available data for training and 20% for validation. For inputs 5,6,... the training will use 100% of the preprocessed data for training. The type of model trained is specified via the --model input. The models have the same naming as in inference (pod_om, abdominal_lesions, lymph_nodes). The training datasets used are specified via the --trn_data input.
+
+For example, training on 100% of the data (no validation) the model for the main two disease sites on datasets called DATANAME1 and DATANAME2 run
+> python run_training.py 5 --model pod_om --trn_data DATANAME1 DATANAME2
