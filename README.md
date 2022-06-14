@@ -1,4 +1,3 @@
-seg
 A deep learning based library for segmentation of high grade serous ovarian cancer on CT images.
 
 # Installation
