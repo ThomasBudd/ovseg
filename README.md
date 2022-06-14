@@ -25,12 +25,13 @@ If you're using nifti files create a folder called 'images' in $OV_DATA_BASE\raw
 For dicom images any type of folder structure is allowed. Make sure that only axial reconstructions are contained in your test data, the code won't remove other types of reconstructions such as topograms or sagital slices by itself. The code also assumes that all dicoms found in one folder belong to the same reconstruction, make sure that each reconstruction is contained in a seperate folder.
 
 To run the inference navigate to the cloned repository and run the script 'run_inference.py' with the name of your dataset (here tst_data) as input.
-By default the code will run the inference for all three models and segment all disease sites considered by this library. Optionally you can specify a subset of models to run using the --models handle. The options are the following.
+By default the code will run the inference for all three models and segment all disease sites considered by this library. Optionally you can specify a subset of models to run using the --models handle. The options are the following:
 
 - pod_om: model for main disease sites in the pelvis/ovaries and the omentum. The two sites are encoded as 9 and 1.
 - abdominal_lesions: model for various lesions between the pelvis and diaphram. The model considers lesions in the omentum (1), right upper quadrant (2), left upper quadrant (3), mesenterium (5), left paracolic gutter (6) and right  paracolic gutter (7).
 - lymph_nodes: segments disease in the lymph nodes namely infrarenal lymph nodes (13), suprarenal lymph nodes (14), supradiaphragmatic lymph nodes (15) and inguinal 
 lymph nodes (17).
+
 Any combination of the three are viable options. For example if you only want to run the segmentation of the main disease sites and lymph nodes run
 
 python run_inference.py tst_data --models pod_om lymph_nodes
