@@ -41,6 +41,8 @@ Any combination of the three are viable options. For example if you only want to
 
 > python run_inference.py tst_data_name --models pod_om lymph_nodes
 
+At first usage the library will download the pretrained weights. This might take a few minutes.
+
 # Run training
 
 Before the training can be started the raw data has to be preprocessed and stored. If you're running the training on a multi-sever system it is advised to place the OV_DATA_BASE in a central storage. However, this is not a good place for preprocessed data. The preprocessed data should be kept on a fast local disk to ensure that loading times do not become a bottleneck of the training. In this case create a second environment varibale called OV_PREPROCESSED that is located on such fast local disk. If this varibale is not created, the preprocessed data will be simply sotred at $OV_DATA_BASE/preprocessed.
