@@ -43,7 +43,7 @@ def ClaraWrapperOvarian(data_tpl,
     for model in models[1:]:
         
         arr = evaluate_segmentation_ensemble(data_tpl,
-                                          models[0],
+                                          model,
                                           path_to_clara_models)
         
         # fill in new prediction and overwrite previous one

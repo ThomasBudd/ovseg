@@ -9,9 +9,26 @@ import numpy as np
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("tst_data")
+parser.add_argument("tst_data",
+                    help='Name of the folder in $OV_DATA_BASE\raw_data that '
+                    'contains the data to run the inference on.')
 # add all the names of the labled training data sets as trn_data
-parser.add_argument("--models", default=['pod_om', 'abdominal_lesions','lymph_nodes'], nargs='+')
+parser.add_argument("--models", 
+                    default=['pod_om', 'abdominal_lesions','lymph_nodes'], nargs='+',
+                    help='Name(s) of models used during inference. Options are '
+                    'the following.\n'
+                    '(i) pod_om: model for main disease sites in the pelvis/ovaries'
+                    ' and the omentum. The two sites are encoded as 9 and 1.\n'
+                    '(ii) abdominal_lesions: model for various lesions between '
+                    'the pelvis and diaphram. The model considers lesions in the '
+                    'omentum (1), right upper quadrant (2), left upper quadrant (3), '
+                    'mesenterium (5), left paracolic gutter (6) and right '
+                    'paracolic gutter (7).\n'
+                    '(iii) lymph_nodes: segments disease in the lymph nodes '
+                    'namely infrarenal lymph nodes (13), suprarenal lymph nodes '
+                    '(14), supradiaphragmatic lymph nodes (15) and inguinal '
+                    'lymph nodes (17).\n'
+                    'Any combination of the three are viable options.')
 
 args = parser.parse_args()
 
