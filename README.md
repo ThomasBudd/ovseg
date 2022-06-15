@@ -9,7 +9,7 @@ To install ovseg simply clone the repo and install via pip:
 ```
 git clone https://github.com/ThomasBudd/ovseg
 cd ovseg
-pip instal -e .
+pip install -e .
 ```
 
 Before you can run inference or training, you have to set up an environment varibale called OV_DATA_BASE.
