@@ -18,7 +18,7 @@ If you're planning to run training on a multi-server system it is advised to set
 
 # Data management
 
-To run inference or training you first need to store the datasets in a particular way to make it accessible for the code. All datasets should be stored at $OV_DATA_BASE\raw_data and should be given a unique name. Currently the library supports datasets in which images (and segmentations) are stored as nifti or dicom files.
+To run inference or training you first need to store the datasets in a particular way to make it accessible for the library. All datasets should be stored at $OV_DATA_BASE\raw_data and should be given a unique name. Currently the library supports datasets in which images (and segmentations) are stored as nifti or dicom files.
 
 If you're using nifti files create a folder called 'images' in $OV_DATA_BASE\raw_data\DATASET_NAME and simply put all images in there. In the case of training create a second folder called 'labels' with the corresponding segmentations. The segmentation files should have the same names as the image files or follow the Medical Decathlon naming convention (image: case_xyz_0000.nii.gz, seg: case_xyz.nii.gz).
 
@@ -32,7 +32,7 @@ To run the inference navigate to the cloned repository and run the script 'run_i
 
 By default the code will run the inference for all three models and segment all disease sites considered by this library. Optionally you can specify a subset of models to run using the --models handle. The options are the following:
 
-- pod_om: model for main disease sites in the pelvis/ovaries and the omentum. The two sites are encoded as 9 and 1.
+- pod_om: model for main disease sites in the pelvis/ovaries and the omentum. The two sites are encoded as 9 and 1 in the predictions.
 - abdominal_lesions: model for various lesions between the pelvis and diaphram. The model considers lesions in the omentum (1), right upper quadrant (2), left upper quadrant (3), mesenterium (5), left paracolic gutter (6) and right  paracolic gutter (7).
 - lymph_nodes: segments disease in the lymph nodes namely infrarenal lymph nodes (13), suprarenal lymph nodes (14), supradiaphragmatic lymph nodes (15) and inguinal 
 lymph nodes (17).
@@ -43,9 +43,11 @@ Any combination of the three are viable options. For example if you only want to
 
 At first usage the library will download the pretrained weights. This might take a few minutes.
 
+The predictions will be exported as nifti files in a location printed at the end of the inference. Additionally the predictions will be exported in the dicomrt format if the raw data was stored in the dicom format.
+
 # Run training
 
-Before the training can be started the raw data has to be preprocessed and stored. If you're running the training on a multi-sever system it is advised to place the OV_DATA_BASE in a central storage. However, this is not a good place for preprocessed data. The preprocessed data should be kept on a fast local disk to ensure that loading times do not become a bottleneck of the training. In this case create a second environment varibale called OV_PREPROCESSED that is located on such fast local disk. If this varibale is not created, the preprocessed data will be simply sotred at $OV_DATA_BASE/preprocessed.
+Before the training can be started the raw data has to be preprocessed and stored. If you're running the training on a multi-sever system it is advised to place the OV_DATA_BASE in a central storage. However, this is not a good place for preprocessed data. The preprocessed data should be kept on a fast local disk to ensure that loading times do not become a bottleneck of the training. In this case create a second environment varibale called OV_PREPROCESSED that is located on such fast local disk. If this varibale is not created, the preprocessed data will be simply stored at $OV_DATA_BASE/preprocessed.
 
 To perform preprocessing call the script 'preprocess_ovaraian_data.py' with the name of all datasets you want to use for training as arguments. For example
 > python preprocess_ovarian_data.py DATANAME1 DATANAME2
