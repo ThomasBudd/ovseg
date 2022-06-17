@@ -6,7 +6,7 @@ from tqdm import tqdm
 from time import sleep
 import pickle
 
-predp = 'D:\\PhD\\Data\\ov_data_base\\predictions\\OV04\\pod_om_4fCV'
+predp = os.path.join(os.environ['OV_DATA_BASE'], 'predictions','OV04','pod_om_4fCV')
 rawp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data')
 
 n_ens = 7
@@ -149,7 +149,6 @@ for n_ens in [5,7,9,11,13,17,21,27,35]:
     gtm = measures[:, 0]
     uqm = measures[:, 2:]
     I = np.logical_not(np.isnan(gtm))
-    gtm = gtm[I]
     uqm = uqm[I]
     print(f'{n_ens} DSC: {np.corrcoef(gtm, uqm[:, 0])[0, 1]}')
 
