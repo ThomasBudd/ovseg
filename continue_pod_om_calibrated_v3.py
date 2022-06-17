@@ -83,6 +83,7 @@ for vf in range(4):
         model.training.initialise_loss()
         model.training.save_checkpoint()
     model.training.train()
+    model.eval_validation_set()
     model.eval_raw_dataset('BARTS')
     model.eval_raw_dataset('ApolloTCGA')
 
