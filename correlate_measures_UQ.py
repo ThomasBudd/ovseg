@@ -131,7 +131,7 @@ for n_ens in [9,11,13]:
 #         measures = np.array(measures)
 #         np.save(os.path.join(predp, f'measures_-3_3_{n_ens}_{cl}.npy'), measures)
 # %%
-cl = 9
+cl = 1
 
 print('Uncalibrated')
 for n_ens in [5,7,9,11,13]:
@@ -149,6 +149,7 @@ for n_ens in [5,7,9,11,13,17,21,27,35]:
     gtm = measures[:, 0]
     uqm = measures[:, 2:]
     I = np.logical_not(np.isnan(gtm))
+    gtm = gtm[I]
     uqm = uqm[I]
     print(f'{n_ens} DSC: {np.corrcoef(gtm, uqm[:, 0])[0, 1]}')
 
