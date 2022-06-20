@@ -10,7 +10,7 @@ sigma2 = 1
 p = lambda x: 1/np.sqrt(2*np.pi*sigma2) * np.exp(-1*x**2/2/sigma2)
 p0, p1 = lambda x: p(x-mu0), lambda x:p(x-mu1)
 
-x = np.linspace(-3,3,100)
+x = np.linspace(-3,3,1000)
 
 plt.subplot(2,1,1)
 plt.plot(x,p0(x), 'r', x,p1(x), 'b')
@@ -109,8 +109,22 @@ for j, w in tqdm(enumerate(W)):
     # compute accuracy
 
 
+Y_prd = (Y_prd > 0.5).astype(float)
+# %%
+p = np.zeros(n_ens+1)
+Y_sum = np.sum(Y_prd,1)
+for i in range(1, n_ens+1):
+    I = (Y_sum == i)
+    xI = x[I]
+    xmn, xmx = xI.min(), xI.max()
+    n0 = np.sum(np.logical_and(xmn < X0, X0 < xmx))
+    n1 = np.sum(np.logical_and(xmn < X1, X1 < xmx))
+    p[i] = n1 / (n0+n1)
+
+a = np.diff(p)
+
 plt.subplot(2, 1, 2)
-plt.plot(x, np.mean(Y_prd, 1), 'm')
+plt.plot(x, np.dot(Y_prd, a), 'm')
 
 Y_prob_hat = np.mean(Y_prd, 1)
 R2 = 1 - np.sum((Y_prob_hat - Y_prob)**2) / np.sum((Y_prob - np.mean(Y_prob))**2)
@@ -168,6 +182,7 @@ for j, w in tqdm(enumerate(W)):
 
 
 plt.subplot(2, 1, 2)
+Y_prd = (Y_prd > 0.5).astype(float)
 plt.plot(x, np.mean(Y_prd , 1), 'k')
 
 Y_prob_hat = np.mean(Y_prd, 1)
