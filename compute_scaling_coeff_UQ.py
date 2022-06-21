@@ -13,8 +13,8 @@ rawp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data')
 n_ens = 7
 w_list = list(range(-3,4))
 
-k_vec = np.zeros(n_ens, 2)
-n_vec = np.zeros(n_ens, 2)
+k_vec = np.zeros((n_ens, 2))
+n_vec = np.zeros((n_ens, 2))
 
     
 scans = [s for s in os.listdir(os.path.join(rawp, 'OV04','labels'))
@@ -29,7 +29,7 @@ for scan in tqdm(scans):
         
         for w in w_list:
             
-            model_name = f'claibrated_{w:.2f}'
+            model_name = f'calibrated_{w:.2f}'
             
             pred = nib.load(os.path.join(predp, model_name, 'cross_validation', scan)).get_fdata()
             hm += (pred == cl).astype(float)
