@@ -17,7 +17,7 @@ preprocessed_name = 'organ'
 
 if not os.path.exists(os.path.join(OV_PREPROCESSED, data_name, 'organ')):
     prep = SegmentationPreprocessingV2(apply_resizing=True, 
-                                       apply_pooling=True, 
+                                       apply_pooling=False, 
                                        apply_windowing=True,
                                        target_spacing=[5.0, 0.8, 0.8],
                                        lb_classes=[1])
