@@ -152,6 +152,3 @@ for n_ens in [5,7,9,11,13,17,21,27,35]:
     gtm = gtm[I]
     uqm = uqm[I]
     print(f'{n_ens} DSC: {np.corrcoef(gtm, uqm[:, 0])[0, 1]}')
-
-
-
