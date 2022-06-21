@@ -21,13 +21,13 @@ model_name = 'calibrated_0.00'
 gt_DSCs = [[], []]
 pred_DSCs = [[], []]
 
-for ds_name in ['ApolloTCGA']:#, 'BARTS']:
+for ds_name in ['ApolloTCGA', 'BARTS']:
     
     scans = [s for s in os.listdir(os.path.join(predp, model_name, ds_name+'_fold_5'))
              if s.endswith('.nii.gz')]
 
     sleep(0.1)
-    for scan in tqdm(scans[:2]):
+    for scan in tqdm(scans):
         
         gt = nib.load(os.path.join(rawp, ds_name, 'labels', scan)).get_fdata()
         
