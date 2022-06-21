@@ -36,8 +36,8 @@ for scan in tqdm(scans):
         
         for c in range(n_ens):
             I = (hm == c+1).astype(float)
-            n_vec[c] += np.sum(I)
-            k_vec[c] += np.sum(I*gt)
+            n_vec[c, i] += np.sum(I)
+            k_vec[c, i] += np.sum(I*gt)
 
 p_vec = k_vec/n_vec
 np.save(os.path.join(predp, 'P_cross_validation.npy'), p_vec)
