@@ -21,13 +21,13 @@ model_name = 'calibrated_0.00'
 gt_DSCs = [[], []]
 pred_DSCs = [[], []]
 
-for ds_name in ['ApolloTCGA', 'BARTS']:
+for ds_name in ['ApolloTCGA']:#, 'BARTS']:
     
     scans = [s for s in os.listdir(os.path.join(predp, model_name, ds_name+'_fold_5'))
              if s.endswith('.nii.gz')]
 
     sleep(0.1)
-    for scan in tqdm(scans):
+    for scan in tqdm(scans[:2]):
         
         gt = nib.load(os.path.join(rawp, ds_name, 'labels', scan)).get_fdata()
         
@@ -40,7 +40,7 @@ for ds_name in ['ApolloTCGA', 'BARTS']:
             
             hm = np.zeros_like(seg)
             
-            a_w_list = np.diff(P[:, i])
+            a_w_list = np.diff(np.concatenate([[0],P[:, i]]))
                 
             for w, a_w in zip(w_list,a_w_list):
                 model_name = f'calibrated_{w:.2f}'
@@ -82,7 +82,7 @@ for ds_name in ['ApolloTCGA', 'BARTS']:
             
             hm = np.zeros_like(seg)
             
-            a_w_list = np.diff(P[:, i])
+            a_w_list = np.diff(np.concatenate([[0],P[:, i]]))
                 
             for w, a_w in zip(w_list,a_w_list):
                 model_name = f'calibrated_{w:.2f}'
@@ -124,7 +124,7 @@ for ds_name in ['ApolloTCGA', 'BARTS']:
             
             hm = np.zeros_like(seg)
             
-            a_w_list = np.diff(P[:, i])
+            a_w_list = np.diff(np.concatenate([[0],P[:, i]]))
                 
             for w, a_w in zip(w_list,a_w_list):
                 model_name = f'calibrated_{w:.2f}'
