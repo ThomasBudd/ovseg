@@ -77,7 +77,7 @@ for ds_name in ['ApolloTCGA', 'BARTS']:
             
             measures[cl]['gt'].append([DSC, MV])
             
-            for hm, ext in [[hm_old, hm_new], ['_old', '_new']]:
+            for hm, ext in zip([hm_old, hm_new], ['_old', '_new']):
                 
                 # UQ measures
                 sm = np.sum(hm+pred)
