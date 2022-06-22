@@ -33,7 +33,7 @@ for ds_name in ['ApolloTCGA', 'BARTS']:
                      for f in range(5,12)]
         
         # get calibrated segmentations
-        preds_cal = [7*[]]
+        preds_cal = [[] for _ in range(7)]
         
         for i, w in enumerate(list(range(-3,4))):
             model_name = f'calibrated_{w:.2f}'
