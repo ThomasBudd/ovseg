@@ -16,10 +16,9 @@ n_ens = 7
 
 measures = {cl:{'gt':[], 'UQ_old':[], 'UQ_new':[]} for cl in [1,9]}
 
-model_name = 'calibrated_0.00'
 for ds_name in ['ApolloTCGA', 'BARTS']:
     
-    scans = [s for s in os.listdir(os.path.join(predp, model_name, ds_name+'_fold_5'))
+    scans = [s for s in os.listdir(os.path.join(predp, 'calibrated_0.00', ds_name+'_fold_5'))
              if s.endswith('.nii.gz')]
 
     sleep(0.1)
@@ -29,7 +28,7 @@ for ds_name in ['ApolloTCGA', 'BARTS']:
         gt = nib.load(os.path.join(rawp, ds_name, 'labels', scan)).get_fdata()
         
         # get uncalibrated segmentations
-        preds_unc = [nib.load(os.path.join(predp, model_name, f'{ds_name}_fold_{f}', scan)).get_fdata()
+        preds_unc = [nib.load(os.path.join(predp, 'calibrated_0.00', f'{ds_name}_fold_{f}', scan)).get_fdata()
                      for f in range(5,12)]
         
         # get calibrated segmentations
