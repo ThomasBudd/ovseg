@@ -52,7 +52,7 @@ for ds_name in ['ApolloTCGA', 'BARTS']:
             
             # similarity measures
             gt_DSCs[i].append(200*np.sum(seg*pred)/np.sum(seg+pred))
-            pred_DSCs[i].append(200 * np.sum(hm*pred)*np.sum(hm+pred))
+            pred_DSCs[i].append(200 * np.sum(hm*pred)/np.sum(hm+pred))
             
 corr1_om = np.corrcoef(gt_DSCs[0], pred_DSCs[0])[0, 1]
 corr1_pod = np.corrcoef(gt_DSCs[1], pred_DSCs[1])[0, 1]
@@ -94,7 +94,7 @@ for ds_name in ['ApolloTCGA', 'BARTS']:
             
             # similarity measures
             gt_DSCs[i].append(200*np.sum(seg*pred)/np.sum(seg+pred))
-            pred_DSCs[i].append(200 * np.sum(hm*pred)*np.sum(hm+pred))
+            pred_DSCs[i].append(200 * np.sum(hm*pred)/np.sum(hm+pred))
             
 corr2_om = np.corrcoef(gt_DSCs[0], pred_DSCs[0])[0, 1]
 corr2_pod = np.corrcoef(gt_DSCs[1], pred_DSCs[1])[0, 1]
@@ -138,7 +138,7 @@ for ds_name in ['ApolloTCGA', 'BARTS']:
             
             # similarity measures
             gt_DSCs[i].append(200*np.sum(seg*pred)/np.sum(seg+pred))
-            pred_DSCs[i].append(200 * np.sum(hm*pred)*np.sum(hm+pred))
+            pred_DSCs[i].append(200 * np.sum(hm*pred)/np.sum(hm+pred))
             
 corr3_om = np.corrcoef(gt_DSCs[0], pred_DSCs[0])[0, 1]
 corr3_pod = np.corrcoef(gt_DSCs[1], pred_DSCs[1])[0, 1]

@@ -1,4 +1,4 @@
-from ovseg.model.SegmentationModel import SegmentationModel
+from ovseg.model.SegmentationModelV2 import SegmentationModelV2
 from ovseg.model.SegmentationEnsemble import SegmentationEnsemble
 from ovseg.model.model_parameters_segmentation import get_model_params_3d_res_encoder_U_Net
 from ovseg.preprocessing.SegmentationPreprocessingV2 import SegmentationPreprocessingV2
@@ -50,11 +50,11 @@ model_params['training']['opt_params']['weight_decay'] = wd
 model_params['data']['n_folds'] = 3
 
 model_name = 'organ_segmentation'
-model = SegmentationModel(val_fold=args.vf,
-                          data_name=data_name,
-                          model_name=model_name,
-                          preprocessed_name=preprocessed_name,
-                          model_parameters=model_params)
+model = SegmentationModelV2(val_fold=args.vf,
+                            data_name=data_name,
+                            model_name=model_name,
+                            preprocessed_name=preprocessed_name,
+                            model_parameters=model_params)
 model.training.train()
 model.eval_validation_set()
 
