@@ -131,7 +131,7 @@ for n_ens in [9,11,13]:
 #         measures = np.array(measures)
 #         np.save(os.path.join(predp, f'measures_-3_3_{n_ens}_{cl}.npy'), measures)
 # %%
-cl = 1
+cl = 9
 
 print('Uncalibrated')
 for n_ens in [5,7,9,11,13]:
