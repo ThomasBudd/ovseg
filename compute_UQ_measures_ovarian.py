@@ -67,7 +67,7 @@ for ds_name in ['ApolloTCGA', 'BARTS']:
             pred = (hm_old > 0.5).astype(float)
             
             # similarity measures
-            if gt.max()>0:
+            if gt_cl.max()>0:
                 DSC = 200*np.sum(gt_cl*pred)/np.sum(gt_cl+pred)
             else:
                 DSC = np.nan
@@ -92,7 +92,7 @@ for ds_name in ['ApolloTCGA', 'BARTS']:
                 
 p = os.path.join(predp, 'UQ_measures.pkl')
 
-pickle.dump(measures, open(p, 'rb'))
+pickle.dump(measures, open(p, 'wb'))
 
 # %%
 
