@@ -41,7 +41,7 @@ out_shape = [[20, 128, 128],
              [32, 216, 216]]
 z_to_xy_ratio = 5.0/0.8
 larger_res_encoder = False
-n_fg_classes = 1
+n_fg_classes = 2 if args.task == 0 else 1
 
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size,
                                                      z_to_xy_ratio=z_to_xy_ratio,
