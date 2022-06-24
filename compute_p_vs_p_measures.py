@@ -15,7 +15,8 @@ n_ens = 7
 # %%
 
 measures = {cl:{key:np.zeros(n_ens) for key in ['k_old', 'n_old',
-                                                'k_new', 'n_new']} for cl in [1,9]}
+                                                'k_new', 'n_new',
+                                                'k_pred']} for cl in [1,9]}
 
 for ds_name in ['ApolloTCGA', 'BARTS']:
     
@@ -57,12 +58,18 @@ for ds_name in ['ApolloTCGA', 'BARTS']:
                 
                 hm_new += (pred == cl).astype(float)
             
+            # compute ensemble prediction
+            pred_ens = (hm_old/n_ens > 0.5).astype(float)
+            
             for e in range(n_ens):
                 
                 for hm, ext in zip([hm_old, hm_new], ['_old', '_new']):
                     lvl = (hm == e+1).astype(float)
                     measures[cl]['k'+ext][e] += np.sum(lvl*gt_cl)
                     measures[cl]['n'+ext][e] += np.sum(lvl)
+                
+                lvl = (hm_new == e+1).astype(float)
+                measures[cl]['k_pred'][e] += np.sum(lvl*pred_ens)
             
                 
 p = os.path.join(predp, 'p_vs_p_measures.pkl')
