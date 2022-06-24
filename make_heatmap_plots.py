@@ -17,6 +17,7 @@ if not os.path.exists(plotp):
 P = np.load(os.path.join(predp, 'P_cross_validation.npy'))
 n_ens = 7
 
+#%%
 for ds_name in ['ApolloTCGA', 'BARTS']:
     
     scans = [s for s in os.listdir(os.path.join(predp, 'calibrated_0.00', ds_name+'_fold_5'))
@@ -29,7 +30,7 @@ for ds_name in ['ApolloTCGA', 'BARTS']:
         gt = nib.load(os.path.join(rawp, ds_name, 'labels', scan)).get_fdata()
         
         # get image
-        im_name = [s for s in os.listdir(os.path.join(rawp, ds_name, 'iamges'))
+        im_name = [s for s in os.listdir(os.path.join(rawp, ds_name, 'images'))
                    if s.startswith(scan.split('.')[0])][0]
         im = nib.load(os.path.join(rawp, ds_name, 'images', im_name)).get_fdata()
         im = (im.clip(-150, 250) + 150)/400
@@ -78,7 +79,7 @@ for ds_name in ['ApolloTCGA', 'BARTS']:
             name = scan.split('.')[0]
             for z in z_list:
                 
-                plt.imshow(im[..., z]/2, cmap='gary', vmax=1)
+                plt.imshow(im[..., z]/2, cmap='gray', vmax=1)
                 plt.contour(gt_cl[..., z] > 0, colors='blue')
                 plt.axis('off')
                 plt.savefig(os.path.join(plotp, f'{name}_{cl}_{z}_image.png'))
@@ -91,10 +92,22 @@ for ds_name in ['ApolloTCGA', 'BARTS']:
                 plt.savefig(os.path.join(plotp, f'{name}_{cl}_{z}_prediction.png'))
                 plt.close()
                 
-                plt.imshow(hm_new[..., z], cmap='gary', vmax=1)
+                plt.imshow(hm_new[..., z], cmap='gray', vmax=1)
                 plt.contour(gt_cl[..., z] > 0, colors='blue')
                 plt.contour(pred[..., z] > 0, colors='green')
                 plt.axis('off')
                 plt.savefig(os.path.join(plotp, f'{name}_{cl}_{z}_heatmap.png'))
                 plt.close()
-                
+# %%
+plt.close()
+ds_name = 'ApolloTCGA'
+scan = 'case_626'
+z = 51
+
+# get image
+im_name = [s for s in os.listdir(os.path.join(rawp, ds_name, 'images'))
+           if s.startswith(scan.split('.')[0])][0]
+im = nib.load(os.path.join(rawp, ds_name, 'images', im_name)).get_fdata()
+im = (im.clip(-150, 250) + 150)/400
+plt.imshow(im[..., z]/2, vmax=1, cmap='gray')
+plt.axis('off')

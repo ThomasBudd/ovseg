@@ -1,5 +1,5 @@
 from ovseg.model.SegmentationModelV2 import SegmentationModelV2
-from ovseg.model.SegmentationEnsemble import SegmentationEnsemble
+from ovseg.model.SegmentationEnsembleV2 import SegmentationEnsembleV2
 from ovseg.model.model_parameters_segmentation import get_model_params_3d_res_encoder_U_Net
 from ovseg.preprocessing.SegmentationPreprocessingV2 import SegmentationPreprocessingV2
 import argparse
@@ -58,7 +58,7 @@ model = SegmentationModelV2(val_fold=args.vf,
 model.training.train()
 model.eval_validation_set()
 
-ens = SegmentationEnsemble(val_fold=list(range(3)),
+ens = SegmentationEnsembleV2(val_fold=list(range(3)),
                            data_name=data_name,
                            model_name=model_name,
                            preprocessed_name=preprocessed_name)
