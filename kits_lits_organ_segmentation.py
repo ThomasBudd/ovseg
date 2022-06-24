@@ -57,6 +57,7 @@ model = SegmentationModelV2(val_fold=args.vf,
                             model_parameters=model_params)
 model.training.train()
 model.eval_validation_set()
+model.eval_raw_data_npz(data_name.split('_')[0]+'_tst')
 
 ens = SegmentationEnsembleV2(val_fold=list(range(3)),
                            data_name=data_name,
