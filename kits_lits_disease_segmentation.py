@@ -77,7 +77,7 @@ for w in list(range(-2,3)):
     
     model_params = get_model_params_3d_res_encoder_U_Net(patch_size,
                                                          z_to_xy_ratio=5.0/0.8,
-                                                         n_fg_classes=2,
+                                                         dn_fg_classes=n_fg_classes,
                                                          use_prg_trn=False)
     
     model_params['data']['n_folds'] = 3
