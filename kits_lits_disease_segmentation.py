@@ -55,6 +55,11 @@ model_params['training']['opt_params']['weight_decay'] = wd
 model_params['data']['n_folds'] = 3
 model_params['training']['loss_params']['loss_names'] = ['dice_loss_sigm_weighted',
                                                          'cross_entropy_exp_weight']
+
+model_params['data']['folders'] = ['images', 'labels', 'masks']
+model_params['data']['keys'] = ['image', 'label', 'mask']
+model_params['training']['batches_have_masks'] = True
+model_params['postprocessing'] = {'mask_with_reg': True}
 w_list = [0, 0] if args.task == 0 else [0]
 model_params['training']['loss_params']['loss_kwargs'] = 2*[{'w_list':w_list}]
 model_params['training']['stop_after_epochs'] = [750]
@@ -80,6 +85,10 @@ for w in list(range(-2,3)):
     model_params['data']['val_dl_params']['batch_size'] = 4
     model_params['training']['opt_params']['momentum'] = 0.98
     model_params['training']['opt_params']['weight_decay'] = 1e-4
+    model_params['data']['folders'] = ['images', 'labels', 'masks']
+    model_params['data']['keys'] = ['image', 'label', 'mask']
+    model_params['training']['batches_have_masks'] = True
+    model_params['postprocessing'] = {'mask_with_reg': True}
     model_params['training']['loss_params']['loss_names'] = ['dice_loss_sigm_weighted',
                                                              'cross_entropy_exp_weight']
     model_params['training']['loss_params']['loss_kwargs'] = 2*[{'w_list':w_list}]
