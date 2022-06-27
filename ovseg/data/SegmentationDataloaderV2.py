@@ -163,7 +163,7 @@ class SegmentationBatchDatasetV2(object):
         
         # print how many scans we have with which class
         for c in range(self.n_fg_classes):
-            print('Found {} scans with fg {}'.format(len(self.contains_bias_list[c]), c))
+            print('Found {} scans with fg {}'.format(len(self.contains_bias_list[c]), c+1))
 
         # available classes start from 0
         self.availble_classes = [i for i, l in enumerate(self.contains_bias_list) if len(l) > 0]
@@ -304,7 +304,10 @@ class SegmentationBatchDatasetV2(object):
                 
                 # pick a random item from the list and compute the upper left corner of the patch
                 n_coords = coords.shape[1]
-                coord = coords[:, np.random.randint(n_coords)] - self.patch_size//2
+                if n_coords > 0:
+                    coord = coords[:, np.random.randint(n_coords)] - self.patch_size//2
+                else:
+                    coord = np.random.randint(np.maximum(shape - self.patch_size+1, 1))
             else:
                 # random coordinate uniform from the whole volume
                 coord = np.random.randint(np.maximum(shape - self.patch_size+1, 1))
