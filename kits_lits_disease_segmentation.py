@@ -75,9 +75,11 @@ for w in list(range(-2,3)):
     
     w_list = [w, w] if args.task == 0 else [w]
     
+    model_name = f'calibrated_{w:.2f}'
+    
     model_params = get_model_params_3d_res_encoder_U_Net(patch_size,
                                                          z_to_xy_ratio=5.0/0.8,
-                                                         dn_fg_classes=n_fg_classes,
+                                                         n_fg_classes=n_fg_classes,
                                                          use_prg_trn=False)
     
     model_params['data']['n_folds'] = 3
