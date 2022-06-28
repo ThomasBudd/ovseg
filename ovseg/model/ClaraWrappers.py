@@ -181,15 +181,19 @@ def evaluate_segmentation_ensemble(data_tpl,
                                                       map_location=torch.device('cuda')))
         
         # full tensor of softmax outputs
-        pred = torch.zeros((n_ch, nz, nx, ny), device='cuda', dtype=torch.float)
+        # pred = torch.zeros((n_ch, nz, nx, ny), device='cuda', dtype=torch.float)
+        # we're using numpy arrays here to prevent OOM errors
+        pred = np.zeros((n_ch, nz, nx, ny), dtype=np.float32)
         
         # for each image in the list, evaluate sliding window and fill in
         for i, im in enumerate(im_list):            
-            pred[:, i::len(im_list)] = prediction(im)
+            pred[:, i::len(im_list)] = prediction(im).detach().cpu().numpy()
         
         pred_list.append(pred)
     
-    pred = torch.stack(pred_list).mean(dim=0)
+    # this solution is ugly, but otherwise there might be OOM errors
+    pred = np.stack(pred_list).mean(0)
+    pred = torch.from_numpy(pred).cuda()
     
     # %% we do the postprocessing manually here to save some moving to the
     # GPU back and fourth
