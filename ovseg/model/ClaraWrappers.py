@@ -194,7 +194,7 @@ def evaluate_segmentation_ensemble(data_tpl,
     # this solution is ugly, but otherwise there might be OOM errors
     pred = np.stack(pred_list).mean(0)
     pred = torch.from_numpy(pred).cuda()
-    
+
     # %% we do the postprocessing manually here to save some moving to the
     # GPU back and fourth
     print('*** POSTPROCESSING ***')
