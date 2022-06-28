@@ -69,7 +69,9 @@ model = SegmentationModelV2(val_fold=args.vf,
                             model_name=model_name,
                             preprocessed_name=preprocessed_name,
                             model_parameters=model_params)
-model.training.train()
+
+if model.training.epochs_done < 750:
+    model.training.train()
 
 for w in list(range(-2,3)):
     
