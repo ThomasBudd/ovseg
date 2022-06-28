@@ -101,7 +101,6 @@ for i in range(n_stages):
                         'preprocessed_name': args.prev_stages[3*i+1],
                         'model_name': args.prev_stages[3*i+2]})
 
-
 preprocessing = SegmentationPreprocessing(apply_resizing=apply_resizing,
                                           apply_pooling=apply_pooling,
                                           apply_windowing=apply_windowing,
