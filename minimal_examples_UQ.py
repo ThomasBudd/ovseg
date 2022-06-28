@@ -4,6 +4,8 @@ import torch
 from tqdm import tqdm
 plt.close()
 
+fs=18
+
 # %%
 mu0, mu1 = -1, 1
 sigma2 = 1
@@ -14,16 +16,16 @@ x = np.linspace(-3,3,1000)
 
 plt.subplot(2,1,1)
 plt.plot(x,p0(x), 'r', x,p1(x), 'b')
-plt.legend(['p0', 'p1'])
-plt.title('Densities')
+plt.legend(['p0', 'p1'], fontsize=fs)
+plt.title('Densities', fontsize=fs)
 plt.subplot(2,1,2)
 Y_prob = p1(x)/(p0(x)+p1(x))
 plt.plot(x, Y_prob, 'g')
-plt.title('Classification probability')
+plt.title('Classification probability', fontsize=fs)
 
 # %%
 n = 1000
-n_iter = 1000
+n_iter = 2000
 bs = 1000
 n_ens = 7
 n_warm = 50
@@ -189,7 +191,7 @@ Y_prob_hat = np.mean(Y_prd, 1)
 R2 = 1 - np.sum((Y_prob_hat - Y_prob)**2) / np.sum((Y_prob - np.mean(Y_prob))**2)
 print(f'R2: {100*R2:.3f}')
 
-plt.legend(['Analytic', 'Calibrated ensemble', 'Uncalibrated ensemble'])
+plt.legend(['Analytic', 'Calibrated ensemble', 'Uncalibrated ensemble'], fontsize=fs)
 # %% Again with variable bias
 
 # class Model(torch.nn.Module):
