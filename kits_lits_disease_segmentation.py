@@ -103,16 +103,27 @@ for w in list(range(-2,3)):
                               preprocessed_name=preprocessed_name,
                               model_parameters=model_params)
     path_to_checkpoint = os.path.join(os.environ['OV_DATA_BASE'],
-                                        'trained_models',
-                                        data_name,
-                                        preprocessed_name,
-                                        'stopped',
-                                        f'fold_{args.vf}')
-    model.training.load_last_checkpoint(path_to_checkpoint)
-    model.training.loss_params = {'loss_names': ['dice_loss_sigm_weighted',
-                                                 'cross_entropy_exp_weight'],
-                                  'loss_kwargs': 2*[{'w_list':w_list}]}
-    model.training.initialise_loss()
-    model.training.save_checkpoint()
+                                      'trained_models',
+                                      data_name,
+                                      preprocessed_name,
+                                      model_name,
+                                      f'fold_{args.vf}',
+                                      'attribute_checkpoint.pkl')
+    if os.path.exists(path_to_checkpoint):
+        print('Previous checkpoint found and loaded')
+    else:
+        print('Loading pretrained checkpoint')
+        path_to_checkpoint = os.path.join(os.environ['OV_DATA_BASE'],
+                                            'trained_models',
+                                            data_name,
+                                            preprocessed_name,
+                                            'stopped',
+                                            f'fold_{args.vf}')
+        model.training.load_last_checkpoint(path_to_checkpoint)
+        model.training.loss_params = {'loss_names': ['dice_loss_sigm_weighted',
+                                                     'cross_entropy_exp_weight'],
+                                      'loss_kwargs': 2*[{'w_list':w_list}]}
+        model.training.initialise_loss()
+        model.training.save_checkpoint()
     model.training.train()
     model.eval_validation_set()
