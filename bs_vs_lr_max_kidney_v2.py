@@ -78,16 +78,15 @@ model_params['training']['stop_after_epochs'] = [100]
 model_params['postprocessing'] = {'mask_with_reg': True}
 
 
-lr_max = 0.02 if args.exp == 0 else 0.08
+lr_max = [0.16, 0.32, 0.64][args.exp]
 model_name = f'bs_{bs}_lr_max_{lr_max:.2f}'
 model_params['training']['lr_params']['lr_max'] = lr_max
 
-for vf in [1,2,3,4]:
-    model = SegmentationModelV2(val_fold=0,
-                                data_name=data_name,
-                                preprocessed_name=preprocessed_name, 
-                                model_name=model_name,
-                                model_parameters=model_params)
-    model.training.train()
-    model.eval_validation_set()
+model = SegmentationModelV2(val_fold=0,
+                            data_name=data_name,
+                            preprocessed_name=preprocessed_name, 
+                            model_name=model_name,
+                            model_parameters=model_params)
+model.training.train()
+model.eval_validation_set()
 
