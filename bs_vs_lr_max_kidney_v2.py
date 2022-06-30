@@ -82,11 +82,12 @@ lr_max = 0.02 if args.exp == 0 else 0.08
 model_name = f'bs_{bs}_lr_max_{lr_max:.2f}'
 model_params['training']['lr_params']['lr_max'] = lr_max
 
-model = SegmentationModelV2(val_fold=0,
-                            data_name=data_name,
-                            preprocessed_name=preprocessed_name, 
-                            model_name=model_name,
-                            model_parameters=model_params)
-model.training.train()
-model.eval_validation_set()
+for vf in [1,2,3,4]:
+    model = SegmentationModelV2(val_fold=0,
+                                data_name=data_name,
+                                preprocessed_name=preprocessed_name, 
+                                model_name=model_name,
+                                model_parameters=model_params)
+    model.training.train()
+    model.eval_validation_set()
 
