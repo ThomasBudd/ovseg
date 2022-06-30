@@ -4,7 +4,7 @@ from tqdm import tqdm
 import numpy as np
 rawp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data')
 
-ds_names = ['kits21', 'Lits19']
+ds_names = ['Lits19']
 
 for ds_name in ds_names:
     

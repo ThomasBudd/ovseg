@@ -85,7 +85,7 @@ for ds_name in ['ApolloTCGA', 'BARTS']:
             
             hm = np.zeros_like(seg)
                 
-            for w in zip(w_list):
+            for w in w_list:
                 model_name = f'calibrated_{w:.2f}'
                 pred = nib.load(os.path.join(predp, model_name, f'{ds_name}_fold_5', scan)).get_fdata()
                 

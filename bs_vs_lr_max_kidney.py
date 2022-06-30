@@ -37,7 +37,7 @@ sizes = 16*np.round(patch_size[2] / np.arange(4,0,-1)**(1/3) / 16)
 out_shape = [ [int(s)//4,  int(s), int(s)] for s in sizes]
 print(out_shape)
 
-bs = 8
+bs = 2
 wd = 1e-4
 
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
@@ -50,7 +50,7 @@ model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
 model_params['architecture'] = 'UNet'
 model_params['network']['kernel_sizes'] = [(1, 3, 3), (1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
 model_params['network']['in_channels'] = 1
-model_params['network']['norm'] = 'batch'
+model_params['network']['norm'] = 'inst'
 del model_params['network']['block']
 del model_params['network']['z_to_xy_ratio']
 del model_params['network']['n_blocks_list']
@@ -67,12 +67,12 @@ for s in ['trn_dl_params', 'val_dl_params']:
     del model_params['data'][s]['memmap']
 model_params['training']['batches_have_masks'] = True
 model_params['training']['opt_params']['weight_decay'] = wd
-model_params['training']['opt_params']['momentum'] = 0.9
+model_params['training']['opt_params']['momentum'] = 0.99
 model_params['training']['stop_after_epochs'] = [100]
 
 model_params['postprocessing'] = {'mask_with_reg': True}
 
-for lr_max in [0.02, 0.04, 0.08, 0.12, 0.16]:
+for lr_max in [0.02, 0.04, 0.08, 0.16, 0.32, 0.64]:
 
     model_name = f'bs_{bs}_lr_max_{lr_max:.2f}'
     model_params['training']['lr_params']['lr_max'] = lr_max
