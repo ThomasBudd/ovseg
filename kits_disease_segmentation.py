@@ -37,8 +37,8 @@ patch_size = [[32, 128, 128],
               [20, 112, 112]][args.exp]
 
 sizes = 16*np.round(patch_size[2] / np.arange(4,0,-1)**(1/3) / 16)
-z_to_xy_ratio = [4,6,5][args.exp]
-out_shape = [ [int(s)//z_to_xy_ratio,  int(s), int(s)] for s in sizes]
+sizesz = 4*np.round(patch_size[0] / np.arange(4,0,-1)**(1/3) / 4)
+out_shape = [ [int(sz),  int(s), int(s)] for s, sz in zip(sizes, sizesz)]
 print(out_shape)
 
 bs = 2
@@ -54,7 +54,7 @@ model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
 model_params['architecture'] = 'UNet'
 model_params['network']['kernel_sizes'] = [(1, 3, 3), (1, 3, 3), (3, 3, 3), (3, 3, 3), (3, 3, 3)]
 model_params['network']['in_channels'] = 1
-model_params['network']['norm'] = 'int'
+model_params['network']['norm'] = 'inst'
 del model_params['network']['block']
 del model_params['network']['z_to_xy_ratio']
 del model_params['network']['n_blocks_list']
