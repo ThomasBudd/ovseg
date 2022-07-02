@@ -125,6 +125,7 @@ for w in list(range(-2,3)):
                                       'loss_kwargs': 2*[{'w_list':[w,w]}]}
         model.training.initialise_loss()
         model.training.save_checkpoint()
+        model.training.prg_trn_update_parameters()
     model.training.train()
     model.eval_validation_set()
         
