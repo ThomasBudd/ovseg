@@ -8,16 +8,20 @@ import os
 from ovseg import OV_PREPROCESSED
 
 parser = argparse.ArgumentParser()
-parser.add_argument("exp", type=int)
+parser.add_argument("vf", type=int)
 args = parser.parse_args()
  
 data_name = 'kits21_trn'
-preprocessed_name = ['disease_3_08','disease_5_08','disease_5_10'][args.exp]
+preprocessed_name = 'disease_3_1'
+bs = 4
+wd = 1e-4
+lr_max = 0.02
+patch_size = [32, 112, 112]
 
 if not os.path.exists(os.path.join(OV_PREPROCESSED, data_name, preprocessed_name)):
     lb_classes = [2,3]
     
-    target_spacing=[[3.0, 0.8, 0.8], [5.0, 0.8, 0.8], [5.0, 1.0, 1.0]][args.exp]
+    target_spacing=[3.0, 1.0, 1.0]
     
     prep = SegmentationPreprocessingV2(apply_resizing=True, 
                                        apply_pooling=False, 
@@ -32,17 +36,12 @@ if not os.path.exists(os.path.join(OV_PREPROCESSED, data_name, preprocessed_name
     prep.preprocess_raw_data(raw_data=data_name,
                              preprocessed_name=preprocessed_name)
 
-patch_size = [[32, 128, 128], 
-              [20, 128, 128],
-              [20, 112, 112]][args.exp]
 
 sizes = 16*np.round(patch_size[2] / np.arange(4,0,-1)**(1/3) / 16)
 sizesz = 4*np.round(patch_size[0] / np.arange(4,0,-1)**(1/3) / 4)
 out_shape = [ [int(sz),  int(s), int(s)] for s, sz in zip(sizes, sizesz)]
 print(out_shape)
 
-bs = 2
-wd = 1e-4
 
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
                                                      z_to_xy_ratio=3.0/0.8,
@@ -72,21 +71,60 @@ for s in ['trn_dl_params', 'val_dl_params']:
     del model_params['data'][s]['memmap']
 model_params['training']['batches_have_masks'] = True
 model_params['training']['opt_params']['weight_decay'] = wd
-model_params['training']['opt_params']['momentum'] = 0.99
-model_params['training']['stop_after_epochs'] = [100]
-
+model_params['training']['opt_params']['momentum'] = 0.98
+model_params['training']['stop_after_epochs'] = [750]
+model_params['training']['lr_params']['lr_max'] = lr_max
+model_params['training']['loss_params']['loss_names'] = ['dice_loss_sigm_weighted',
+                                                         'cross_entropy_exp_weight']
+model_params['training']['loss_params']['loss_kwargs'] = 2*[{'w_list':[0, 0]}]
 model_params['postprocessing'] = {'mask_with_reg': True}
 
+model_name = 'stopped'
+    
+model = SegmentationModelV2(val_fold=args.vf,
+                            data_name=data_name,
+                            preprocessed_name=preprocessed_name, 
+                            model_name=model_name,
+                            model_parameters=model_params)
+if model.training.epochs_done < 750:
+    model.training.train()
 
-for lr_max in [0.02, 0.04, 0.08]:
+
+for w in list(range(-2,3)):
     
-    model_name = f'bs_{bs}_lr_max_{lr_max:.2f}'
-    model_params['training']['lr_params']['lr_max'] = lr_max
-    
-    model = SegmentationModelV2(val_fold=0,
+    model_name = f'calibrated_{w:.2f}'
+    model_params['training']['loss_params']['loss_kwargs'] = 2*[{'w_list':[w, w]}]
+    del model_params['training']['stop_after_epochs']
+
+    model.eval_validation_set()
+    model = SegmentationModelV2(val_fold=args.vf,
                                 data_name=data_name,
-                                preprocessed_name=preprocessed_name, 
                                 model_name=model_name,
+                                preprocessed_name=preprocessed_name,
                                 model_parameters=model_params)
+    path_to_checkpoint = os.path.join(os.environ['OV_DATA_BASE'],
+                                      'trained_models',
+                                      data_name,
+                                      preprocessed_name,
+                                      model_name,
+                                      f'fold_{args.vf}',
+                                      'attribute_checkpoint.pkl')
+    if os.path.exists(path_to_checkpoint):
+        print('Previous checkpoint found and loaded')
+    else:
+        print('Loading pretrained checkpoint')
+        path_to_checkpoint = os.path.join(os.environ['OV_DATA_BASE'],
+                                            'trained_models',
+                                            data_name,
+                                            preprocessed_name,
+                                            'stopped',
+                                            f'fold_{args.vf}')
+        model.training.load_last_checkpoint(path_to_checkpoint)
+        model.training.loss_params = {'loss_names': ['dice_loss_sigm_weighted',
+                                                     'cross_entropy_exp_weight'],
+                                      'loss_kwargs': 2*[{'w_list':[w,w]}]}
+        model.training.initialise_loss()
+        model.training.save_checkpoint()
     model.training.train()
     model.eval_validation_set()
+        
