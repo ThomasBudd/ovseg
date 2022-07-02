@@ -73,7 +73,7 @@ for s in ['trn_dl_params', 'val_dl_params']:
 model_params['training']['batches_have_masks'] = True
 model_params['training']['opt_params']['weight_decay'] = wd
 model_params['training']['opt_params']['momentum'] = 0.99
-model_params['training']['stop_after_epochs'] = [100]
+# model_params['training']['stop_after_epochs'] = [100]
 
 model_params['postprocessing'] = {'mask_with_reg': True}
 
