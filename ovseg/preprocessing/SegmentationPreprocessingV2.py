@@ -430,8 +430,11 @@ class SegmentationPreprocessingV2(object):
             sleep(1)
             for i in tqdm(range(len(raw_ds))):
                 # read files
-                data_tpl = raw_ds[i]
-
+                try:
+                    data_tpl = raw_ds[i]
+                except FileNotFoundError:
+                    print(f'Missing file, skipping case {raw_ds.scans[i]}.')
+                    continue
                 im, spacing = data_tpl['image'], data_tpl['spacing']
 
                 orig_shape = im.shape[-3:]
