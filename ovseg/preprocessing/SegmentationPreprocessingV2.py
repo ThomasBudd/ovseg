@@ -328,11 +328,13 @@ class SegmentationPreprocessingV2(object):
             pred = maybe_add_channel_dim(pred)
             
             if self.lb_classes is not None:
-                pred = reduce_classes(pred, self.lb_classes, self.reduce_lb_to_single_class)
+                dt = pred.dtype
+                pred = np.concatenate([(pred==cl).astype(dt) for cl in self.lb_classes], 0)
+                
             
-            if pred.max() > 1:
-                raise NotImplementedError('Didn\'t implement the casacde for multiclass'
-                                          'prev stages. Add one hot encoding.')
+            # if pred.max() > 1:
+            #     raise NotImplementedError('Didn\'t implement the casacde for multiclass'
+            #                               'prev stages. Add one hot encoding.')
             
             # the input will be in second position in the array after the image
             xb = np.concatenate([xb, pred])
@@ -444,7 +446,7 @@ class SegmentationPreprocessingV2(object):
                 im = xb[:self.n_im_channels].astype(im_dtype)
                 
                 if self.has_ps_input:
-                    prev_pred = xb[self.n_im_channels:self.n_im_channels+1]
+                    prev_pred = xb[self.n_im_channels:self.n_im_channels+len(self.lb_classes)]
                 
                 if self.has_ps_mask:
                     mask = xb[-2:-1]
