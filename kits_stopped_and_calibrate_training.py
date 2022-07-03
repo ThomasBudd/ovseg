@@ -94,9 +94,8 @@ for w in list(range(-2,3)):
     
     model_name = f'calibrated_{w:.2f}'
     model_params['training']['loss_params']['loss_kwargs'] = 2*[{'w_list':[w, w]}]
-    del model_params['training']['stop_after_epochs']
+    model_params['training']['stop_after_epochs'] = []
 
-    model.eval_validation_set()
     model = SegmentationModelV2(val_fold=args.vf,
                                 data_name=data_name,
                                 model_name=model_name,
