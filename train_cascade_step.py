@@ -22,7 +22,7 @@ lr_max = 0.02
 if not os.path.exists(os.path.join(OV_PREPROCESSED, data_name, preprocessed_name)):
     lb_classes = [1,9]
     
-    target_spacing=[[5.0, 0.8, 0.8]][args.exp]
+    target_spacing=[5.0, 0.8, 0.8]
     
     prep = SegmentationPreprocessingV2(apply_resizing=True, 
                                        apply_pooling=False, 
