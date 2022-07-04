@@ -29,6 +29,7 @@ w2 = -2
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
                                                      z_to_xy_ratio=3.0/0.8,
                                                      use_prg_trn=True,
+                                                     out_shape=out_shape,
                                                      larger_res_encoder=False,
                                                      n_fg_classes=2)
 
