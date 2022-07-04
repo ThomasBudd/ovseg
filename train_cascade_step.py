@@ -53,6 +53,9 @@ model_params = get_model_params_3d_res_encoder_U_Net(patch_size,
                                                      out_shape=out_shape,
                                                      n_fg_classes=n_fg_classes,
                                                      use_prg_trn=True)
+
+model_params['data']['folders'] = ['images', 'labels', 'prev_preds']
+model_params['data']['keys'] = ['image', 'label', 'prev_pred']
 model_params['data']['trn_dl_params']['batch_size'] = 4
 model_params['data']['val_dl_params']['batch_size'] = 4
 model_params['training']['opt_params']['momentum'] = 0.98
