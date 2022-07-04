@@ -59,8 +59,6 @@ model_params['postprocessing'] = {'mask_with_reg': True}
 
 for w in list(range(-3,4)):
     
-    
-    
     model_name = f'UQ_calibrated_{w:.2f}'
     model_params['training']['loss_params']['loss_kwargs'] = 2*[{'w_list':[w+w1, w+w2]}]
     model_params['training']['stop_after_epochs'] = []
@@ -96,4 +94,49 @@ for w in list(range(-3,4)):
         model.training.prg_trn_update_parameters()
     model.training.train()
     model.eval_validation_set()
-        
+    model.eval_raw_dataset('kits21_tst')
+# %%
+for w in list(range(-3,4)):
+    
+    model_name = f'UQ_calibrated_{w:.2f}'
+    model_params['training']['loss_params']['loss_kwargs'] = 2*[{'w_list':[w+w1, w+w2]}]
+    model_params['training']['stop_after_epochs'] = []
+
+    model = SegmentationModelV2(val_fold=args.vf+3,
+                                data_name=data_name,
+                                model_name=model_name,
+                                preprocessed_name=preprocessed_name,
+                                model_parameters=model_params)
+    path_to_checkpoint = os.path.join(os.environ['OV_DATA_BASE'],
+                                      'trained_models',
+                                      data_name,
+                                      preprocessed_name,
+                                      model_name,
+                                      f'fold_{args.vf}',
+                                      'attribute_checkpoint.pkl')
+    if os.path.exists(path_to_checkpoint):
+        print('Previous checkpoint found and loaded')
+    else:
+        print('Loading pretrained checkpoint')
+        path_to_checkpoint = os.path.join(os.environ['OV_DATA_BASE'],
+                                            'trained_models',
+                                            data_name,
+                                            preprocessed_name,
+                                            'stopped',
+                                            f'fold_{args.vf}')
+        model.training.load_last_checkpoint(path_to_checkpoint)
+        model.training.loss_params = {'loss_names': ['dice_loss_sigm_weighted',
+                                                     'cross_entropy_exp_weight'],
+                                      'loss_kwargs': 2*[{'w_list':[w,w]}]}
+        model.training.initialise_loss()
+        model.training.save_checkpoint()
+        model.training.prg_trn_update_parameters()
+    model.training.train()
+    
+    
+    ens = SegmentationEnsembleV2(val_fold=[3,4,5],
+                                 model_name=model_name,
+                                 data_name=data_name,
+                                 preprocessed_name=preprocessed_name)
+    ens.wait_until_all_folds_complete()
+    ens.eval_raw_dataset('kits21_tst')
