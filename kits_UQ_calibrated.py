@@ -18,12 +18,17 @@ wd = 1e-4
 lr_max = 0.02
 patch_size = [32, 112, 112]
 
+sizes = 16*np.round(patch_size[2] / np.arange(4,0,-1)**(1/3) / 16)
+sizesz = 4*np.round(patch_size[0] / np.arange(4,0,-1)**(1/3) / 4)
+out_shape = [ [int(sz),  int(s), int(s)] for s, sz in zip(sizes, sizesz)]
+print(out_shape)
+
 w1 = -1
 w2 = -2
 
 model_params = get_model_params_3d_res_encoder_U_Net(patch_size=patch_size,
                                                      z_to_xy_ratio=3.0/0.8,
-                                                     use_prg_trn=False,
+                                                     use_prg_trn=True,
                                                      larger_res_encoder=False,
                                                      n_fg_classes=2)
 
