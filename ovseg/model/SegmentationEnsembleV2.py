@@ -1,5 +1,6 @@
 from ovseg.model.SegmentationEnsemble import SegmentationEnsemble
 from ovseg.model.SegmentationModelV2 import SegmentationModelV2
+from ovseg.data.Dataset import raw_Dataset
 from os.path import join, exists
 from os import environ
 import torch
@@ -97,3 +98,21 @@ class SegmentationEnsembleV2(SegmentationEnsemble):
 
         torch.cuda.empty_cache()
         return data_tpl[self.pred_key]
+
+    def eval_raw_dataset(self, data_name, save_preds=True, save_plots=False,
+                         force_evaluation=False, scans=None, image_folder=None, dcm_revers=True,
+                         dcm_names_dict=None):
+        
+        prev_stages = {**self.preprocessing.prev_stage_for_input,
+                       **self.preprocessing.prev_stage_for_mask}
+        if len(prev_stages) == 0:
+            prev_stages = None
+        
+        ds = raw_Dataset(join(os.environ['OV_DATA_BASE'], 'raw_data', data_name),
+                         scans=scans,
+                         image_folder=image_folder,
+                         dcm_revers=dcm_revers,
+                         dcm_names_dict=dcm_names_dict,
+                         prev_stages=prev_stages)
+        self.eval_ds(ds, ds_name=data_name, save_preds=save_preds, save_plots=save_plots,
+                     force_evaluation=force_evaluation)

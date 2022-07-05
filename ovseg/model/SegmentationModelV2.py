@@ -1,11 +1,13 @@
 from ovseg.model.SegmentationModel import SegmentationModel
 from ovseg.preprocessing.SegmentationPreprocessingV2 import SegmentationPreprocessingV2
 from ovseg.data.SegmentationDataV2 import SegmentationDataV2
+from ovseg.data.Dataset import raw_Dataset
 from ovseg.utils.io import save_nii_from_data_tpl, save_npy_from_data_tpl, load_pkl, read_nii, save_dcmrt_from_data_tpl, is_dcm_path
 from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 from ovseg.utils.dict_equal import dict_equal, print_dict_diff
 from os.path import join
 import numpy as np
+import os
 
 class SegmentationModelV2(SegmentationModel):
     
@@ -125,3 +127,22 @@ class SegmentationModelV2(SegmentationModel):
             self.postprocessing.postprocess_data_tpl(data_tpl, self.pred_key, mask)
 
         return data_tpl[self.pred_key]
+
+
+    def eval_raw_dataset(self, data_name, save_preds=True, save_plots=False,
+                         force_evaluation=False, scans=None, image_folder=None, dcm_revers=True,
+                         dcm_names_dict=None):
+        
+        prev_stages = {**self.preprocessing.prev_stage_for_input,
+                       **self.preprocessing.prev_stage_for_mask}
+        if len(prev_stages) == 0:
+            prev_stages = None
+        
+        ds = raw_Dataset(join(os.environ['OV_DATA_BASE'], 'raw_data', data_name),
+                         scans=scans,
+                         image_folder=image_folder,
+                         dcm_revers=dcm_revers,
+                         dcm_names_dict=dcm_names_dict,
+                         prev_stages=prev_stages)
+        self.eval_ds(ds, ds_name=data_name, save_preds=save_preds, save_plots=save_plots,
+                     force_evaluation=force_evaluation)
