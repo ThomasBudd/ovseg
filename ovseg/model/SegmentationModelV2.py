@@ -11,6 +11,7 @@ from tqdm import tqdm
 from time import sleep
 import numpy as np
 import os
+import torch
 
 class SegmentationModelV2(SegmentationModel):
     
