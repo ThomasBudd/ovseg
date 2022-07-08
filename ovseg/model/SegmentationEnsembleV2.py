@@ -108,7 +108,7 @@ class SegmentationEnsembleV2(SegmentationEnsemble):
         if len(prev_stages) == 0:
             prev_stages = None
         
-        ds = raw_Dataset(join(os.environ['OV_DATA_BASE'], 'raw_data', data_name),
+        ds = raw_Dataset(join(environ['OV_DATA_BASE'], 'raw_data', data_name),
                          scans=scans,
                          image_folder=image_folder,
                          dcm_revers=dcm_revers,

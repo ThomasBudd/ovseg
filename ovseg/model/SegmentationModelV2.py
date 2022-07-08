@@ -5,7 +5,10 @@ from ovseg.data.Dataset import raw_Dataset
 from ovseg.utils.io import save_nii_from_data_tpl, save_npy_from_data_tpl, load_pkl, read_nii, save_dcmrt_from_data_tpl, is_dcm_path
 from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 from ovseg.utils.dict_equal import dict_equal, print_dict_diff
-from os.path import join
+from os.path import join, exists
+from os import environ, makedirs
+from tqdm import tqdm
+from time import sleep
 import numpy as np
 import os
 
@@ -146,3 +149,50 @@ class SegmentationModelV2(SegmentationModel):
                          prev_stages=prev_stages)
         self.eval_ds(ds, ds_name=data_name, save_preds=save_preds, save_plots=save_plots,
                      force_evaluation=force_evaluation)
+        
+    def eval_raw_data_npz(self, raw_data_name,
+                          scans=None, image_folder=None, dcm_revers=True,
+                          dcm_names_dict=None):
+        # this function predicts the images and raw data and saves the 
+        # predictions before thresholding. This is usefull for ensembling when
+        # the prediction takes time. This way all models in the ensemble can run the prediction
+        # indepentently and the ensemble just has to collect the results --> multi GPU ensembling
+        prev_stages = {**self.preprocessing.prev_stage_for_input,
+               **self.preprocessing.prev_stage_for_mask}
+        if len(prev_stages) == 0:
+            prev_stages = None
+        ds = raw_Dataset(join(os.environ['OV_DATA_BASE'], 'raw_data', raw_data_name),
+                         scans=scans,
+                         image_folder=image_folder,
+                         dcm_revers=dcm_revers,
+                         dcm_names_dict=dcm_names_dict,
+                         prev_stages=prev_stages)
+
+        if len(ds) == 0:
+            print('Got empty dataset for evaluation. Nothing to do here --> leaving!')
+            return
+
+        # we have a destinct folder for the npz predictions. As they take a lot of disk space
+        # this makes it easier to delete them
+        pred_npz_path = join(environ['OV_DATA_BASE'], 'npz_predictions', self.data_name,
+                             self.preprocessed_name, self.model_name, self.val_fold_str)
+
+        if not exists(pred_npz_path):
+            makedirs(pred_npz_path)
+
+        print('Evaluating '+raw_data_name+' '+self.val_fold_str+'...\n\n')
+        sleep(1)
+        for i in tqdm(range(len(ds))):
+            # get the data
+            data_tpl = ds[i]
+            # first let's try to find the name
+            scan = data_tpl['scan']
+            if exists(join(pred_npz_path, scan+'.npz')) or exists(join(pred_npz_path, scan+'.npy')):
+                continue
+            # now let's do (almost the full) prediction
+            pred = self.__call__(data_tpl, do_postprocessing=False)
+            if torch.is_tensor(pred):
+                pred = pred.cpu().numpy()
+            pred = pred.astype(np.float16)
+            # np.savez_compressed(join(pred_npz_path, scan), pred)
+            np.save(join(pred_npz_path, scan), pred)
