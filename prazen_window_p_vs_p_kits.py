@@ -41,14 +41,13 @@ def parzen_window(hm, prnt_sums=False):
             continue
         
         il = np.where(P < val)[0].max()
-        iu = il+1
-        xi = (val - P[il]) / (P[iu] - P[il])
+        xi = (val - P[il]) / (P[il+1] - P[il])
         
         p[il] += count * (1-xi)
-        p[iu] += count * xi
+        p[il+1] += count * xi
     
     if prnt_sums:
-        print(np.sum(counts[counts > 0]), np.sum(p))
+        print(np.sum(counts[vals > 0]), np.sum(p))
     
     return p
 
