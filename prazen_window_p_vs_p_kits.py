@@ -154,4 +154,17 @@ pickle.dump(p_vs_p, open(os.path.join(predp, 'p_vs_p.pkl'), 'wb'))
 
 p_vs_p = pickle.load(open(os.path.join(predp, 'p_vs_p.pkl'), 'rb'))
 
-print(p_vs_p)
+# print(p_vs_p)
+
+
+plt.close()
+plt.plot([0, 1], [0, 1], 'k')
+for key in ['P_ensemble_3_4_5', 'P_ensemble_0_1_2', 'P_folds_0_1_2']:
+    
+    plt.plot(p_vs_p['P'][1:-1], p_vs_p[key][1:-1], 'o')
+    
+    SD = np.mean((p_vs_p['P'][1:-1] - p_vs_p[key][1:-1]) ** 2)
+    print(f'{key} {SD:.3e}')
+
+
+plt.legend(['Identity', 'P_ensemble_3_4_5', 'P_ensemble_0_1_2', 'P_folds_0_1_2'])

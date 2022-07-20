@@ -91,7 +91,7 @@ else:
                                         data_name,
                                         preprocessed_name,
                                         'stopped',
-                                        f'fold_{args.vf}')
+                                        'fold_3')
     model.training.load_last_checkpoint(path_to_checkpoint)
     model.training.loss_params = {'loss_names': ['dice_loss_sigm_weighted',
                                                  'cross_entropy_exp_weight'],
