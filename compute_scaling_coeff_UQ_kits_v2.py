@@ -40,6 +40,14 @@ for scan in tqdm(scans):
             
             n_vec[c, i] += np.sum(I)
             k_vec[c, i] += np.sum(I*gt)
+        
+        c = n_ens-1
+        I = preds[c]
+        
+        n_vec[c, i] += np.sum(I)
+        k_vec[c, i] += np.sum(I*gt)
+
+
 
 p_vec = k_vec/n_vec
 np.save(os.path.join(predp, 'P_cross_validation_v2.npy'), p_vec)
