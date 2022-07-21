@@ -12,12 +12,9 @@ predp = os.path.join(os.environ['OV_DATA_BASE'],
                      'disease_3_1')
 rawp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data')
 
-ds_name = 'kits21_tst'
-gtp = os.path.join(rawp, ds_name, 'labels')
-scans = os.listdir(gtp)
 cl = 2
 
-P = np.load(os.path.join(predp, 'P_cross_validation.npy'))[:, 0]
+P = np.load(os.path.join(predp, 'P_cross_validation_v2.npy'))[:, 0]
 P = np.concatenate([[0], P])
 
 coefs = np.diff(P)
@@ -28,7 +25,7 @@ w_list = list(range(-3,4))
 
 p_vs_p = {'P': P}
 
-# %% parzen window
+# %% parzen window function
 def parzen_window(hm, prnt_sums=False):
     
     vals, counts = np.unique(hm, return_counts=True)
@@ -51,41 +48,11 @@ def parzen_window(hm, prnt_sums=False):
     
     return p
 
-# %% use 100% ensemble
-gt_DSCs = [[], []]
-pred_DSCs = [[], []]
 
-N1 = np.zeros_like(P)
-N2 = np.zeros_like(P)
-
-for scan in tqdm(scans):
-    
-    gt = nib.load(os.path.join(rawp, ds_name, 'labels', scan)).get_fdata()
-        
-
-    seg = (gt == cl).astype(float)
-    
-    if seg.max() == 0:
-        continue
-    
-    hm = np.zeros_like(seg)
-        
-    for i, w in enumerate(w_list):
-        model_name = f'UQ_calibrated_{w:.2f}'
-        pred = nib.load(os.path.join(predp, model_name, f'{ds_name}_ensemble_3_4_5', scan)).get_fdata()
-        
-        hm += coefs[i] * (pred == cl).astype(float)
-    
-    N1 += parzen_window(hm, scan in scans[:3])
-    N2 += parzen_window(hm * seg)
-    
-
-p_vs_p['P_ensemble_3_4_5'] = N2 / N1
-
-# %% use CV ensemble
-model_name = 'UQ_calibrated_0.00'
-gt_DSCs = [[], []]
-pred_DSCs = [[], []]
+# %% estimation on test set
+ds_name = 'kits21_tst'
+gtp = os.path.join(rawp, ds_name, 'labels')
+scans = os.listdir(gtp)
 
 N1 = np.zeros_like(P)
 N2 = np.zeros_like(P)
@@ -112,13 +79,11 @@ for scan in tqdm(scans):
     N2 += parzen_window(hm * seg)
         
 
-p_vs_p['P_ensemble_0_1_2'] = N2 / N1
-
-
-# %% use CV folds ensemble
-model_name = 'UQ_calibrated_0.00'
-gt_DSCs = [[], []]
-pred_DSCs = [[], []]
+p_vs_p['Test'] = N2 / N1
+# %% estimation on CV
+ds_name = 'kits21_trn'
+gtp = os.path.join(rawp, ds_name, 'labels')
+scans = os.listdir(gtp)
 
 N1 = np.zeros_like(P)
 N2 = np.zeros_like(P)
@@ -137,29 +102,34 @@ for scan in tqdm(scans):
         
     for i, w in enumerate(w_list):
         model_name = f'UQ_calibrated_{w:.2f}'
+        pred = nib.load(os.path.join(predp, model_name, 'cross_validation', scan)).get_fdata()
         
-        for f in range(3):
-            pred = nib.load(os.path.join(predp, model_name, f'{ds_name}_fold_{f}', scan)).get_fdata()
-            hm += coefs[i]/3 * (pred == cl).astype(float)
+        hm += coefs[i] * (pred == cl).astype(float)
     
     N1 += parzen_window(hm, scan in scans[:3])
     N2 += parzen_window(hm * seg)
         
 
-p_vs_p['P_folds_0_1_2'] = N2 / N1
+p_vs_p['Cross-validation'] = N2 / N1
 
 # %%
-pickle.dump(p_vs_p, open(os.path.join(predp, 'p_vs_p.pkl'), 'wb'))
+pickle.dump(p_vs_p, open(os.path.join(predp, 'p_vs_p_new.pkl'), 'wb'))
 # %%
 
-p_vs_p = pickle.load(open(os.path.join(predp, 'p_vs_p_v2.pkl'), 'rb'))
+p_vs_p = pickle.load(open(os.path.join(predp, 'p_vs_p_new.pkl'), 'rb'))
 
 # print(p_vs_p)
 
+legend = ['Identity']
 
 plt.close()
 plt.plot([0, 1], [0, 1], 'k')
-for key in ['P_ensemble_3_4_5', 'P_ensemble_0_1_2', 'P_folds_0_1_2']:
+for key in p_vs_p:
+    
+    if key == 'P':
+        continue
+    
+    legend.append(key)
     
     plt.plot(p_vs_p['P'][1:-1], p_vs_p[key][1:-1], 'o')
     
@@ -167,4 +137,4 @@ for key in ['P_ensemble_3_4_5', 'P_ensemble_0_1_2', 'P_folds_0_1_2']:
     print(f'{key} {SD:.3e}')
 
 
-plt.legend(['Identity', 'P_ensemble_3_4_5', 'P_ensemble_0_1_2', 'P_folds_0_1_2'])
+plt.legend(legend)
