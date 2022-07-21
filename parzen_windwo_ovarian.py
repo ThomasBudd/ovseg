@@ -70,7 +70,7 @@ for ds_name in ['BARTS', 'ApolloTCGA']:
                 model_name = f'calibrated_{w:.2f}'
                 pred = nib.load(os.path.join(predp, model_name, f'{ds_name}_ensemble_0_1_2_3', scan)).get_fdata()
                 
-                hm += coefs[j] * (pred == cl).astype(float)
+                hm += coefs[j, i] * (pred == cl).astype(float)
             
             N1 += parzen_window(hm, i)
             N2 += parzen_window(hm * seg, i)
@@ -101,7 +101,7 @@ for scan in tqdm(scans):
             model_name = f'UQ_calibrated_{w:.2f}'
             pred = nib.load(os.path.join(predp, model_name, 'cross_validation', scan)).get_fdata()
             
-            hm += coefs[j] * (pred == cl).astype(float)
+            hm += coefs[j, i] * (pred == cl).astype(float)
         
         N1 += parzen_window(hm, i)
         N2 += parzen_window(hm * seg, i)
