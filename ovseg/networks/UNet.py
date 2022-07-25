@@ -93,7 +93,7 @@ class ConvNormNonlinBlock(nn.Module):
         self.modules.append(nn.LeakyReLU(**self.nonlin_params))
         
         # turn into module list
-        self.modules = nn.ModuleList(self.modules)
+        self.modules = nn.Sequential(*self.modules)
         
     def forward(self, xb):
         return self.modules(xb)
