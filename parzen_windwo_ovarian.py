@@ -34,7 +34,7 @@ def parzen_window(hm, i):
     
     for val, count in zip(vals, counts):
         
-        if val == 0:
+        if val < P[0]:
             continue
         
         il = np.where(P < val)[0].max()

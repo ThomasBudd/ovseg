@@ -24,7 +24,7 @@ class ConvNormNonlinBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, is_2d, kernel_size=3,
                  first_stride=1, conv_params=None, norm=None, norm_params=None,
-                 nonlin_params=None, hid_channels=None):
+                 nonlin_params=None, hid_channels=None, p_dropout=0.0):
         super().__init__()
         self.in_channels = in_channels
         self.hid_channels = hid_channels if hid_channels is not None else out_channels
@@ -36,6 +36,7 @@ class ConvNormNonlinBlock(nn.Module):
         self.conv_params = conv_params
         self.norm_params = norm_params
         self.nonlin_params = nonlin_params
+        self.p_dropout = p_dropout
 
         if norm is None:
             norm = 'batch' if is_2d else 'inst'
@@ -53,34 +54,49 @@ class ConvNormNonlinBlock(nn.Module):
                 norm_fctn = nn.BatchNorm2d
             elif norm.lower().startswith('inst'):
                 norm_fctn = nn.InstanceNorm2d
+            drop_fctn = nn.Dropout2d
         else:
             conv_fctn = nn.Conv3d
             if norm.lower().startswith('batch'):
                 norm_fctn = nn.BatchNorm3d
             elif norm.lower().startswith('inst'):
                 norm_fctn = nn.InstanceNorm3d
-        self.conv1 = conv_fctn(self.in_channels, self.hid_channels,
+            drop_fctn = nn.Dropout3d
+        
+        
+        self.modules = []
+        
+        conv = conv_fctn(self.in_channels, self.hid_channels,
                                self.kernel_size, padding=self.padding,
                                stride=self.first_stride, **self.conv_params)
-        self.conv2 = conv_fctn(self.hid_channels, self.out_channels,
-                               self.kernel_size, padding=self.padding,
-                               **self.conv_params)
-        self.norm1 = norm_fctn(self.hid_channels, **self.norm_params)
-        self.norm2 = norm_fctn(self.out_channels, **self.norm_params)
+        
+        nn.init.kaiming_normal_(self.conv.weight)
+        self.modules.append(conv)
+        self.modules.append(norm_fctn(self.hid_channels, **self.norm_params))
+        
+        if self.p_dropout > 0:
+            self.modules.append(drop_fctn(self.p_dropout))
+            
+        self.modules.append(nn.LeakyReLU(**self.nonlin_params))
+        
+        # now again
+        conv = conv_fctn(self.hid_channels, self.out_channels,
+                         self.kernel_size, padding=self.padding,
+                         **self.conv_params)
+        nn.init.kaiming_normal_(self.conv.weight)
+        self.modules.append(conv)
+        self.modules.append(norm_fctn(self.out_channels, **self.norm_params))
 
-        nn.init.kaiming_normal_(self.conv1.weight)
-        nn.init.kaiming_normal_(self.conv2.weight)
-        self.nonlin1 = nn.LeakyReLU(**self.nonlin_params)
+        if self.p_dropout > 0:
+            self.modules.append(drop_fctn(self.p_dropout))
+            
         self.nonlin2 = nn.LeakyReLU(**self.nonlin_params)
-
+        
+        # turn into module list
+        self.modules = nn.ModuleList(self.modules)
+        
     def forward(self, xb):
-        xb = self.conv1(xb)
-        xb = self.norm1(xb)
-        xb = self.nonlin1(xb)
-        xb = self.conv2(xb)
-        xb = self.norm2(xb)
-        xb = self.nonlin2(xb)
-        return xb
+        return self.modules(xb)
 
 
 # %% transposed convolutions
@@ -167,7 +183,7 @@ class UNet(nn.Module):
                  conv_params=None, norm=None, norm_params=None, nonlin_params=None,
                  kernel_sizes_up=None, skip_type='skip', use_trilinear_upsampling=False,
                  use_less_hid_channels_in_decoder=False, fac_skip_channels=1,
-                 p_dropout_logits=0.0, stem_kernel_size=None):
+                 p_dropout_logits=0.0, stem_kernel_size=None, p_dropout=0.0):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -190,6 +206,7 @@ class UNet(nn.Module):
         self.fac_skip_channels = fac_skip_channels
         self.p_dropout_logits = p_dropout_logits
         self.stem_kernel_size = stem_kernel_size
+        self.p_dropout = p_dropout
         
         # we double the amount of channels every downsampling step
         # up to a max of filters_max
@@ -252,7 +269,8 @@ class UNet(nn.Module):
                                         conv_params=self.conv_params,
                                         norm=self.norm,
                                         norm_params=self.norm_params,
-                                        nonlin_params=self.nonlin_params)
+                                        nonlin_params=self.nonlin_params,
+                                        p_dropout=self.p_dropout)
             self.blocks_down.append(block)
 
         # blocks on the upsampling path
@@ -269,7 +287,8 @@ class UNet(nn.Module):
                                         norm=self.norm,
                                         norm_params=self.norm_params,
                                         nonlin_params=self.nonlin_params,
-                                        hid_channels=hid_channels)
+                                        hid_channels=hid_channels,
+                                        p_dropout=self.p_dropout)
             self.blocks_up.append(block)
 
         # upsaplings
