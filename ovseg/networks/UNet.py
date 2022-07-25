@@ -90,7 +90,7 @@ class ConvNormNonlinBlock(nn.Module):
         if self.p_dropout > 0:
             self.modules.append(drop_fctn(self.p_dropout))
             
-        self.nonlin2 = nn.LeakyReLU(**self.nonlin_params)
+        self.modules.append(nn.LeakyReLU(**self.nonlin_params))
         
         # turn into module list
         self.modules = nn.ModuleList(self.modules)
