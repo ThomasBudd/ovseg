@@ -66,12 +66,12 @@ class ConvNormNonlinBlock(nn.Module):
         
         layers = []
         
-        conv = conv_fctn(self.in_channels, self.hid_channels,
+        conv1 = conv_fctn(self.in_channels, self.hid_channels,
                                self.kernel_size, padding=self.padding,
                                stride=self.first_stride, **self.conv_params)
         
-        nn.init.kaiming_normal_(conv.weight)
-        layers.append(conv)
+        nn.init.kaiming_normal_(conv1.weight)
+        layers.append(conv1)
         layers.append(norm_fctn(self.hid_channels, **self.norm_params))
         
         if self.p_dropout > 0:
@@ -80,11 +80,11 @@ class ConvNormNonlinBlock(nn.Module):
         layers.append(nn.LeakyReLU(**self.nonlin_params))
         
         # now again
-        conv = conv_fctn(self.hid_channels, self.out_channels,
+        conv2 = conv_fctn(self.hid_channels, self.out_channels,
                          self.kernel_size, padding=self.padding,
                          **self.conv_params)
-        nn.init.kaiming_normal_(conv.weight)
-        layers.append(conv)
+        nn.init.kaiming_normal_(conv2.weight)
+        layers.append(conv2)
         layers.append(norm_fctn(self.out_channels, **self.norm_params))
 
         if self.p_dropout > 0:
@@ -93,15 +93,17 @@ class ConvNormNonlinBlock(nn.Module):
         layers.append(nn.LeakyReLU(**self.nonlin_params))
         
         # turn into a sequential module
-        self.modules = nn.ModuleList(layers)
+        # self.modules = nn.ModuleList(layers)
+        self.modules = nn.Sequential(*layers)
         
     def forward(self, xb):
         
-        for module in self.modules:
-            xb = module(xb)
+        # for module in self.modules:
+        #     xb = module(xb)
         
-        return xb
+        # return xb
 
+        return self.modules(xb)
 
 # %% transposed convolutions
 class UpConv(nn.Module):
