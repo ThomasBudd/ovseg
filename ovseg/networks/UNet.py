@@ -70,7 +70,7 @@ class ConvNormNonlinBlock(nn.Module):
                                self.kernel_size, padding=self.padding,
                                stride=self.first_stride, **self.conv_params)
         
-        nn.init.kaiming_normal_(self.conv.weight)
+        nn.init.kaiming_normal_(conv.weight)
         self.modules.append(conv)
         self.modules.append(norm_fctn(self.hid_channels, **self.norm_params))
         
@@ -83,7 +83,7 @@ class ConvNormNonlinBlock(nn.Module):
         conv = conv_fctn(self.hid_channels, self.out_channels,
                          self.kernel_size, padding=self.padding,
                          **self.conv_params)
-        nn.init.kaiming_normal_(self.conv.weight)
+        nn.init.kaiming_normal_(conv.weight)
         self.modules.append(conv)
         self.modules.append(norm_fctn(self.out_channels, **self.norm_params))
 
