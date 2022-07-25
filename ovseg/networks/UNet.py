@@ -64,39 +64,43 @@ class ConvNormNonlinBlock(nn.Module):
             drop_fctn = nn.Dropout3d
         
         
-        self.modules = []
+        layers = []
         
         conv = conv_fctn(self.in_channels, self.hid_channels,
                                self.kernel_size, padding=self.padding,
                                stride=self.first_stride, **self.conv_params)
         
         nn.init.kaiming_normal_(conv.weight)
-        self.modules.append(conv)
-        self.modules.append(norm_fctn(self.hid_channels, **self.norm_params))
+        layers.append(conv)
+        layers.append(norm_fctn(self.hid_channels, **self.norm_params))
         
         if self.p_dropout > 0:
-            self.modules.append(drop_fctn(self.p_dropout))
+            layers.append(drop_fctn(self.p_dropout))
             
-        self.modules.append(nn.LeakyReLU(**self.nonlin_params))
+        layers.append(nn.LeakyReLU(**self.nonlin_params))
         
         # now again
         conv = conv_fctn(self.hid_channels, self.out_channels,
                          self.kernel_size, padding=self.padding,
                          **self.conv_params)
         nn.init.kaiming_normal_(conv.weight)
-        self.modules.append(conv)
-        self.modules.append(norm_fctn(self.out_channels, **self.norm_params))
+        layers.append(conv)
+        layers.append(norm_fctn(self.out_channels, **self.norm_params))
 
         if self.p_dropout > 0:
-            self.modules.append(drop_fctn(self.p_dropout))
+            layers.append(drop_fctn(self.p_dropout))
             
-        self.modules.append(nn.LeakyReLU(**self.nonlin_params))
+        layers.append(nn.LeakyReLU(**self.nonlin_params))
         
         # turn into a sequential module
-        self.modules = nn.Sequential(*self.modules)
+        self.modules = nn.ModuleList(*layers)
         
     def forward(self, xb):
-        return self.modules(xb)
+        
+        for module in self.modules:
+            xb = module(xb)
+        
+        return xb
 
 
 # %% transposed convolutions
