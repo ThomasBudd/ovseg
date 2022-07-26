@@ -38,6 +38,7 @@ class ConvNormNonlinBlock(nn.Module):
         self.conv_params = conv_params
         self.norm_params = norm_params
         self.nonlin_params = nonlin_params
+        self.p_dropout = p_dropout
 
         if norm is None:
             norm = 'batch' if is_2d else 'inst'
