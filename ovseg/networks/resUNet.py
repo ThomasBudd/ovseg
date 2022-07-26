@@ -26,7 +26,7 @@ class ConvNormNonlinBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, is_2d, kernel_size=3,
                  first_stride=1, conv_params=None, norm=None, norm_params=None,
-                 nonlin_params=None, hid_channels=None):
+                 nonlin_params=None, hid_channels=None, p_dropout=0.0):
         super().__init__()
         self.in_channels = in_channels
         self.hid_channels = hid_channels if hid_channels is not None else out_channels
@@ -78,13 +78,25 @@ class ConvNormNonlinBlock(nn.Module):
         nn.init.kaiming_normal_(self.conv2.weight)
         self.nonlin1 = nn.LeakyReLU(**self.nonlin_params)
         self.nonlin2 = nn.LeakyReLU(**self.nonlin_params)
+        
+        if self.p_dropout > 0:
+            if self.is_2d:
+                self.drop1 = nn.Dropout2d(self.p_dropout)
+                self.drop2 = nn.Dropout2d(self.p_dropout)
+            else:
+                self.drop1 = nn.Dropout3d(self.p_dropout)
+                self.drop2 = nn.Dropout3d(self.p_dropout)
 
     def forward(self, xb):
         xb = self.conv1(xb)
         xb = self.norm1(xb)
+        if self.p_dropout > 0:
+            xb = self.drop1(xb)
         xb = self.nonlin1(xb)
         xb = self.conv2(xb)
         xb = self.norm2(xb)
+        if self.p_dropout > 0:
+            xb = self.drop2(xb)
         xb = self.nonlin2(xb)
         return xb
 
@@ -150,7 +162,7 @@ class ResBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, is_2d=False, kernel_size=3, kernel_size2=None,
                  first_stride=1, conv_params=None, norm='inst', norm_params=None,
-                 nonlin_params=None, stochdepth_rate=0.2, use_se=False):
+                 nonlin_params=None, stochdepth_rate=0.2, use_se=False, p_dropout=0.0):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -163,6 +175,7 @@ class ResBlock(nn.Module):
         self.nonlin_params = nonlin_params
         self.stochdepth_rate = stochdepth_rate
         self.use_se = use_se
+        self.p_dropout = p_dropout
 
         if norm is None:
             norm = 'batch' if is_2d else 'inst'
@@ -230,10 +243,29 @@ class ResBlock(nn.Module):
         if self.use_se:
             self.se = SE_unit(self.out_channels, is_2d=self.is_2d)
 
+        if self.p_dropout > 0:
+            if self.is_2d:
+                self.drop1 = nn.Dropout2d(self.p_dropout)
+                self.drop2 = nn.Dropout2d(self.p_dropout)
+            else:
+                self.drop1 = nn.Dropout3d(self.p_dropout)
+                self.drop2 = nn.Dropout3d(self.p_dropout)
+
     def forward(self, xb):
-        xb_res = self.nonlin2(self.norm2(self.conv2(self.nonlin1(self.norm1(self.conv1(xb))))))
+        
+        xb_res = self.conv1(xb)
+        xb_res = self.norm1(xb_res)
+        if self.p_dropout > 0:
+            xb_res = self.drop1(xb_res)
+        xb_res = self.nonlin1(xb_res)
+        xb_res = self.conv2(xb_res)
+        xb_res = self.norm2(xb_res)
+        if self.p_dropout > 0:
+            xb_res = self.drop2(xb_res)
+        xb_res = self.nonlin2(xb_res)
         if self.use_se:
             xb_res = self.se(xb_res)
+
         return self.skip(xb) + self.a * self.stochdepth(xb_res)
 
 
@@ -436,7 +468,8 @@ class stackedResBlocks(nn.Module):
 
     def __init__(self, block, n_blocks, in_channels, out_channels, init_stride, is_2d=False,
                  z_to_xy_ratio=1, conv_params=None, norm='inst', norm_params=None, 
-                 nonlin_params=None, bottleneck_ratio=2, stochdepth_rate=0.0, use_se=False):
+                 nonlin_params=None, bottleneck_ratio=2, stochdepth_rate=0.0, use_se=False,
+                 p_dropout=0.0):
         super().__init__()
         assert block in ['res', 'bottleneck', 'mergeandrun']
         self.block = block
@@ -452,6 +485,7 @@ class stackedResBlocks(nn.Module):
         self.norm_params = norm_params
         self.nonlin_params = nonlin_params
         self.use_se = use_se
+        self.p_dropout = p_dropout
         if self.block == 'bottleneck':
             self.bottleneck_ratio = bottleneck_ratio
         if not self.block == 'mergeandrun':
@@ -492,6 +526,7 @@ class stackedResBlocks(nn.Module):
                                         norm=self.norm,
                                         norm_params=self.norm_params,
                                         nonlin_params=self.nonlin_params,
+                                        p_dropout=self.p_dropout,
                                         **kwargs))
         self.res_blocks = nn.Sequential(*res_blocks)
 
@@ -1081,7 +1116,7 @@ class UNetResEncoder(nn.Module):
                  n_blocks_list=[1, 2, 6, 3], filters=32, filters_max=384,
                  conv_params=None, norm=None, norm_params=None, nonlin_params=None,  
                  bottleneck_ratio=2, stochdepth_rate=0.0, p_dropout_logits=0.0, use_se=False,
-                 use_logit_bias=False):
+                 use_logit_bias=False, p_dropout=0.0):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -1100,6 +1135,7 @@ class UNetResEncoder(nn.Module):
         self.bottleneck_ratio = bottleneck_ratio
         self.use_se = use_se
         self.use_logit_bias = use_logit_bias
+        self.p_dropout = p_dropout
         # we double the amount of channels every downsampling step
         # up to a max of filters_max
         self.n_stages = len(n_blocks_list)
@@ -1134,7 +1170,8 @@ class UNetResEncoder(nn.Module):
                                                         conv_params=self.conv_params,
                                                         norm=self.norm,
                                                         norm_params=self.norm_params,
-                                                        nonlin_params=self.nonlin_params))
+                                                        nonlin_params=self.nonlin_params,
+                                                        p_dropout=self.p_dropout))
             i_start = 1
         else:
             i_start = 0
@@ -1157,7 +1194,8 @@ class UNetResEncoder(nn.Module):
                                                      nonlin_params=self.nonlin_params,
                                                      bottleneck_ratio=self.bottleneck_ratio,
                                                      stochdepth_rate=self.stochdepth_rate,
-                                                     use_se=self.use_se))
+                                                     use_se=self.use_se,
+                                                     p_dropout=self.p_dropout))
 
         # blocks on the upsampling path
         self.blocks_up = []
@@ -1171,7 +1209,8 @@ class UNetResEncoder(nn.Module):
                                         conv_params=self.conv_params,
                                         norm=self.norm,
                                         norm_params=self.norm_params,
-                                        nonlin_params=self.nonlin_params)
+                                        nonlin_params=self.nonlin_params,
+                                        p_dropout=self.p_dropout)
             self.blocks_up.append(block)
 
         # upsaplings
