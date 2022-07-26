@@ -20,7 +20,7 @@ def get_stride(kernel_size):
 
 
 # %%
-class ConvNormNonlinBlock(nn.Module):
+class ConvNormNonlinBlock_old(nn.Module):
 
     def __init__(self, in_channels, out_channels, is_2d, kernel_size=3,
                  first_stride=1, conv_params=None, norm=None, norm_params=None,
@@ -62,48 +62,110 @@ class ConvNormNonlinBlock(nn.Module):
             elif norm.lower().startswith('inst'):
                 norm_fctn = nn.InstanceNorm3d
             drop_fctn = nn.Dropout3d
+                
+        self.conv1 = conv_fctn(self.in_channels, self.hid_channels,
+                               self.kernel_size, padding=self.padding,
+                               stride=self.first_stride, **self.conv_params)
+        
+        nn.init.kaiming_normal_(self.conv1.weight)
+        self.norm1 = norm_fctn(self.hid_channels, **self.norm_params)
+        
+        if self.p_dropout > 0:
+            self.drop1 = drop_fctn(self.p_dropout)
+            
+        self.nonlin1 = nn.LeakyReLU(**self.nonlin_params)
+        
+        # now again
+        self.conv2 = conv_fctn(self.hid_channels, self.out_channels,
+                               self.kernel_size, padding=self.padding,
+                               **self.conv_params)
+        nn.init.kaiming_normal_(self.conv2.weight)
+        self.norm2 = norm_fctn(self.out_channels, **self.norm_params)
+
+        if self.p_dropout > 0:
+            self.drop2 = drop_fctn(self.p_dropout)
+            
+        self.nonlin2 = nn.LeakyReLU(**self.nonlin_params)
+        
+        
+    def forward(self, xb):
+        
+        xb = self.norm1(self.conv1(xb))
+        
+        if self.p_dropout > 0:
+            xb = self.drop1(xb)
+            
+        xb = self.norm2(self.conv2(self.nonlin1(xb)))
+        if self.p_dropout > 0:
+            xb = self.drop2(xb)
+
+        return self.nonlin2(xb)
+    
+# %%
+def ConvNormNonlinBlock(in_channels, out_channels, is_2d, kernel_size=3,
+                        first_stride=1, conv_params=None, norm=None, norm_params=None,
+                        nonlin_params=None, hid_channels=None, p_dropout=0.0):
+        hid_channels = hid_channels if hid_channels is not None else out_channels
+        padding = get_padding(kernel_size)
+
+        if norm is None:
+            norm = 'batch' if is_2d else 'inst'
+
+        if conv_params is None:
+            conv_params = {'bias': False}
+        if nonlin_params is None:
+            nonlin_params = {'negative_slope': 0.01, 'inplace': True}
+        if norm_params is None:
+            norm_params = {'affine': True}
+        # init convolutions, normalisation and nonlinearities
+        if is_2d:
+            conv_fctn = nn.Conv2d
+            if norm.lower().startswith('batch'):
+                norm_fctn = nn.BatchNorm2d
+            elif norm.lower().startswith('inst'):
+                norm_fctn = nn.InstanceNorm2d
+            drop_fctn = nn.Dropout2d
+        else:
+            conv_fctn = nn.Conv3d
+            if norm.lower().startswith('batch'):
+                norm_fctn = nn.BatchNorm3d
+            elif norm.lower().startswith('inst'):
+                norm_fctn = nn.InstanceNorm3d
+            drop_fctn = nn.Dropout3d
         
         
         layers = []
         
-        conv1 = conv_fctn(self.in_channels, self.hid_channels,
-                               self.kernel_size, padding=self.padding,
-                               stride=self.first_stride, **self.conv_params)
+        conv1 = conv_fctn(in_channels, hid_channels,
+                               kernel_size, padding=padding,
+                               stride=first_stride, **conv_params)
         
         nn.init.kaiming_normal_(conv1.weight)
         layers.append(conv1)
-        layers.append(norm_fctn(self.hid_channels, **self.norm_params))
+        layers.append(norm_fctn(hid_channels, **norm_params))
         
-        if self.p_dropout > 0:
-            layers.append(drop_fctn(self.p_dropout))
+        if p_dropout > 0:
+            layers.append(drop_fctn(p_dropout))
             
-        layers.append(nn.LeakyReLU(**self.nonlin_params))
+        layers.append(nn.LeakyReLU(**nonlin_params))
         
         # now again
-        conv2 = conv_fctn(self.hid_channels, self.out_channels,
-                         self.kernel_size, padding=self.padding,
-                         **self.conv_params)
+        conv2 = conv_fctn(hid_channels, out_channels,
+                         kernel_size, padding=padding,
+                         **conv_params)
         nn.init.kaiming_normal_(conv2.weight)
         layers.append(conv2)
-        layers.append(norm_fctn(self.out_channels, **self.norm_params))
+        layers.append(norm_fctn(out_channels, **norm_params))
 
-        if self.p_dropout > 0:
-            layers.append(drop_fctn(self.p_dropout))
+        if p_dropout > 0:
+            layers.append(drop_fctn(p_dropout))
             
-        layers.append(nn.LeakyReLU(**self.nonlin_params))
+        layers.append(nn.LeakyReLU(**nonlin_params))
         
         # turn into a sequential module
-        # self.modules = nn.ModuleList(layers)
-        self.modules = nn.Sequential(*layers)
-        
-    def forward(self, xb):
-        
-        # for module in self.modules:
-        #     xb = module(xb)
-        
-        # return xb
-
-        return self.modules(xb)
+        # modules = nn.ModuleList(layers)
+        modules = nn.Sequential(*layers)
+        return modules
 
 # %% transposed convolutions
 class UpConv(nn.Module):

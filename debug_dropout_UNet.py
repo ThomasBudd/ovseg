@@ -55,3 +55,24 @@ xb = torch.randn((1, 1, 32, 128, 128), device='cuda')
 out = modules(xb)
 
 print(out)
+
+# %%
+from ovseg.networks.UNet import UNet, ConvNormNonlinBlock, ConvNormNonlinBlock_old
+
+block = ConvNormNonlinBlock(in_channels=1, out_channels=32, is_2d=False,
+                            p_dropout=0.1).cuda()
+
+out = block(xb)
+print(out)
+
+block = ConvNormNonlinBlock_old(in_channels=1, out_channels=32, is_2d=False,
+                            p_dropout=0.1).cuda()
+
+out = block(xb)
+print(out)
+
+
+net = UNet(in_channels=1, out_channels=2, kernel_sizes=5*[3], is_2d=False,
+           filters=8, filters_max=96, p_dropout=0.1).cuda()
+out = block(xb)
+print(out)
