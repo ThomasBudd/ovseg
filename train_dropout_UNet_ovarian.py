@@ -20,7 +20,7 @@ w_9 = -0.5
 
 # delta_list = np.linspace(-3, 3, 37)[[args.exp, -1*args.exp]]
 
-delta = list(range(-3,4))[args.exp]
+# delta = list(range(-3,4))[args.exp]
 
 data_name = 'OV04'
 preprocessed_name = 'pod_om_4fCV'
@@ -46,7 +46,7 @@ model_params['training']['loss_params']['loss_names'] = ['dice_loss_sigm_weighte
                                                          'cross_entropy_exp_weight']
     
     
-w_list = [w_1 + delta, w_9 + delta]
+w_list = [w_1, w_9]
 
 model_params['training']['loss_params']['loss_kwargs'] = 2*[{'w_list':w_list}]
 model_params['network']['p_dropout'] = 0.1

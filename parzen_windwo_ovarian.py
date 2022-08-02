@@ -98,7 +98,7 @@ for scan in tqdm(scans):
         hm = np.zeros_like(seg)
             
         for j, w in enumerate(w_list):
-            model_name = f'UQ_calibrated_{w:.2f}'
+            model_name = f'calibrated_{w:.2f}'
             pred = nib.load(os.path.join(predp, model_name, 'cross_validation', scan)).get_fdata()
             
             hm += coefs[j, i] * (pred == cl).astype(float)

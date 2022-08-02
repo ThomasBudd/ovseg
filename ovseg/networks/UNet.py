@@ -18,7 +18,19 @@ def get_stride(kernel_size):
     else:
         return (kernel_size + 1) // 2
 
+# %%
 
+class InferenceDropout2d(nn.Dropout2d):
+    
+    def eval(self):
+        
+        self.train()
+
+class InferenceDropout3d(nn.Dropout3d):
+    
+    def eval(self):
+        
+        self.train()
 # %%
 class ConvNormNonlinBlock_old(nn.Module):
 
@@ -54,14 +66,14 @@ class ConvNormNonlinBlock_old(nn.Module):
                 norm_fctn = nn.BatchNorm2d
             elif norm.lower().startswith('inst'):
                 norm_fctn = nn.InstanceNorm2d
-            drop_fctn = nn.Dropout2d
+            drop_fctn = nn.InferenceDropout2d
         else:
             conv_fctn = nn.Conv3d
             if norm.lower().startswith('batch'):
                 norm_fctn = nn.BatchNorm3d
             elif norm.lower().startswith('inst'):
                 norm_fctn = nn.InstanceNorm3d
-            drop_fctn = nn.Dropout3d
+            drop_fctn = nn.InferenceDropout3d
                 
         self.conv1 = conv_fctn(self.in_channels, self.hid_channels,
                                self.kernel_size, padding=self.padding,
@@ -124,14 +136,14 @@ def ConvNormNonlinBlock(in_channels, out_channels, is_2d, kernel_size=3,
                 norm_fctn = nn.BatchNorm2d
             elif norm.lower().startswith('inst'):
                 norm_fctn = nn.InstanceNorm2d
-            drop_fctn = nn.Dropout2d
+            drop_fctn = nn.InferenceDropout2d
         else:
             conv_fctn = nn.Conv3d
             if norm.lower().startswith('batch'):
                 norm_fctn = nn.BatchNorm3d
             elif norm.lower().startswith('inst'):
                 norm_fctn = nn.InstanceNorm3d
-            drop_fctn = nn.Dropout3d
+            drop_fctn = nn.InferenceDropout3d
         
         
         layers = []

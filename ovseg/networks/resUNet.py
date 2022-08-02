@@ -22,6 +22,21 @@ def get_stride(kernel_size):
 
 
 # %%
+
+class InferenceDropout2d(nn.Dropout2d):
+    
+    def eval(self):
+        
+        self.train()
+
+class InferenceDropout3d(nn.Dropout3d):
+    
+    def eval(self):
+        
+        self.train()
+
+
+# %%
 class ConvNormNonlinBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, is_2d, kernel_size=3,
@@ -82,11 +97,11 @@ class ConvNormNonlinBlock(nn.Module):
         
         if self.p_dropout > 0:
             if self.is_2d:
-                self.drop1 = nn.Dropout2d(self.p_dropout)
-                self.drop2 = nn.Dropout2d(self.p_dropout)
+                self.drop1 = nn.InferenceDropout2d(self.p_dropout)
+                self.drop2 = nn.InferenceDropout2d(self.p_dropout)
             else:
-                self.drop1 = nn.Dropout3d(self.p_dropout)
-                self.drop2 = nn.Dropout3d(self.p_dropout)
+                self.drop1 = nn.InferenceDropout3d(self.p_dropout)
+                self.drop2 = nn.InferenceDropout3d(self.p_dropout)
 
     def forward(self, xb):
         xb = self.conv1(xb)
