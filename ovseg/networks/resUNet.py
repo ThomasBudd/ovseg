@@ -97,11 +97,11 @@ class ConvNormNonlinBlock(nn.Module):
         
         if self.p_dropout > 0:
             if self.is_2d:
-                self.drop1 = nn.InferenceDropout2d(self.p_dropout)
-                self.drop2 = nn.InferenceDropout2d(self.p_dropout)
+                self.drop1 = InferenceDropout2d(self.p_dropout)
+                self.drop2 = InferenceDropout2d(self.p_dropout)
             else:
-                self.drop1 = nn.InferenceDropout3d(self.p_dropout)
-                self.drop2 = nn.InferenceDropout3d(self.p_dropout)
+                self.drop1 = InferenceDropout3d(self.p_dropout)
+                self.drop2 = InferenceDropout3d(self.p_dropout)
 
     def forward(self, xb):
         xb = self.conv1(xb)
