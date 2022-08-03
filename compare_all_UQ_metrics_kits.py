@@ -12,7 +12,7 @@ def parzen_window(hm, P):
     
     vals, counts = np.unique(hm, return_counts=True)
     
-    p = np.zeros_like(P)
+    p = np.zeros(P.shape[0])
     
     for val, count in zip(vals, counts):
         
@@ -38,8 +38,8 @@ coefs = np.diff(P, axis=0)
 P = np.concatenate([P, [[1, 1]]], 0)
 n_ens = 7
 
-N1_dict = {cl:{'gt_drop':np.zeros_like(P), 'gt_old':np.zeros_like(P),
-               'gt_new':np.zeros_like(P), 'pred_new':np.zeros_like(P)} for cl in [2]}
+N1_dict = {'gt_drop':np.zeros_like(P), 'gt_old':np.zeros_like(P),
+               'gt_new':np.zeros_like(P), 'pred_new':np.zeros_like(P)}
 N2_dict = {cl:{'gt_drop':np.zeros_like(P), 'gt_old':np.zeros_like(P),
                'gt_new':np.zeros_like(P), 'pred_new':np.zeros_like(P)} for cl in [2]}
 
@@ -121,14 +121,14 @@ for scan in tqdm(scans):
         # now p measures
         for hm, ext in zip([hm_drop, hm_old, hm_new], ['_drop', '_old', '_new']):
                 
-            N1_dict[cl]['gt'+ext] += parzen_window(hm, P[:, c])
-            N2_dict[cl]['gt'+ext] += parzen_window(hm*gt_cl, P[:, c])
+            N1_dict['gt'+ext][:, c] += parzen_window(hm, P[:, c])
+            N2_dict['gt'+ext][:, c] += parzen_window(hm*gt_cl, P[:, c])
             
-            measures[cl]['P_gt'+ext] = N2_dict[cl]['gt'+ext]/N1_dict[cl]['gt'+ext]
+            measures[cl]['P_gt'+ext] = N2_dict[cl]['gt'+ext][:, c]/N1_dict[cl]['gt'+ext][:, c]
             
         # for pseudo label plot
-        N1_dict[cl]['pred_new'] += parzen_window(hm, P[:, c])
-        N2_dict[cl]['pred_new'] += parzen_window(hm*pred, P[:, c])
+        N1_dict['pred_new'][:, c] += parzen_window(hm, P[:, c])
+        N2_dict['pred_new'][:, c] += parzen_window(hm*pred, P[:, c])
         
         # save in dict
         measures[cl]['P'] = P[:, c]
