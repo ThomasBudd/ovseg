@@ -40,8 +40,8 @@ n_ens = 7
 
 N1_dict = {'gt_drop':np.zeros_like(P), 'gt_old':np.zeros_like(P),
                'gt_new':np.zeros_like(P), 'pred_new':np.zeros_like(P)}
-N2_dict = {cl:{'gt_drop':np.zeros_like(P), 'gt_old':np.zeros_like(P),
-               'gt_new':np.zeros_like(P), 'pred_new':np.zeros_like(P)} for cl in [2]}
+N2_dict = {'gt_drop':np.zeros_like(P), 'gt_old':np.zeros_like(P),
+               'gt_new':np.zeros_like(P), 'pred_new':np.zeros_like(P)}
 
 measures = {cl:{'gt':[], 'UQ_drop':[], 'UQ_old':[], 'UQ_new':[]} for cl in [2]}
 
