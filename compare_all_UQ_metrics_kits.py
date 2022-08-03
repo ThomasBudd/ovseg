@@ -124,7 +124,7 @@ for scan in tqdm(scans):
             N1_dict['gt'+ext][:, c] += parzen_window(hm, P[:, c])
             N2_dict['gt'+ext][:, c] += parzen_window(hm*gt_cl, P[:, c])
             
-            measures[cl]['P_gt'+ext] = N2_dict[cl]['gt'+ext][:, c]/N1_dict[cl]['gt'+ext][:, c]
+            measures[cl]['P_gt'+ext] = N2_dict['gt'+ext][:, c]/N1_dict['gt'+ext][:, c]
             
         # for pseudo label plot
         N1_dict['pred_new'][:, c] += parzen_window(hm, P[:, c])
@@ -132,7 +132,7 @@ for scan in tqdm(scans):
         
         # save in dict
         measures[cl]['P'] = P[:, c]
-        measures[cl]['P_pred_new'] = N2_dict[cl]['pred_new']/N1_dict[cl]['pred_new']
+        measures[cl]['P_pred_new'] = N2_dict['pred_new'][:, c]/N1_dict['pred_new'][:, c]
         
         
 p = os.path.join(predp, 'all_UQ_measures.pkl')
