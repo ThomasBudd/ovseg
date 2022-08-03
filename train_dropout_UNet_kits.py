@@ -65,6 +65,7 @@ model_params['training']['loss_params']['loss_kwargs'] = 2*[{'w_list':[0, 0]}]
 model_params['postprocessing'] = {'mask_with_reg': True}
 
 model_params['prediction']['mode'] = 'simple'
+model_params['prediction']['use_training_mode_in_inference'] = True
 
 w = 0
 

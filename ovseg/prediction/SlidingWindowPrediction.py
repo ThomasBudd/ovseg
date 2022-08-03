@@ -9,7 +9,7 @@ class SlidingWindowPrediction(object):
 
     def __init__(self, network, patch_size, batch_size=1, overlap=0.5, fp32=False,
                  patch_weight_type='gaussian', sigma_gaussian_weight=1/8, linear_min=0.1,
-                 mode='flip'):
+                 mode='flip', use_training_mode_in_inference=False):
 
         self.dev = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.network = network.to(self.dev)
@@ -20,6 +20,7 @@ class SlidingWindowPrediction(object):
         self.sigma_gaussian_weight = sigma_gaussian_weight
         self.linear_min = linear_min
         self.mode = mode
+        self.use_training_mode_in_inference = use_training_mode_in_inference
 
         assert self.patch_weight_type.lower() in ['constant', 'gaussian', 'linear']
         assert self.mode.lower() in ['simple', 'flip']
@@ -206,7 +207,10 @@ class SlidingWindowPrediction(object):
         if ROI is not None:
             ROI = maybe_add_channel_dim(ROI)
 
-        self.network.eval()
+        if self.use_training_mode_in_inference:
+            self.network.train()
+        else:
+            self.network.eval()
 
         # check the type and bring to device
         is_np, _ = check_type(volume)

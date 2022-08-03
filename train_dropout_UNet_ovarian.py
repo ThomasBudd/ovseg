@@ -51,6 +51,7 @@ w_list = [w_1, w_9]
 model_params['training']['loss_params']['loss_kwargs'] = 2*[{'w_list':w_list}]
 model_params['network']['p_dropout'] = 0.1
 model_params['prediction']['mode'] = 'simple'
+model_params['prediction']['use_training_mode_in_inference'] = True
 
 model_name = f'dropout_UNet_{args.exp}'
 
