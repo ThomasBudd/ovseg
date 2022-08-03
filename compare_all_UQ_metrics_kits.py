@@ -30,12 +30,12 @@ def parzen_window(hm, P):
 # %% now the fun
 predp = os.path.join(os.environ['OV_DATA_BASE'], 'predictions','kits21_trn','disease_3_1')
 rawp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data')
-P = np.load(os.path.join(predp, 'P_cross_validation.npy'))[:, 0]
-P = np.concatenate([[0], P])
+P = np.load(os.path.join(predp, 'P_cross_validation.npy'))
+P = np.concatenate([[[0, 0]], P], 0)
 
-coefs = np.diff(P)
+coefs = np.diff(P, axis=0)
 
-P = np.concatenate([P, [1]])
+P = np.concatenate([P, [[1, 1]]], 0)
 n_ens = 7
 
 N1_dict = {cl:{'gt_drop':np.zeros_like(P), 'gt_old':np.zeros_like(P),
