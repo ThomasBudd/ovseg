@@ -91,6 +91,6 @@ ds = raw_Dataset(os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', 'kits21_ts
                  prev_stages=prev_stages)
 
 for i in range(8):
-    model.eval_ds(ds, ds_name=f'kits21_tst_{i}', save_preds=True, save_plots=False,
+    model.eval_ds(ds, ds_name=f'kits21_tst_new_{i}', save_preds=True, save_plots=False,
                   force_evaluation=False)
 
