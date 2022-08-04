@@ -35,7 +35,7 @@ def parzen_window(hm, P):
 # %% now the fun
 predp = os.path.join(os.environ['OV_DATA_BASE'], 'predictions','OV04','pod_om_4fCV')
 rawp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data')
-P = np.load(os.path.join(predp, 'P_cross_validation.npy'))
+P = np.load(os.path.join(predp, 'P_cross_validation_v2.npy'))
 P = np.concatenate([[[0, 0]], P], 0)
 
 coefs = np.diff(P, axis=0)
