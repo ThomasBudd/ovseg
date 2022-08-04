@@ -13,8 +13,8 @@ measures_kits = pickle.load(open(os.path.join(os.environ['OV_DATA_BASE'],
 
 # %% p vs p plot
 plt.close()
-plt.plot(np.arange(1,8)/7, measures_kits[2]['P_gt_drop'][2:], 'bo')
-plt.plot(np.arange(1,8)/7, measures_kits[2]['P_gt_old'][2:], 'ro')
+plt.plot(np.arange(1,8)/7, measures_kits[2]['P_gt_drop'][1:8], 'bo')
+plt.plot(np.arange(1,8)/7, measures_kits[2]['P_gt_old'][1:8], 'ro')
 plt.plot(measures_kits[2]['P'][1:8],
          measures_kits[2]['P_gt_new'][1:8], 'go')
 plt.plot([0, 1], [0, 1], 'k')
@@ -28,7 +28,7 @@ plt.figure()
 plt.subplot(2, 3, 3)
 for ext, c in zip(['drop', 'old', 'new'], ['b', 'r', 'g']):
     plt.plot(measures_kits[2][f'DSCs_{ext}'],
-             measures_kits[2]['gt'],
+             measures_kits[2]['DSCs_gt'],
              f'{c}o')
 plt.plot([0, 100], [0, 100], 'k')
 

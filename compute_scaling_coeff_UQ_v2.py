@@ -47,3 +47,4 @@ for scan in tqdm(scans):
 
 p_vec = k_vec/n_vec
 np.save(os.path.join(predp, 'P_cross_validation_v2.npy'), p_vec)
+print(p_vec)
