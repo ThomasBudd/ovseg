@@ -6,6 +6,11 @@ from tqdm import tqdm
 from time import sleep
 import pickle
 
+# %% histogram function for old heatmaps
+
+def my_hist(hm):
+
+    return np.array([0] + [np.sum(hm == i/7) for i in range(1, 8)] + [1])
 
 # %% parzen window
 def parzen_window(hm, P):
@@ -116,15 +121,21 @@ for scan in tqdm(scans):
                 else:
                     DSC_hat = 100
                 
-                measures[cl]['UQ'+ext].append([DSC_hat])
+                measures[cl]['DSCs'+ext].append([DSC_hat])
             
         # now p measures
-        for hm, ext in zip([hm_drop, hm_old, hm_new], ['_drop', '_old', '_new']):
+        for hm, ext in zip([hm_drop, hm_old], ['_drop', '_old']):
                 
-            N1_dict['gt'+ext][:, c] += parzen_window(hm, P[:, c])
-            N2_dict['gt'+ext][:, c] += parzen_window(hm*gt_cl, P[:, c])
+            N1_dict['gt'+ext][:, c] += my_hist(hm)
+            N2_dict['gt'+ext][:, c] += my_hist(hm*gt_cl)
             
             measures[cl]['P_gt'+ext] = N2_dict['gt'+ext][:, c]/N1_dict['gt'+ext][:, c]
+            
+                
+        N1_dict['gt_new'][:, c] += parzen_window(hm_new, P[:, c])
+        N2_dict['gt_new'][:, c] += parzen_window(hm_new*gt_cl, P[:, c])
+        
+        measures[cl]['P_gt_new'] = N2_dict['gt_new'][:, c]/N1_dict['gt_new'][:, c]
             
         # for pseudo label plot
         N1_dict['pred_new'][:, c] += parzen_window(hm, P[:, c])
