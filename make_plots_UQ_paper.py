@@ -27,8 +27,8 @@ plt.legend(['Dropout', 'Uncalibrated ensemble', 'Calibrated ensemble', 'Identity
 plt.figure()
 plt.subplot(2, 3, 3)
 for ext, c in zip(['drop', 'old', 'new'], ['b', 'r', 'g']):
-    plt.plot(measures_kits[2][f'UQ_{ext}'],
-             measures_kits[2][f'gt'],
+    plt.plot(measures_kits[2][f'DSCs_{ext}'],
+             measures_kits[2]['gt'],
              f'{c}o')
 plt.plot([0, 100], [0, 100], 'k')
 
@@ -43,5 +43,3 @@ plt.plot(measures_kits[2]['P'][1:8],
          measures_kits[2]['P_gt_new'][1:8], 'go')
 plt.plot([0, 1], [0, 1], 'k')
 
-
-# %%

@@ -48,7 +48,7 @@ N1_dict = {'gt_drop':np.zeros_like(P), 'gt_old':np.zeros_like(P),
 N2_dict = {'gt_drop':np.zeros_like(P), 'gt_old':np.zeros_like(P),
                'gt_new':np.zeros_like(P), 'pred_new':np.zeros_like(P)}
 
-measures = {cl:{'gt':[], 'UQ_drop':[], 'UQ_old':[], 'UQ_new':[]} for cl in [2]}
+measures = {cl:{'DSCS_gt':[], 'DSCs_drop':[], 'DSCs_old':[], 'DSCs_new':[]} for cl in [2]}
 
 ds_name = 'kits21_tst'
 
@@ -110,7 +110,7 @@ for scan in tqdm(scans):
         # similarity measures
         if gt_cl.max()>0:
             DSC = 200*np.sum(gt_cl*pred)/np.sum(gt_cl+pred)
-            measures[cl]['gt'].append(DSC)
+            measures[cl]['DSCs_gt'].append(DSC)
             
             for hm, ext in zip([hm_drop, hm_old, hm_new], ['_drop', '_old', '_new']):
                 

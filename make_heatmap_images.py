@@ -171,7 +171,7 @@ predp = os.path.join(os.environ['OV_DATA_BASE'],
 #            [0, 512, 0, 512]]
 # cl_list = [9,9,1,1,1]
 
-case_list = os.listdir(os.path.join(predp,'UQ_calibrated_0.00', 'kits21_tst_ensemble_0_1_2'))[:10]
+case_list = os.listdir(os.path.join(predp,'UQ_calibrated_0.00', 'kits21_tst_ensemble_0_1_2'))[0:10]
 
 imp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', 'kits21', 'images')
 lbp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', 'kits21', 'labels')
@@ -181,65 +181,73 @@ cl = 2
 ds_name = 'kits21_tst'
 for case in tqdm(case_list):
     
+    case_id = case.split('.')[0]
+    p = f'D:\\PhD\\kits21\\kits21\\data\\{case_id}\\segmentations'
+    seg_files = [s for s in os.listdir(p) if s.startswith('tumor')]
+    n_instances = len(seg_files) // 3
     
     
-    gt = nib.load(os.path.join(lbp, case)).get_fdata()
-    gt_cl = (gt == cl).astype(float)
-    print(gt.shape)
-    
-    im = nib.load(os.path.join(imp, case)).get_fdata().clip(-50, 150)
-    im = (im+50)/200
-    
-    # get uncalibrated segmentations
+    for n in range(1,n_instances+1):
+        segs = [nib.load(os.path.join(p,s)).get_fdata() for s in os.listdir(p) if s.startswith(f'tumor_instance-{n}')]
+                
+        im = nib.load(os.path.join(imp, case)).get_fdata().clip(-50, 150)
+        im = (im+50)/200
         
-    # get calibrated segmentations
-    preds_cal = [nib.load(os.path.join(predp,
-                                       f'UQ_calibrated_{w:.2f}',
-                                       f'{ds_name}_ensemble_0_1_2',
-                                       case)).get_fdata()
-                 for w in range(-3,4)]        
-
-    hm_new = np.zeros_like(gt_cl)
+        # get uncalibrated segmentations
+            
+        # get calibrated segmentations
+        preds_cal = [nib.load(os.path.join(predp,
+                                           f'UQ_calibrated_{w:.2f}',
+                                           f'{ds_name}_ensemble_0_1_2',
+                                           case)).get_fdata()
+                     for w in range(-3,4)]        
+    
+        hm_new = np.zeros_like(segs[0])
+            
+        # compute new heatmap
+        a_w_list = np.diff(np.concatenate([[0],P[:, 0]]))
         
-    # compute new heatmap
-    a_w_list = np.diff(np.concatenate([[0],P[:, 0]]))
+        for pred, a_w in zip(preds_cal, a_w_list):
+            
+            hm_new += a_w * (pred == cl).astype(float)
     
-    for pred, a_w in zip(preds_cal, a_w_list):
+        z = np.argmax(np.sum(segs[0], (1,2)))
+        X,Y = np.where(segs[0][z])
+        x, y = int(np.median(X)), int(np.median(Y))
+        bb = [np.max([0, x-128]), np.min([512, x+128]),
+              np.max([0, y-128]), np.min([512, y+128])]
+        # bb = [0, 512, 0, 512]
+        # now plot the images
+        plt.imshow(im[z, bb[0]:bb[1],bb[2]:bb[3]], cmap='bone', vmax=1)
+        plt.axis('off')
+        plt.savefig(os.path.join(plotp, f'{case}_{z}_{cl}_im1_image.png'), bbox_inches='tight')
+        plt.close()
+    
+        # images with segmentations
+        plt.imshow(im[z, bb[0]:bb[1],bb[2]:bb[3]], cmap='bone', vmax=1)
+        # # plt.contour(gt_cl[bb[0]:bb[1],bb[2]:bb[3], z] > 0, colors='blue', linewidths=0.5)
+        # for seg in segs:
+        #     plt.contour(seg[z, bb[0]:bb[1],bb[2]:bb[3]] > 0, colors='blue', linewidths=0.5)
+        hm_gt = np.mean(np.stack(segs, 0), 0)
+        plt.imshow(hm_gt[z, bb[0]:bb[1],bb[2]:bb[3]], cmap='hot', alpha=a, vmax=1)
         
-        hm_new += a_w * (pred == cl).astype(float)
-
-    z = np.argmax(np.sum(gt_cl, (0,1)))
-    X,Y = np.where(gt_cl[..., z])
-    x, y = int(np.median(X)), int(np.median(Y))
-    bb = [np.max([0, x-128]), np.min([512, x+128]),
-          np.max([0, y-128]), np.min([512, y+128])]
-
-    # now plot the images
-    plt.imshow(im[bb[0]:bb[1],bb[2]:bb[3], z]*(1-a), cmap='bone', vmax=1)
-    plt.axis('off')
-    plt.savefig(os.path.join(plotp, f'{case}_{z}_{cl}_im1_image.png'), bbox_inches='tight')
-    plt.close()
-
-    # images with segmentations
-    plt.imshow(im[bb[0]:bb[1],bb[2]:bb[3], z]*(1-a), cmap='bone', vmax=1)
-    plt.contour(gt_cl[bb[0]:bb[1],bb[2]:bb[3], z] > 0, colors='blue', linewidths=0.5)
-    # plt.contour(pred[bb[0]:bb[1],bb[2]:bb[3], z] > 0, colors='red', linewidths=0.5)
-    plt.axis('off')
-    plt.savefig(os.path.join(plotp, f'{case}_{z}_{cl}_im2_image_seg.png'), bbox_inches='tight')
-    plt.close()
-    
-    # images with heatmap
-    plt.imshow(im[bb[0]:bb[1],bb[2]:bb[3], z], cmap='bone', alpha=1, vmax=1)
-    plt.imshow(hm_new[bb[0]:bb[1],bb[2]:bb[3], z], cmap='hot', alpha=a, vmax=1)
-    plt.axis('off')
-    plt.savefig(os.path.join(plotp, f'{case}_{z}_{cl}_im3_image_heat.png'), bbox_inches='tight')
-    plt.close()
-    
-    # just heatmap
-    plt.imshow(hm_new[bb[0]:bb[1],bb[2]:bb[3], z], cmap='hot', vmax=1)
-    plt.axis('off')
-    plt.savefig(os.path.join(plotp, f'{case}_{z}_{cl}_im4_heat.png'), bbox_inches='tight')
-    plt.close()
+        # plt.contour(pred[bb[0]:bb[1],bb[2]:bb[3], z] > 0, colors='red', linewidths=0.5)
+        plt.axis('off')
+        plt.savefig(os.path.join(plotp, f'{case}_{z}_{cl}_im2_image_seg.png'), bbox_inches='tight')
+        plt.close()
+        
+        # images with heatmap
+        plt.imshow(im[z, bb[0]:bb[1],bb[2]:bb[3]], cmap='bone', alpha=1, vmax=1)
+        plt.imshow(hm_new[z, bb[0]:bb[1],bb[2]:bb[3]], cmap='hot', alpha=a, vmax=1)
+        plt.axis('off')
+        plt.savefig(os.path.join(plotp, f'{case}_{z}_{cl}_im3_image_heat.png'), bbox_inches='tight')
+        plt.close()
+        
+        # just heatmap
+        plt.imshow(hm_new[z, bb[0]:bb[1],bb[2]:bb[3]], cmap='hot', vmax=1)
+        plt.axis('off')
+        plt.savefig(os.path.join(plotp, f'{case}_{z}_{cl}_im4_heat.png'), bbox_inches='tight')
+        plt.close()
 
 # %%
 cl = 2
@@ -252,3 +260,19 @@ for i in range(len(p)):
 plt.axis('off')
 plt.savefig(os.path.join(plotp, f'colorbar_{cl}.png'), bbox_inches='tight')
 plt.close()
+
+# %%
+p = 'D:\\PhD\\kits21\\kits21\\data\\case_00001\\segmentations'
+segs = [nib.load(os.path.join(p,s)).get_fdata() for s in os.listdir(p) if s.startswith('tumor_instance-1')]
+z = np.argmax(np.sum(segs[0], (1,2)))
+# %%
+for i, seg in enumerate(segs):
+    
+    plt.subplot(2,3, i+1)
+    plt.imshow(seg[z, 250:350, 50:150])
+# %%
+z = np.argmax(np.sum(segs[3], (1,2)))
+for i, seg in enumerate(segs):
+    
+    plt.subplot(2,3, i+1)
+    plt.imshow(seg[z, 250:350, 50:150])
