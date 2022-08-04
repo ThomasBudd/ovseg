@@ -48,7 +48,7 @@ N1_dict = {'gt_drop':np.zeros_like(P), 'gt_old':np.zeros_like(P),
 N2_dict = {'gt_drop':np.zeros_like(P), 'gt_old':np.zeros_like(P),
                'gt_new':np.zeros_like(P), 'pred_new':np.zeros_like(P)}
 
-measures = {cl:{'DSCS_gt':[], 'DSCs_drop':[], 'DSCs_old':[], 'DSCs_new':[]} for cl in [2]}
+measures = {cl:{'DSCs_gt':[], 'DSCs_drop':[], 'DSCs_old':[], 'DSCs_new':[]} for cl in [2]}
 
 ds_name = 'kits21_tst'
 
