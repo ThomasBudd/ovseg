@@ -32,7 +32,7 @@ for scan in tqdm(scans):
             model_name = f'calibrated_{w:.2f}'
             
             pred = nib.load(os.path.join(predp, model_name, 'cross_validation', scan)).get_fdata()
-            preds.append(pred)
+            preds.append((pred == cl).astype(float))
         
         for c in range(n_ens-1):
             I = preds[c] - preds[c+1]
