@@ -148,5 +148,5 @@ for ds_name in ds_names:
             measures[cl]['P_pred_new'] = N2_dict['pred_new'][:, c]/N1_dict['pred_new'][:, c]
             
         
-p = os.path.join(predp, 'all_UQ_measures.pkl')
+p = os.path.join(predp, 'all_UQ_measures_v2.pkl')
 pickle.dump(measures, open(p, 'wb'))
