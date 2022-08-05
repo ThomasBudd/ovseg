@@ -140,8 +140,8 @@ for ds_name in ds_names:
             measures[cl]['P_gt_new'] = N2_dict['gt_new'][:, c]/N1_dict['gt_new'][:, c]
                 
             # for pseudo label plot
-            N1_dict['pred_new'][:, c] += parzen_window(hm, P[:, c])
-            N2_dict['pred_new'][:, c] += parzen_window(hm*pred, P[:, c])
+            N1_dict['pred_new'][:, c] += parzen_window(hm_new, P[:, c])
+            N2_dict['pred_new'][:, c] += parzen_window(hm_new*pred, P[:, c])
             
             # save in dict
             measures[cl]['P'] = P[:, c]

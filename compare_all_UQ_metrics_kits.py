@@ -35,7 +35,7 @@ def parzen_window(hm, P):
 # %% now the fun
 predp = os.path.join(os.environ['OV_DATA_BASE'], 'predictions','kits21_trn','disease_3_1')
 rawp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data')
-P = np.load(os.path.join(predp, 'P_cross_validation_v2.npy'))
+P = np.load(os.path.join(predp, 'P_cross_validation.npy'))
 P = np.concatenate([[[0, 0]], P], 0)
 
 coefs = np.diff(P, axis=0)
@@ -138,14 +138,14 @@ for scan in tqdm(scans):
         measures[cl]['P_gt_new'] = N2_dict['gt_new'][:, c]/N1_dict['gt_new'][:, c]
             
         # for pseudo label plot
-        N1_dict['pred_new'][:, c] += parzen_window(hm, P[:, c])
-        N2_dict['pred_new'][:, c] += parzen_window(hm*pred, P[:, c])
+        N1_dict['pred_new'][:, c] += parzen_window(hm_new, P[:, c])
+        N2_dict['pred_new'][:, c] += parzen_window(hm_new*pred, P[:, c])
         
         # save in dict
         measures[cl]['P'] = P[:, c]
         measures[cl]['P_pred_new'] = N2_dict['pred_new'][:, c]/N1_dict['pred_new'][:, c]
         
         
-p = os.path.join(predp, 'all_UQ_measures_v2.pkl')
+p = os.path.join(predp, 'all_UQ_measures.pkl')
 
 pickle.dump(measures, open(p, 'wb'))
