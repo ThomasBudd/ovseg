@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from time import sleep
 import pickle
+import torch
 
 predp = os.path.join(os.environ['OV_DATA_BASE'], 'predictions','OV04','pod_om_4fCV')
 rawp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data')
@@ -40,12 +41,15 @@ for scan in tqdm(scans):
             pred = (pred == cl).astype(float)
             preds += 2**i * pred
         
+        gt = torch.from_numpy(gt).cuda()
+        preds = torch.from_numpy(preds).cuda()
+        
         for i in range(2**7):
             
-            I = preds == (i+1)
+            I = (preds == (i+1)).type(torch.int)
             
-            n_vec[c,i] += np.sum(I.astype(int))
-            k_vec[c,i] += np.sum(gt[I])
+            n_vec[c,i] += torch.sum(I).item()
+            k_vec[c,i] += torch.sum(gt * I).item()
 
 
 np.save(os.path.join(predp, 'k_cross_validation_v3.npy'), k_vec)
