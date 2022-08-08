@@ -10,7 +10,7 @@ import pickle
 
 def my_hist(hm):
 
-    return np.array([0] + [np.sum(hm == i/7) for i in range(1, 8)] + [1])
+    return np.array([np.sum(hm == i/7) for i in range(1, 8)] + [1])
 
 # %% parzen window
 def parzen_window(hm):
