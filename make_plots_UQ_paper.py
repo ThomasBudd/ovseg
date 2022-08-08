@@ -63,7 +63,7 @@ p1 = [p1 for p2, p1 in sorted(zip(measures_ov[9]['P_gt_new'][1:8],
 p2 = [p2 for p2, p1 in sorted(zip(measures_ov[9]['P_gt_new'][1:8],
                                   measures_ov[9]['P'][1:8]))]
 
-plt.plot(p1,p2,
+plt.plot(measures_ov[9]['P'][1:8],measures_ov[9]['P_gt_new'][1:8], 
          color=color_new,
          marker='o',
          linewidth=lw,
@@ -93,7 +93,7 @@ p1 = [p1 for p2, p1 in sorted(zip(measures_ov[1]['P_gt_new'][1:8],
 p2 = [p2 for p2, p1 in sorted(zip(measures_ov[1]['P_gt_new'][1:8],
                                   measures_ov[1]['P'][1:8]))]
 
-plt.plot(p1,p2, 
+plt.plot(measures_ov[1]['P'][1:8],measures_ov[1]['P_gt_new'][1:8], 
          color=color_new,
          marker='o',
          linewidth=lw,
@@ -185,7 +185,7 @@ p1 = [p1 for p2, p1 in sorted(zip(measures_ov[9]['P_gt_new'][1:8],
 p2 = [p2 for p2, p1 in sorted(zip(measures_ov[9]['P_gt_new'][1:8],
                                   measures_ov[9]['P'][1:8]))]
 
-plt.plot(p1,p2,
+plt.plot(measures_ov[9]['P'][1:8],measures_ov[9]['P_gt_new'][1:8],
          color=color_new,
          marker='o',
          linewidth=lw,
@@ -197,7 +197,7 @@ p1 = [p1 for p2, p1 in sorted(zip(measures_ov[9]['P_pred_new'][1:8],
 p2 = [p2 for p2, p1 in sorted(zip(measures_ov[9]['P_pred_new'][1:8],
                                   measures_ov[9]['P'][1:8]))]
 
-plt.plot(p1,p2,
+plt.plot(measures_ov[9]['P'][1:8],measures_ov[9]['P_pred_new'][1:8],
          color=color_pred,
          marker='o',
          linewidth=lw,
@@ -217,7 +217,7 @@ p1 = [p1 for p2, p1 in sorted(zip(measures_ov[1]['P_gt_new'][1:8],
 p2 = [p2 for p2, p1 in sorted(zip(measures_ov[1]['P_gt_new'][1:8],
                                   measures_ov[1]['P'][1:8]))]
 
-plt.plot(p1,p2,
+plt.plot(measures_ov[1]['P'][1:8],measures_ov[1]['P_gt_new'][1:8],
          color=color_new,
          marker='o',
          linewidth=lw,
@@ -229,7 +229,7 @@ p1 = [p1 for p2, p1 in sorted(zip(measures_ov[1]['P_pred_new'][1:8],
 p2 = [p2 for p2, p1 in sorted(zip(measures_ov[1]['P_pred_new'][1:8],
                                   measures_ov[1]['P'][1:8]))]
 
-plt.plot(p1,p2,
+plt.plot(measures_ov[1]['P'][1:8],measures_ov[1]['P_pred_new'][1:8],
          color=color_pred,
          marker='o',
          linewidth=lw,
