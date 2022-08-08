@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from time import sleep
 import pickle
+import torch
 
 predp = os.path.join(os.environ['OV_DATA_BASE'], 'predictions','kits21_trn','disease_3_1')
 rawp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data')
@@ -32,14 +33,17 @@ for scan in tqdm(scans):
             model_name = f'UQ_calibrated_{w:.2f}'
             
             pred = nib.load(os.path.join(predp, model_name, 'cross_validation', scan)).get_fdata()
-            pred += 2**i * (pred == cl).astype(float)
+            preds += 2**i * (pred == cl).astype(float)        
+
+        gt = torch.from_numpy(gt).cuda()
+        preds = torch.from_numpy(preds).cuda()
         
         for i in range(2**7):
             
-            I = preds == (i+1)
+            I = (preds == (i+1)).type(torch.int)
             
-            n_vec[c,i] += np.sum(I.astype(int))
-            k_vec[c,i] += np.sum(gt[I])
+            n_vec[c,i] += torch.sum(I).item()
+            k_vec[c,i] += torch.sum(gt * I).item()
 
 
 
