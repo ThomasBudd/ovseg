@@ -140,6 +140,8 @@ model_params = get_model_params_3d_UNet(patch_size=patch_size,
 
 # for the cascade we input the masks of the previous stage
 model_params['network']['in_channels'] = 1 + n_fg_classes
+model_params['data']['folders'] = ['images', 'labels', 'prev_preds']
+model_params['data']['keys'] = ['image', 'label', 'prev_pred']
 
 # CHANGE YOUR HYPER-PARAMETERS FOR LOWRES STAGE HERE!
 model = SegmentationModelV2(val_fold=val_fold,

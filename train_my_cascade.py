@@ -143,8 +143,8 @@ model_params = get_model_params_3d_UNet(patch_size=patch_size,
                                         out_shape=out_shape)
 
 # for the cascade we input the masks of the previous stage
-model_params['data']['folders'] = ['images', 'labels', 'prev_stages']
-model_params['data']['keys'] = ['image', 'label', 'prev_stage']
+model_params['data']['folders'] = ['images', 'labels', 'prev_preds']
+model_params['data']['keys'] = ['image', 'label', 'prev_pred']
 model_params['network']['in_channels'] = 1 + n_fg_classes
 model_params['training']['num_epochs'] = 100
 model_params['network']['filters'] = 8

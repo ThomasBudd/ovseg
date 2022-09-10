@@ -49,18 +49,18 @@ n_2d_convs = 1
 use_prg_trn = True # on low resolution prg trn can harm the performance
 n_fg_classes = 1
 use_fp32 = False
-out_shapes = [[24, 64, 64], [32, 64, 64], [32, 80, 80], [48, 96, 96]]
+out_shape = [[24, 64, 64], [32, 64, 64], [32, 80, 80], [48, 96, 96]]
 model_params = get_model_params_3d_UNet(patch_size=patch_size,
                                         n_2d_convs=n_2d_convs,
                                         use_prg_trn=use_prg_trn,
                                         n_fg_classes=n_fg_classes,
                                         fp32=use_fp32,
-                                        out_shapes=out_shapes)
+                                        out_shape=out_shape)
 
 # for the cascade we input the masks of the previous stage
 model_params['network']['in_channels'] = 2
-model_params['data']['folders'] = ['images', 'labels', 'prev_stages']
-model_params['data']['keys'] = ['image', 'label', 'prev_stage']
+model_params['data']['folders'] = ['images', 'labels', 'prev_preds']
+model_params['data']['keys'] = ['image', 'label', 'prev_pred']
 
 model = SegmentationModelV2(val_fold=val_fold,
                             data_name=data_name,
