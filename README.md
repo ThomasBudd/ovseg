@@ -28,16 +28,16 @@ To run inference or training you first need to store the datasets in a particula
 If you're using **nifti files** create a folder called 'images' in $OV_DATA_BASE\raw_data\DATASET_NAME and simply put all images in there. In the case of training create a second folder called 'labels' with the corresponding segmentations. The segmentation files should have the same names as the image files or follow the Medical Decathlon naming convention (image: case_xyz_0000.nii.gz, seg: case_xyz.nii.gz). For example
 
 	OV_DATA_BASE/raw_data/DATASET_NAME/
-	├── images
-│   ├── case_001_0000.nii.gz
-│   ├── case_002_0000.nii.gz
-│   ├── case_003_0000.nii.gz
-│   ├── ...
-├── labels
-│   ├── case_001.nii.gz
-|   |── case_002.nii.gz
-│   ├── case_003.nii.gz
-│   ├── ...
+		├── images
+	│   ├── case_001_0000.nii.gz
+	│   ├── case_002_0000.nii.gz
+	│   ├── case_003_0000.nii.gz
+	│   ├── ...
+	├── labels
+	│   ├── case_001.nii.gz
+	|   |── case_002.nii.gz
+	│   ├── case_003.nii.gz
+	│   ├── ...
    
 
 For **dicom images** any type of folder structure is allowed. Make sure that only axial reconstructions are contained in your dataset, the code won't remove other types of reconstructions such as topograms or sagital slices by itself. The code also assumes that all dicoms found in one folder belong to the same reconstruction, make sure that each reconstruction is contained in a seperate folder. If you're performing training, include the segmentations as dicomrt files. Each folder with reconstruction dicoms should have exactly one additional dicomrt file with the corresponding segmentation. Missing segmentations are interpreted as empty segmentations masks (only backgorund).
@@ -45,7 +45,7 @@ For **dicom images** any type of folder structure is allowed. Make sure that onl
 Examples are
 
 	OV_DATA_BASE/raw_data/DATASET_NAME/
-   	├── patient1
+   		├── patient1
     	│   ├── segmentation.dcm
     	│   ├── slice1.dcm
     	│   ├── slice2.dcm
@@ -61,7 +61,7 @@ Examples are
 Or
 
 	OV_DATA_BASE/raw_data/DATASET_NAME/
-   	├── patient1
+   		├── patient1
     	│   ├── timepoint1
     	|   │   ├── segmentation.dcm
     	|   │   ├── slice1.dcm
