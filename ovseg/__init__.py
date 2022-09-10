@@ -7,6 +7,9 @@ if 'OV_DATA_BASE' not in os.environ:
           'sure your system know where is it, because here all '
           'raw data, predictions as well as the trained models '
           'are kept.')
+else:    
+    OV_DATA_BASE = os.environ['OV_DATA_BASE']
+
 
 if 'OV_PREPROCESSED' in os.environ:
     OV_PREPROCESSED = os.environ['OV_PREPROCESSED']

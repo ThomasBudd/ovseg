@@ -121,11 +121,12 @@ def get_model_params_2d_segmentation(n_fg_classes=1,
     return model_parameters
 
 
-def get_model_params_3d_nnUNet(patch_size,
-                               n_2d_convs,
-                               use_prg_trn=False,
-                               n_fg_classes=1,
-                               fp32=False):
+def get_model_params_3d_UNet(patch_size,
+                             n_2d_convs,
+                             use_prg_trn=False,
+                             n_fg_classes=1,
+                             fp32=False,
+                             out_shape=None):
     model_params = get_model_params_2d_segmentation(n_fg_classes=n_fg_classes,
                                                     fp32=fp32)
 
@@ -138,7 +139,7 @@ def get_model_params_3d_nnUNet(patch_size,
         psb[j:] = psb[j:] // 2
         kernel_sizes.append((1, 3, 3) if len(kernel_sizes) < n_2d_convs else (3, 3, 3))
         i += 1
-
+    
     kernel_sizes_up = []
     for i in range(len(kernel_sizes) - 1):
         if kernel_sizes[i] == (1, 3, 3) and kernel_sizes[i+1] == (1, 3, 3):
@@ -147,16 +148,24 @@ def get_model_params_3d_nnUNet(patch_size,
             kernel_sizes_up.append((3, 3, 3))
 
     if use_prg_trn:
-        total_pooling = np.ones(3).astype(int)
-        for ks in kernel_sizes[:-1]:
-            total_pooling *= (np.array(ks) + 1) // 2
-
-        size_lowest_block = np.array(patch_size) // total_pooling
-        prg_trn_sizes = total_pooling * np.stack([(np.linspace(s, s/2, 4)+0.5).astype(int)
-                                                  for s in size_lowest_block], 1)
-        if total_pooling[0] < total_pooling[1]:
-            prg_trn_sizes[:, 0] = patch_size[0]
-        prg_trn_sizes = prg_trn_sizes.tolist()[::-1]
+        
+        assert isinstance(out_shape, list), "out_shapes must be given as a list of shapes introduced to the network in each stage"
+        
+        # padded for the augmentation
+        prg_trn_sizes = [[s[0], 2*s[1], 2*s[2]] for s in out_shape]
+        
+        c = 4
+        prg_trn_aug_params = {}
+        prg_trn_aug_params['mm_var_noise'] = np.array([[0, 0.1/c], [0, 0.1]])
+        prg_trn_aug_params['mm_sigma_blur'] = np.array([[0.5/c, 0.5 + 1/c], [0.5, 1.5]])
+        prg_trn_aug_params['mm_bright'] = np.array([[1 - 0.3/c, 1 + 0.3/c], [0.7, 1.3]])
+        prg_trn_aug_params['mm_contr'] = np.array([[1 - 0.35/c, 1 + 0.5/c], [0.65, 1.5]])
+        prg_trn_aug_params['mm_low_res'] = np.array([[1, 1 + 1/c], [1, 2]])
+        prg_trn_aug_params['mm_gamma'] = np.array([[1 - 0.3/c, 1 + 0.5/c], [0.7, 1.5]])
+        prg_trn_aug_params['out_shape'] = out_shape
+        model_params['training']['prg_trn_sizes'] = prg_trn_sizes
+        model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
+        model_params['training']['prg_trn_resize_on_the_fly'] = False
     else:
         prg_trn_sizes = None
 
@@ -164,6 +173,14 @@ def get_model_params_3d_nnUNet(patch_size,
     model_params['network']['kernel_sizes'] = kernel_sizes
     model_params['network']['kernel_sizes_up'] = kernel_sizes_up
     model_params['network']['is_2d'] = False
+    
+    
+    model_params['training']['lr_schedule'] = 'lin_ascent_cos_decay'
+    model_params['training']['lr_params'] = {'n_warmup_epochs': 50, 'lr_max': 0.02}
+    model_params['training']['opt_params'] = {'momentum': 0.99,
+                                              'weight_decay': 3e-5,
+                                              'nesterov': True,
+                                              'lr': 2*10**-2}
 
     padded_patch_size = patch_size.copy()
     padded_patch_size[1] = padded_patch_size[1] * 2
@@ -187,7 +204,7 @@ def get_model_params_3d_nfUNet(patch_size,
                                use_prg_trn=False,
                                n_fg_classes=1,
                                fp32=False):
-    model_params = get_model_params_3d_nnUNet(patch_size,
+    model_params = get_model_params_3d_UNet(patch_size,
                                               n_2d_convs,
                                               use_prg_trn,
                                               n_fg_classes,
@@ -205,7 +222,7 @@ def get_model_params_3d_nfUNet(patch_size,
 def get_model_params_3d_res_encoder_U_Net(patch_size, z_to_xy_ratio, use_prg_trn=False,
                                           n_fg_classes=1, fp32=False, out_shape=None,
                                           larger_res_encoder=False):
-    model_params = get_model_params_3d_nnUNet(patch_size, n_2d_convs=0, use_prg_trn=use_prg_trn,
+    model_params = get_model_params_3d_UNet(patch_size, n_2d_convs=0, use_prg_trn=use_prg_trn,
                                               n_fg_classes=n_fg_classes, fp32=fp32)
     if out_shape is None and use_prg_trn:
         raise ValueError('Specify the out_shapes when using progressive training')
@@ -222,27 +239,6 @@ def get_model_params_3d_res_encoder_U_Net(patch_size, z_to_xy_ratio, use_prg_trn
         model_params['network']['n_blocks_list'] = [1, 1, 2, 6, 3]
     else:
         model_params['network']['n_blocks_list'] = [1, 2, 6, 3]
-    if use_prg_trn:
-        prg_trn_sizes = np.array(out_shape)
-        prg_trn_sizes[:, 1:] *= 2
-        c = 4
-        prg_trn_aug_params = {}
-        prg_trn_aug_params['mm_var_noise'] = np.array([[0, 0.1/c], [0, 0.1]])
-        prg_trn_aug_params['mm_sigma_blur'] = np.array([[0.5/c, 0.5 + 1/c], [0.5, 1.5]])
-        prg_trn_aug_params['mm_bright'] = np.array([[1 - 0.3/c, 1 + 0.3/c], [0.7, 1.3]])
-        prg_trn_aug_params['mm_contr'] = np.array([[1 - 0.35/c, 1 + 0.5/c], [0.65, 1.5]])
-        prg_trn_aug_params['mm_low_res'] = np.array([[1, 1 + 1/c], [1, 2]])
-        prg_trn_aug_params['mm_gamma'] = np.array([[1 - 0.3/c, 1 + 0.5/c], [0.7, 1.5]])
-        prg_trn_aug_params['out_shape'] = out_shape
-        model_params['training']['prg_trn_sizes'] = prg_trn_sizes
-        model_params['training']['prg_trn_aug_params'] = prg_trn_aug_params
-        model_params['training']['prg_trn_resize_on_the_fly'] = False
-    model_params['training']['lr_schedule'] = 'lin_ascent_cos_decay'
-    model_params['training']['lr_params'] = {'n_warmup_epochs': 50, 'lr_max': 0.02}
-    model_params['training']['opt_params'] = {'momentum': 0.99,
-                                              'weight_decay': 3e-5,
-                                              'nesterov': True,
-                                              'lr': 2*10**-2}
     return model_params        
 
 def get_model_params_effUNet(patch_size=[32, 256, 256],
@@ -293,7 +289,7 @@ def get_model_params_3d_cascade(prev_stage_preprocessed_name,
                                 use_prg_trn=False,
                                 n_fg_classes=1,
                                 fp32=False):
-    model_params = get_model_params_3d_nnUNet(patch_size=patch_size,
+    model_params = get_model_params_3d_UNet(patch_size=patch_size,
                                               n_2d_convs=n_2d_convs,
                                               use_prg_trn=use_prg_trn,
                                               n_fg_classes=n_fg_classes,
@@ -361,5 +357,5 @@ def get_model_params_3d_from_preprocessed_folder(data_name,
 
     n_fg_classes = prep_params['dataset_properties']['n_fg_classes']
 
-    return get_model_params_3d_nnUNet(patch_size, n_2d_convs, use_prg_trn=use_prg_trn,
+    return get_model_params_3d_UNet(patch_size, n_2d_convs, use_prg_trn=use_prg_trn,
                                       n_fg_classes=n_fg_classes, fp32=fp32)
