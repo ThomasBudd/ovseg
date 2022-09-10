@@ -29,15 +29,15 @@ If you're using **nifti files** create a folder called 'images' in $OV_DATA_BASE
 
 	OV_DATA_BASE/raw_data/DATASET_NAME/
 		├── images
-	│   ├── case_001_0000.nii.gz
-	│   ├── case_002_0000.nii.gz
-	│   ├── case_003_0000.nii.gz
-	│   ├── ...
-	├── labels
-	│   ├── case_001.nii.gz
-	|   |── case_002.nii.gz
-	│   ├── case_003.nii.gz
-	│   ├── ...
+		│   ├── case_001_0000.nii.gz
+		│   ├── case_002_0000.nii.gz
+		│   ├── case_003_0000.nii.gz
+		│   ├── ...
+		├── labels
+		│   ├── case_001.nii.gz
+		|   |── case_002.nii.gz
+		│   ├── case_003.nii.gz
+		│   ├── ...
    
 
 For **dicom images** any type of folder structure is allowed. Make sure that only axial reconstructions are contained in your dataset, the code won't remove other types of reconstructions such as topograms or sagital slices by itself. The code also assumes that all dicoms found in one folder belong to the same reconstruction, make sure that each reconstruction is contained in a seperate folder. If you're performing training, include the segmentations as dicomrt files. Each folder with reconstruction dicoms should have exactly one additional dicomrt file with the corresponding segmentation. Missing segmentations are interpreted as empty segmentations masks (only backgorund).
