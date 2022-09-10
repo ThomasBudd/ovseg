@@ -152,9 +152,11 @@ class raw_Dataset(object):
                                 prev_stage['preprocessed_name'],
                                 prev_stage['model_name']])
                 raw_data_name = basename(self.raw_path)
-                fols = [f for f in listdir(p) if f.startswith(raw_data_name)]
-                if len(fols) == 0 and prev_stage['data_name'] == raw_data_name:
+                
+                if prev_stage['data_name'] == raw_data_name:
                     fols = ['cross_validation']
+                else:
+                    fols = [f for f in listdir(p) if f.startswith(raw_data_name)]
                         
                 if len(fols) != 1:
                     raise FileNotFoundError('Could not identify nifti folder from previous stage '
