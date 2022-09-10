@@ -1,6 +1,7 @@
 A deep learning based library for segmentation of high grade serous ovarian cancer on CT images.
-The library contains the code and the finals models created during my PhD Thesis: https://doi.org/10.17863/CAM.87940
-While the code was mostly used for ovarian cancer segmentation, the library is general purpose and can be used to train other kind of segmentation models.
+The library contains the code and the finals models created during my [PhD Thesis](https://doi.org/10.17863/CAM.87940).
+
+While the code was mostly used for ovarian cancer segmentation, the library is general purpose and can be used to train other kind of segmentation models. Uncertainty Quantification based method will be added soon.
 
 The code design is in some ways simliar to the nnU-Net library (https://github.com/MIC-DKFZ/nnUNet). Many thanks to the authors for sharing their code and letting me learn from it.
 
@@ -26,54 +27,54 @@ To run inference or training you first need to store the datasets in a particula
 
 If you're using **nifti files** create a folder called 'images' in $OV_DATA_BASE\raw_data\DATASET_NAME and simply put all images in there. In the case of training create a second folder called 'labels' with the corresponding segmentations. The segmentation files should have the same names as the image files or follow the Medical Decathlon naming convention (image: case_xyz_0000.nii.gz, seg: case_xyz.nii.gz). For example
 
-OV_DATA_BASE/raw_data/DATASET_NAME/
-    ├── images
-    │   ├── case_001_0000.nii.gz
-    │   ├── case_002_0000.nii.gz
-    │   ├── case_003_0000.nii.gz
-    │   ├── ...
-    ├── labels
-    │   ├── case_001.nii.gz
-    │   ├── case_002.nii.gz
-    │   ├── case_003.nii.gz
-    │   ├── ...
+	OV_DATA_BASE/raw_data/DATASET_NAME/
+	├── images
+  	│   ├── case_001_0000.nii.gz
+    	│   ├── case_002_0000.nii.gz
+    	│   ├── case_003_0000.nii.gz
+   	│   ├── ...
+  	├── labels
+ 	│   ├── case_001.nii.gz
+    	|   |── case_002.nii.gz
+    	│   ├── case_003.nii.gz
+    	│   ├── ...
    
 
 For **dicom images** any type of folder structure is allowed. Make sure that only axial reconstructions are contained in your dataset, the code won't remove other types of reconstructions such as topograms or sagital slices by itself. The code also assumes that all dicoms found in one folder belong to the same reconstruction, make sure that each reconstruction is contained in a seperate folder. If you're performing training, include the segmentations as dicomrt files. Each folder with reconstruction dicoms should have exactly one additional dicomrt file with the corresponding segmentation. Missing segmentations are interpreted as empty segmentations masks (only backgorund).
 
 Examples are
 
-OV_DATA_BASE/raw_data/DATASET_NAME/
-    ├── patient1
-    │   ├── segmentation.dcm
-    │   ├── slice1.dcm
-    │   ├── slice2.dcm
-    │   ├── slice3.dcm
-    │   ├── ...
-    ├── patient2
-    │   ├── ...
-    ├── patient3
-    │   ├── ...
-    ├── ...
+	OV_DATA_BASE/raw_data/DATASET_NAME/
+   	├── patient1
+    	│   ├── segmentation.dcm
+    	│   ├── slice1.dcm
+    	│   ├── slice2.dcm
+    	│   ├── slice3.dcm
+    	│   ├── ...
+    	├── patient2
+    	│   ├── ...
+    	├── patient3
+    	│   ├── ...
+    	├── ...
 
 
 Or
 
-OV_DATA_BASE/raw_data/DATASET_NAME/
-    ├── patient1
-    │   ├── timepoint1
-    |   │   ├── segmentation.dcm
-    |   │   ├── slice1.dcm
-    │   |   ├── slice2.dcm
-    │   |   ├── slice3.dcm
-    │   |   ├── ...
-    │   ├── timepoint2
-    │   |   ├── ...
-    ├── patient2
-    │   ├── ...
-    ├── patient3
-    │   ├── ...
-    ├── ...
+	OV_DATA_BASE/raw_data/DATASET_NAME/
+   	├── patient1
+    	│   ├── timepoint1
+    	|   │   ├── segmentation.dcm
+    	|   │   ├── slice1.dcm
+    	│   |   ├── slice2.dcm
+    	│   |   ├── slice3.dcm
+    	│   |   ├── ...
+    	│   ├── timepoint2
+    	│   |   ├── ...
+    	├── patient2
+    	│   ├── ...
+    	├── patient3
+    	│   ├── ...
+    	├── ...
 
 Or a mixture of the above. Note that it is not necessary to rename your dcm files to "segmentation.dcm" or "sliceX.dcm", the library will recognise it automatically.
 
