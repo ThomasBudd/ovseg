@@ -113,6 +113,17 @@ For example, training on 100% of the data (no validation) the model for the main
 
 # Runing training for new segmentaiton problems
 
-One advantage of ovseg is that it is very simple to run training, inference and modify hyper-parameters. For this you need to set up a new training scripts such as preprocess_ovarian_data.py and run_training.py.
+One advantage of ovseg is that it is very simple to run training, inference and modify hyper-parameters for you own data.
+For this it is necessary to write you own preprocessing and training scripts such as the previously mentioned 'preprocess_ovaraian_data.py' and 'run_training.py'.
+Check out the example_scripts folder for helpful code templates. The templates demonstrates how to train models e.g. for the kits21 dataset including cascade models (full resolution models refining low resolution models), or deep supervision models (first segmenting the kidney, then searching tumors only inside the kidney).
 
+Make sure to give a unique model_name to each model once you change hyper-parameters. The trained models can be found at OV_DATA_BASE/trained_models/data_name/preprocessed_name/model_name.
+This folder will contain information on the hyper-parameters used, network weights (for each fold trained), training checkpoints and result files on the model evaluation on validation or test data.
+Similarly, the predictions can be found at OV_DATA_BASE/predictions/data_name/preprocessed_name/model_name. In case your raw_data was given in DICOM format, the predictions will be stored as nifti and DICOM files. If the raw data was given in nifti format, the predictions will be stored only in nifti format.
+
+For more explanation on how the library works and details on the model hyper-parameters, please see the manual (will be added soon).
+
+# Computing uncertainty quantification heatmaps
+
+to be added soon.
 
