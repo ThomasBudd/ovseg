@@ -19,7 +19,7 @@ val_fold = 0
 # z axis first, then xy
 patch_size = [32, 256, 256]
 # for standard UNet the number of inplane convolutions
-n_2d_convs = 2
+n_2d_convs = 3
 # wheter to use progressive learning or not. I often found it to have no
 # effect on the performance, but reduces training time by up to 40%
 use_prg_trn = True
