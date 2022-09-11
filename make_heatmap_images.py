@@ -6,7 +6,7 @@ import shutil
 from tqdm import tqdm
 
 plotp = os.path.join(os.environ['OV_DATA_BASE'], 'plots', 'OV04',
-                     'pod_om_4fCV', 'new_heatmaps')
+                     'pod_om_4fCV', 'new_new_heatmaps')
 
 predp = os.path.join(os.environ['OV_DATA_BASE'],
                      'predictions',
@@ -44,7 +44,8 @@ bb_list = [[100, 356, 128, 384],
            [50, 306, 128, 384]]
 cl_list = [9,9,1]
 
-P = np.load(os.path.join(predp, 'P_cross_validation.npy'))
+# P = np.load(os.path.join(predp, 'P_cross_validation.npy'))
+coefs = np.load(os.path.join(predp, 'coefs_v3.npy'))
 for ds_name, case, z, bb, cl in tqdm(zip(ds_list, case_list, z_list, bb_list, cl_list)):
     
     imp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', ds_name, 'images')
@@ -81,7 +82,7 @@ for ds_name, case, z, bb, cl in tqdm(zip(ds_list, case_list, z_list, bb_list, cl
     
     # compute new heatmap
     c = 0 if cl == 1 else 1
-    a_w_list = np.diff(np.concatenate([[0],P[:, c]]))
+    a_w_list = coefs[c]#np.diff(np.concatenate([[0],P[:, c]]))
     
     for pred, a_w in zip(preds_cal, a_w_list):
         
@@ -121,9 +122,11 @@ for ds_name, case, z, bb, cl in tqdm(zip(ds_list, case_list, z_list, bb_list, cl
 
 # %%
 
-P = np.load(os.path.join(predp, 'P_cross_validation.npy'))
+coefs = np.load(os.path.join(predp, 'coefs_v3.npy'))
+# P = np.load(os.path.join(predp, 'P_cross_validation.npy'))
+P = np.cumsum(coefs, 1)
 for c, cl in enumerate([1, 9]):
-    p = np.concatenate([[0],P[:, c]])[::-1]
+    p = np.concatenate([[0],P[c]])[::-1]
 
     plt.imshow(p[:, np.newaxis], cmap='hot', vmax=1)
     for i in range(len(p)):
@@ -176,7 +179,8 @@ case_list = os.listdir(os.path.join(predp,'UQ_calibrated_0.00', 'kits21_tst_ense
 imp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', 'kits21', 'images')
 lbp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', 'kits21', 'labels')
 
-P = np.load(os.path.join(predp, 'P_cross_validation.npy'))
+# P = np.load(os.path.join(predp, 'P_cross_validation.npy'))
+coefs = np.load(os.path.join(predp, 'coefs_v3.npy'))
 cl = 2
 ds_name = 'kits21_tst'
 for case in tqdm(case_list):
@@ -205,7 +209,7 @@ for case in tqdm(case_list):
         hm_new = np.zeros_like(segs[0])
             
         # compute new heatmap
-        a_w_list = np.diff(np.concatenate([[0],P[:, 0]]))
+        a_w_list = coefs#np.diff(np.concatenate([[0],P[:, 0]]))
         
         for pred, a_w in zip(preds_cal, a_w_list):
             
@@ -251,7 +255,9 @@ for case in tqdm(case_list):
 
 # %%
 cl = 2
-p = np.concatenate([[0],P[:, 0]])[::-1]
+coefs = np.load(os.path.join(predp, 'coefs_v3.npy'))
+P = np.cumsum(coefs)
+p = np.concatenate([[0],P])[::-1]
 
 plt.imshow(p[:, np.newaxis], cmap='hot', vmax=1)
 for i in range(len(p)):
@@ -276,3 +282,77 @@ for i, seg in enumerate(segs):
     
     plt.subplot(2,3, i+1)
     plt.imshow(seg[z, 250:350, 50:150])
+
+# %%
+d = 64
+
+predp = os.path.join(os.environ['OV_DATA_BASE'],
+                     'predictions',
+                     'kits21_trn',
+                     'disease_3_1')
+
+imp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', 'kits21', 'images')
+lbp = os.path.join(os.environ['OV_DATA_BASE'], 'raw_data', 'kits21', 'labels')
+
+ds_name = 'kits21_tst'
+cl=2
+a_w_list = np.load(os.path.join(predp, 'coefs_v3.npy'))
+
+case = 'case_00001.nii.gz'
+
+case_id = case.split('.')[0]
+p = f'D:\\PhD\\kits21\\kits21\\data\\{case_id}\\segmentations'
+seg_files = [s for s in os.listdir(p) if s.startswith('tumor')]
+n_instances = len(seg_files) // 3
+n = 2
+segs = [nib.load(os.path.join(p,s)).get_fdata() for s in os.listdir(p) if s.startswith(f'tumor_instance-{n}')]
+                
+im = nib.load(os.path.join(imp, case)).get_fdata().clip(-50, 150)
+im = (im+50)/200
+preds_cal = [nib.load(os.path.join(predp,
+                                   f'UQ_calibrated_{w:.2f}',
+                                   f'{ds_name}_ensemble_0_1_2',
+                                   case)).get_fdata()
+             for w in range(-3,4)]        
+
+hm_new = np.zeros_like(segs[0])
+
+for pred, a_w in zip(preds_cal, a_w_list):
+    
+    hm_new += a_w * (pred == cl).astype(float)
+
+z = np.argmax(np.sum(segs[0], (1,2)))
+X,Y = np.where(segs[0][z])
+x, y = int(np.median(X)), int(np.median(Y))
+bb = [np.max([0, x-d]), np.min([512, x+d]),
+      np.max([0, y-d]), np.min([512, y+d])]
+# %%
+plt.close()
+plt.subplot(2,2,1)
+plt.imshow(im[z, bb[0]:bb[1],bb[2]:bb[3]], cmap='bone', vmax=1)
+hm_gt = np.mean(np.stack(segs, 0), 0)
+plt.imshow(hm_gt[z, bb[0]:bb[1],bb[2]:bb[3]], cmap='hot', alpha=a, vmax=1)
+plt.axis('off')
+plt.subplot(2,2,2)
+plt.imshow(im[z, bb[0]:bb[1],bb[2]:bb[3]], cmap='bone', vmax=1)
+plt.imshow(hm_new[z, bb[0]:bb[1],bb[2]:bb[3]], cmap='hot', alpha=a, vmax=1)
+plt.axis('off')
+
+x_max = np.argmax(np.sum(hm_gt[z], 1))
+plt.subplot(2,2,3)
+plt.plot(hm_gt[z, x_max, bb[2]:bb[3]], 'b')
+plt.plot(hm_new[z, x_max, bb[2]:bb[3]], 'r')
+
+bp_data = [hm_new[hm_gt == i/3] for i in [1,2,3]]
+
+# %%
+
+k = 100
+p = np.linspace(0,1,11)[::-1]
+P = np.linspace(0,1,11*k)[::-1]
+plt.imshow(P[:, np.newaxis] * np.ones((1,k)), cmap='hot', vmax=1)
+for i in range(len(p)):
+    plt.text(k*1.1, i*11/10*k, f'{p[i]:.1f}', fontsize=20)
+
+
+plt.axis('off')
