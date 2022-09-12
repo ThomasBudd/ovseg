@@ -44,7 +44,7 @@ if not os.path.exists(os.path.join(OV_PREPROCESSED, data_name, preprocessed_name
 
 # %% now get hyper-parameters for low resolution and train
 patch_size = [32, 256, 256]
-n_2d_convs = 2
+n_2d_convs = 3
 use_prg_trn = False # on low resolution prg trn can harm the performance
 n_fg_classes = 1
 use_fp32 = False
@@ -126,7 +126,7 @@ if not os.path.exists(os.path.join(OV_PREPROCESSED, data_name, preprocessed_name
 
 # %% now get hyper-parameters for full resolution and train
 patch_size = [32, 256, 256]
-n_2d_convs = 2
+n_2d_convs = 3
 use_prg_trn = True
 n_fg_classes = 1
 use_fp32 = False
