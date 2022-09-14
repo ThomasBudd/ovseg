@@ -160,7 +160,7 @@ class SegmentationModel(ModelBase):
         # in one file and the use
         # from FILE import __dict__
         # self.network = __dict__[self.model_paramters['architecture']]
-        arc = self.model_parameters['network']['architecture']
+        arc = self.model_parameters['architecture']
         params = self.model_parameters['network']
         for key in networks_dict:
             # check case insensitive for matching architecture
