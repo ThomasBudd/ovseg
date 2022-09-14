@@ -17,8 +17,7 @@ from ovseg.preprocessing.SegmentationPreprocessing import SegmentationPreprocess
 from ovseg.augmentation.SegmentationAugmentation import SegmentationAugmentation
 from ovseg.data.SegmentationData import SegmentationData
 from ovseg.data.Dataset import raw_Dataset
-from ovseg.networks.UNet import UNet
-from ovseg.networks.resUNet import UNetResEncoder, UNetResEncoderV2, UNetResDecoder, UResNet, UNetResStemEncoder, UNetResShuffleEncoder
+from ovseg.networks import __dict__ as networks_dict
 from ovseg.training.SegmentationTraining import SegmentationTraining, SegmentationTrainingV2
 from ovseg.prediction.SlidingWindowPrediction import SlidingWindowPrediction
 from ovseg.postprocessing.SegmentationPostprocessing import SegmentationPostprocessing
@@ -161,24 +160,17 @@ class SegmentationModel(ModelBase):
         # in one file and the use
         # from FILE import __dict__
         # self.network = __dict__[self.model_paramters['architecture']]
-        params = self.model_parameters['network'].copy()
-        if self.model_parameters['architecture'].lower() in ['unet', 'u-net']:
-            self.network = UNet(**params).to(self.dev)
-        elif self.model_parameters['architecture'].lower() == 'unetresencoder':
-            self.network = UNetResEncoder(**params).to(self.dev)
-        elif self.model_parameters['architecture'].lower() == 'unetresencoderv2':
-            self.network = UNetResEncoderV2(**params).to(self.dev)
-        elif self.model_parameters['architecture'].lower() == 'unetresdecoder':
-            self.network = UNetResDecoder(**params).to(self.dev)
-        elif self.model_parameters['architecture'].lower() == 'uresnet':
-            self.network = UResNet(**params).to(self.dev)
-        elif self.model_parameters['architecture'].lower() == 'unetresstemencoder':
-            self.network = UNetResStemEncoder(**params).to(self.dev)
-        elif self.model_parameters['architecture'].lower() == 'unetresshuffleencoder':
-            self.network = UNetResShuffleEncoder(**params).to(self.dev)
-        else:
-            raise ValueError('Got unkown architecture '+self.model_parameters['architecture'])
-
+        arc = self.model_parameters['network']['architecture']
+        params = self.model_parameters['network']
+        for key in networks_dict:
+            # check case insensitive for matching architecture
+            if key.lower() == arc.lower():
+                self.network = networks_dict[key](**params).to(self.dev)
+        
+        if not hasattr(self, 'network'):
+            raise ValueError(f'Architecture {arc} not found.'
+                             'Make sure it is imported in ovseg.network.__init__.py')
+        
     def initialise_prediction(self):
         # by default we take the same batch size as we used during training for inference
         # but in theory we should also be able to use a larger one to seep up everything
