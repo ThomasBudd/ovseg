@@ -194,6 +194,8 @@ def get_model_params_3d_UNet(patch_size,
         model_params['data'][key]['batch_size'] = 2
         model_params['data'][key]['min_biased_samples'] = 1
         model_params['data'][key]['padded_patch_size'] = padded_patch_size
+        model_params['data'][key]['bias'] = 'cl_fg'
+        model_params['data'][key]['n_fg_classes'] = n_fg_classes
 
     model_params['prediction']['patch_size'] = patch_size
 
