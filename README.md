@@ -121,7 +121,7 @@ Make sure to give a unique model_name to each model once you change hyper-parame
 This folder will contain information on the hyper-parameters used, network weights (for each fold trained), training checkpoints and result files on the model evaluation on validation or test data.
 Similarly, the predictions can be found at OV_DATA_BASE/predictions/data_name/preprocessed_name/model_name. In case your raw_data was given in DICOM format, the predictions will be stored as nifti and DICOM files. If the raw data was given in nifti format, the predictions will be stored only in nifti format.
 
-For more explanation on how the library works and details on the model hyper-parameters, please see the manual (will be added soon).
+For more explanation on how the library works and details on the model hyper-parameters, please see the manual (ovseg_manual.pdf).
 
 # Computing uncertainty quantification heatmaps
 
