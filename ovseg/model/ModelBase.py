@@ -278,8 +278,9 @@ class ModelBase(object):
                 file.write('GLOBAL RESULTS:\n')
                 file.write('\n')
                 for metric in self.global_metrics:
-                    s = metric+': '+self.fmt_write+'\n'
-                    file.write(s.format(self.global_metrics[metric]))
+                    if not metric.startswith('_'):
+                        s = metric+': '+self.fmt_write+'\n'
+                        file.write(s.format(self.global_metrics[metric]))
 
             # now the per volume results from the results dict
             # here the mean and median
