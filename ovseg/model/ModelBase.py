@@ -253,7 +253,11 @@ class ModelBase(object):
             names_for_txt = {k: k for k in results.keys()}
 
         # thats the easy part!
-        io.save_pkl(results, join(path_to_store, file_name+'.pkl'))
+        io.save_pkl(results, join(path_to_store, file_name+'_per_scan.pkl'))
+        
+        if hasattr(self, 'global_metrics'):
+            if len(self.global_metrics) > 0:
+                io.save_pkl(self.global_metrics, join(path_to_store, file_name+'_global.pkl'))
 
         # now writing everything to a txt file we can nicely look at
         # yeah this might be stupid but it helped me couple of times in the
@@ -341,7 +345,7 @@ class ModelBase(object):
             # first check if the two results file exist
             # if the files do not exist we have an indicator that we have to repeat
             # the evaluation
-            do_evaluation = not np.all([exists(join(self.model_path, ds_name+'_results.'+ext))
+            do_evaluation = not np.all([exists(join(self.model_path, ds_name+'_results_per_scan.'+ext))
                                         for ext in ['txt', 'pkl']])
 
             if save_preds:
@@ -422,14 +426,20 @@ class ModelBase(object):
         merged_results = {}
         all_folds = [fold for fold in os.listdir(self.model_cv_path) if fold.startswith('fold')]
         for fold in all_folds:
-            if ds_name+'_results.pkl' in os.listdir(os.path.join(self.model_cv_path, fold)):
+            if ds_name+'_results_per_scan.pkl' in os.listdir(os.path.join(self.model_cv_path, fold)):
                 fold_results = io.load_pkl(os.path.join(self.model_cv_path, fold,
-                                                        ds_name+'_results.pkl'))
+                                                        ds_name+'_results_per_scan.pkl'))
                 merged_results.update({key+'_'+fold: fold_results[key] for key in fold_results})
+        
+        self._merge_global_results_to_CV(ds_name)
+        
         # the merged results are kept in the model_cv_path
         self._save_results_to_pkl_and_txt(merged_results,
                                           self.model_cv_path,
                                           ds_name=ds_name+'_CV')
+
+    def _merge_global_results_to_CV(self, ds_name):
+        print('merging no global metrics')
 
     def eval_validation_set(self, save_preds=True, save_plots=False, force_evaluation=False):
         if not hasattr(self.data, 'val_ds'):

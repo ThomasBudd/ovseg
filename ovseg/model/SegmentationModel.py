@@ -475,12 +475,11 @@ class SegmentationModel(ModelBase):
         return results
 
     def _init_global_metrics(self):
-        self.global_metrics_helper = {}
         self.global_metrics = {}
         for c in self.lb_classes:#range(1, self.n_fg_classes + 1):
-            self.global_metrics_helper.update({s+str(c): 0 for s in ['overlap_',
-                                                                     'gt_volume_',
-                                                                     'pred_volume_']})
+            self.global_metrics.update({s+str(c): 0 for s in ['_overlap_',
+                                                              '_gt_volume_',
+                                                              '_pred_volume_']})
             self.global_metrics.update({'dice_'+str(c): -1,
                                         'recall_'+str(c): -1,
                                         'precision_'+str(c): -1})
@@ -511,9 +510,9 @@ class SegmentationModel(ModelBase):
         for c in self.lb_classes:#range(1, self.n_fg_classes + 1):
             lb_c = (seg == c).astype(float)
             pred_c = (pred == c).astype(float)
-            ovlp = self.global_metrics_helper['overlap_'+str(c)] + np.sum(lb_c * pred_c) * fac
-            gt_vol = self.global_metrics_helper['gt_volume_'+str(c)] + np.sum(lb_c) * fac
-            pred_vol = self.global_metrics_helper['pred_volume_'+str(c)] + np.sum(pred_c) * fac
+            ovlp = self.global_metrics['_overlap_'+str(c)] + np.sum(lb_c * pred_c) * fac
+            gt_vol = self.global_metrics['_gt_volume_'+str(c)] + np.sum(lb_c) * fac
+            pred_vol = self.global_metrics['_pred_volume_'+str(c)] + np.sum(pred_c) * fac
             # update global dice, recall and precision
             if gt_vol + pred_vol > 0:
                 self.global_metrics['dice_'+str(c)] = 200 * ovlp / (gt_vol + pred_vol)
@@ -528,10 +527,46 @@ class SegmentationModel(ModelBase):
             else:
                 self.global_metrics['precision_'+str(c)] = 100 if gt_vol == 0 else 0
 
-            # now update global metrics helper
-            self.global_metrics_helper['overlap_'+str(c)] = ovlp
-            self.global_metrics_helper['gt_volume_'+str(c)] = gt_vol
-            self.global_metrics_helper['pred_volume_'+str(c)] = pred_vol
+            # now update global metrics helpers
+            self.global_metrics['_overlap_'+str(c)] = ovlp
+            self.global_metrics['_gt_volume_'+str(c)] = gt_vol
+            self.global_metrics['_pred_volume_'+str(c)] = pred_vol
+    
+    def _merge_global_results_to_CV(self, ds_name):
+        
+        # reset global metrics
+        self._init_global_metrics()
+        
+        # load globale results from all folds
+        all_folds = [fold for fold in listdir(self.model_cv_path) if fold.startswith('fold')]
+        for fold in all_folds:
+            if ds_name+'_results_per_scan.pkl' in listdir(join(self.model_cv_path, fold)):
+                fold_results = load_pkl(join(self.model_cv_path, fold,
+                                             ds_name+'_results_global.pkl'))
+                
+                # update overlap and volumes
+                for key in fold_results:
+                    if key.startswith('_'):
+                        self.global_metrics[key] += fold_results[key]
+            
+        # now update DSC, SENS and PREC
+        for c in self.lb_classes:
+            ovlp = self.global_metrics['_overlap_'+str(c)]
+            gt_vol = self.global_metrics['_gt_volume_'+str(c)] 
+            pred_vol = self.global_metrics['_pred_volume_'+str(c)] 
+            # update global dice, recall and precision
+            if gt_vol + pred_vol > 0:
+                self.global_metrics['dice_'+str(c)] = 200 * ovlp / (gt_vol + pred_vol)
+            else:
+                self.global_metrics['dice_'+str(c)] = 100
+            if gt_vol > 0:
+                self.global_metrics['recall_'+str(c)] = 100 * ovlp / gt_vol
+            else:
+                self.global_metrics['recall_'+str(c)] = 100 if pred_vol == 0 else 0
+            if pred_vol > 0:
+                self.global_metrics['precision_'+str(c)] = 100 * ovlp / pred_vol
+            else:
+                self.global_metrics['precision_'+str(c)] = 100 if gt_vol == 0 else 0
 
     def preprocess_prediction_for_next_stage(self, prep_name_next_stage):
 
