@@ -74,6 +74,8 @@ def _has_z_first(spacing, dims, filename):
                       'Please make sure it is!'.format(filename))
                 has_z_first = False
                 _isotropic_volume_loaded_warning_printed = True
+            else:
+                has_z_first = False
     else:
         # spacing[0] != spacing[1]
         if spacing[1] == spacing[2]:
@@ -86,6 +88,8 @@ def _has_z_first(spacing, dims, filename):
                       ''.format(filename, spacing))
                 has_z_first = False
                 _ananisotropic_volume_loaded_warning_printed = True
+            else:
+                has_z_first = False
     return has_z_first
 
 def read_nii(nii_file):
@@ -456,7 +460,7 @@ def save_nii(im, out_file, spacing=None, img=None):
         raise ValueError('Voxel spacing or another nifti image must be given'
                          'as input when writing a new nifti file.')
     elif spacing is None:
-        im_nii = nib.Nifti1Image(im, img.affine, img.header)
+        	nib
     else:
         im_nii = nib.Nifti1Image(im, np.eye(4))
         im_nii.header['pixdim'][1:4] = spacing
