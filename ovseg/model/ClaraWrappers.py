@@ -45,8 +45,8 @@ def ClaraWrapperOvarian(data_tpl,
     for model in models[1:]:
         
         arr = evaluate_segmentation_ensemble(data_tpl,
-                                          model,
-                                          path_to_clara_models)
+                                             model,
+                                             path_to_clara_models)
         
         # fill in new prediction and overwrite previous one
         pred = pred * (arr == 0).type(torch.float) + arr
@@ -197,7 +197,7 @@ def evaluate_segmentation_ensemble(data_tpl,
     # this solution is ugly, but otherwise there might be OOM errors
     pred = np.stack(pred_list).mean(0)
     pred = torch.from_numpy(pred).cuda()
-
+    torch.cuda.empty_cache()
     # %% we do the postprocessing manually here to save some moving to the
     # GPU back and fourth
     print('*** POSTPROCESSING ***')
@@ -207,9 +207,18 @@ def evaluate_segmentation_ensemble(data_tpl,
     
     # first trilinear resizing
     size = [int(s) for s in data_tpl['image'].shape[-3:]]
-    pred = F.interpolate(pred.unsqueeze(0),
-                         size=size,
-                         mode='trilinear')[0]
+    
+    try:
+        pred = F.interpolate(pred.unsqueeze(0),
+                             size=size,
+                             mode='trilinear')[0]
+    except RuntimeError:
+        print('Went out of memory. Resizing again on the CPU, but this can be slow...')
+        
+        pred = F.interpolate(pred.unsqueeze(0).cpu(),
+                             size=size,
+                             mode='trilinear')[0]
+        
 
     # now applying argmax
     pred = torch.argmax(pred, 0).type(torch.float)

@@ -192,7 +192,7 @@ class raw_Dataset(object):
                     self.scans = [scan[:-7] for scan in listdir(join(self.raw_path,
                                                                      self.image_folder))]
                     # check if we have medical decathlon style data
-                    end_with_0000 = [scan for scan in scans if scan.endswith('_0000')]
+                    end_with_0000 = [scan for scan in self.scans if scan.endswith('_0000')]
                     if len(end_with_0000) > 0:
                         print('Found medical decathlon style data at '
                               + join(self.raw_path, self.image_folder))
