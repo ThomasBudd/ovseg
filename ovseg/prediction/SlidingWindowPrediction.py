@@ -191,11 +191,13 @@ class SlidingWindowPrediction(object):
             pred[0, ovlp[0] == 0] = 1
             ovlp[ovlp == 0] = 1
 
+            pred /= ovlp
+
             # just to be sure
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
     
-            return pred / ovlp
+            return pred
 
     def predict_volume(self, volume, ROI=None, mode=None):
         # evaluates the siliding window on this volume

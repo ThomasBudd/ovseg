@@ -40,6 +40,8 @@ def ClaraWrapperOvarian(data_tpl,
                                           models[0],
                                           path_to_clara_models)
     
+    torch.cuda.empty_cache()
+    
     for model in models[1:]:
         
         arr = evaluate_segmentation_ensemble(data_tpl,
@@ -48,6 +50,7 @@ def ClaraWrapperOvarian(data_tpl,
         
         # fill in new prediction and overwrite previous one
         pred = pred * (arr == 0).type(torch.float) + arr
+        torch.cuda.empty_cache()
         
     # back to numpy
     pred = pred.cpu().numpy()
