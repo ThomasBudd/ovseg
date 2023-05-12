@@ -207,10 +207,10 @@ def get_model_params_3d_nfUNet(patch_size,
                                n_fg_classes=1,
                                fp32=False):
     model_params = get_model_params_3d_UNet(patch_size,
-                                              n_2d_convs,
-                                              use_prg_trn,
-                                              n_fg_classes,
-                                              fp32)
+                                            n_2d_convs,
+                                            use_prg_trn,
+                                            n_fg_classes,
+                                            fp32)
     model_params['architecture'] = 'nfUNet'
     del model_params['network']['norm']
     del model_params['network']['norm_params']
@@ -225,7 +225,7 @@ def get_model_params_3d_res_encoder_U_Net(patch_size, z_to_xy_ratio, use_prg_trn
                                           n_fg_classes=1, fp32=False, out_shape=None,
                                           larger_res_encoder=False):
     model_params = get_model_params_3d_UNet(patch_size, n_2d_convs=0, use_prg_trn=use_prg_trn,
-                                              n_fg_classes=n_fg_classes, fp32=fp32)
+                                            n_fg_classes=n_fg_classes, fp32=fp32, out_shape=out_shape)
     if out_shape is None and use_prg_trn:
         raise ValueError('Specify the out_shapes when using progressive training')
     
