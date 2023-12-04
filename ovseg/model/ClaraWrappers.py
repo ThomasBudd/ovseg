@@ -86,7 +86,10 @@ def preprocess_dynamic_z_spacing(data_tpl,
     if len(im.shape) == 3:
         im = im[np.newaxis]
 
-    if FLIP_AND_ROTATE_IMAGE:
+    rif = data_tpl['raw_image_file']
+    is_nifti = rif.endswith('.nii.gz') or rif.endswith('.nii')
+
+    if FLIP_AND_ROTATE_IMAGE and is_nifti:
         # this corrects for differences in how dcms are read in ov_seg
         # and how clara creates nifti files from dcms
         im = np.rot90(im[:, ::-1, :, ::-1], -1, (1,2))
