@@ -37,7 +37,8 @@ def maybe_download_clara_models():
         
         print('Downloading pretrained models (4080 chunks)...')
         
-        url = "https://sandbox.zenodo.org/record/1071186/files/clara_models.zip?download=1"
+        # url = "https://sandbox.zenodo.org/record/1071186/files/clara_models.zip?download=1"
+        url = "https://sandbox.zenodo.org/record/33549/files/clara_models.zip?download=1"
         download_and_install(url)
         print('Done!')
 
