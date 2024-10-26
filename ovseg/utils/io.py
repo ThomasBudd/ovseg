@@ -54,56 +54,15 @@ def _write_dict_to_txt(dict_name, data, file, n_tabs):
         else:
             s = tabs + '\t' + key + ' = ' + str(item) + '\n'
             file.write(s)
-
-
-def _has_z_first(spacing, dims, filename):
-    global _isotropic_volume_loaded_warning_printed, _ananisotropic_volume_loaded_warning_printed
-    # first check if the z axis is last or first
-    if spacing[0] == spacing[1]:
-        if spacing[0] != spacing[2]:
-            has_z_first = False
-        elif dims[0] == dims[1] and dims[0] != dims[2]:
-            # in the case of isotropic voxel we check the dimensions of the image instead
-            has_z_first = False
-        elif dims[1] == dims[2] and dims[0] != dims[2]:
-            has_z_first = True
-        else:
-            if not _isotropic_volume_loaded_warning_printed:
-                print('Found at least one file {} with isotropic voxel and equal volume dimensions.'
-                      'could not infere if the z axis is first or last, guessing last. '
-                      'Please make sure it is!'.format(filename))
-                has_z_first = False
-                _isotropic_volume_loaded_warning_printed = True
-            else:
-                has_z_first = False
-    else:
-        # spacing[0] != spacing[1]
-        if spacing[1] == spacing[2]:
-            has_z_first = True
-        else:
-            if not _ananisotropic_volume_loaded_warning_printed:
-                print('Found at least one file {} with voxelspacing {}. '
-                      'Need at least two equal numbers in the spacing to find out if the z '
-                      'axis is first or last, guessing last. Please make sure it is!'
-                      ''.format(filename, spacing))
-                has_z_first = False
-                _ananisotropic_volume_loaded_warning_printed = True
-            else:
-                has_z_first = False
-    return has_z_first
-
-def read_nii(nii_file):
-    img = nib.load(nii_file)
-    spacing = img.header['pixdim'][1:4]
-    im = img.get_fdata()
-    has_z_first = _has_z_first(spacing, dims=img.shape, filename=nii_file)
-    # now we (hopefully) know if the z axis is first or last
-    if not has_z_first:
-        # z axis is in the back, get it to the front!
-        spacing = np.array([spacing[2], spacing[0], spacing[1]])
-        im = np.moveaxis(im, 2, 0)
-
-    return im, spacing, has_z_first
+            
+def read_nii(path_to_nifti):
+    nii_img = nib.load(path_to_nifti)
+    sp = nii_img.header['pixdim'][1:4]
+    sp = (sp[2], sp[0], sp[1])
+    im = nii_img.get_fdata()
+    im = np.moveaxis(im, 2, 0)[::-1]
+    im = np.copy(np.rot90(im, 1, (1,2))) #  to prevent errors in torch.from_numpy(im)
+    return im, sp
 
 
 def read_nii_files(nii_files):
@@ -131,7 +90,7 @@ def read_nii_files(nii_files):
         voxel spacing in x, y, z direction in mm
 
     '''
-    im, spacing, had_z_first = read_nii(nii_files[0])
+    im, spacing = read_nii(nii_files[0])
     out_volumes = [im]
     for nii_file in nii_files[1:]:
         out = read_nii(nii_file)
@@ -189,29 +148,22 @@ def read_data_tpl_from_nii(folder, case):
         raise FileNotFoundError('No image files found for case {}.'.format(case))
     elif len(image_files) == 1:
         raw_image_file = image_files[0]
-        im, spacing, had_z_first = read_nii(raw_image_file)
+        im, spacing = read_nii(raw_image_file)
     else:
         raw_image_file = image_files
         im_data = [read_nii(file) for file in raw_image_file]
-        ims = [im for im, spacing, had_z_first in im_data]
-        spacings = [spacing for im, spacing, had_z_first in im_data]
-        hzf_list = [had_z_first for im, spacing, had_z_first in im_data]
+        ims = [im for im, spacing in im_data]
+        spacings = [spacing for im, spacing in im_data]
 
         # now check if everything matches
         if not np.all([np.all(spacings[0] == sp) for sp in spacings[1:]]):
             raise ValueError('Found unequal spacings when reading the image files {}'
                              ''.format(image_files))
 
-        if not np.all([np.all(hzf_list[0] == hzf) for hzf in hzf_list[1:]]):
-            raise ValueError('Found some files with the z axis first and some with z axis last '
-                             'when reading the image files {}'.format(image_files))
-
         im = np.stack(ims)
         spacing = spacings[0]
-        had_z_first = hzf_list[0]
     data_tpl['image'] = im
     data_tpl['spacing'] = spacing
-    data_tpl['had_z_first'] = had_z_first
     data_tpl['raw_image_file'] = raw_image_file
 
     label_folders_ex = [join(folder, lbf) for lbf in ['labels', 'labelsTr', 'labelsTs']
@@ -234,13 +186,9 @@ def read_data_tpl_from_nii(folder, case):
         # in case we don't find a label file let's return without
         return data_tpl
     elif len(label_files) == 1:
-        lb, spacing, had_z_first = read_nii(label_files[0])
+        lb, spacing = read_nii(label_files[0])
         if np.max(spacing - data_tpl['spacing']) > 1e-4:
             raise ValueError('Found not matching spacings for case {}.'.format(case))
-        if had_z_first != data_tpl['had_z_first']:
-            raise ValueError('Axis ordering doesn\'t match for case {}'
-                             'Make sure image and label files have the z axis at the same position'
-                             '(first or last).'.format(case))
         data_tpl['label'] = lb
         data_tpl['raw_label_file'] = label_files[0]
     else:
@@ -265,6 +213,16 @@ def _is_roi_dcm_ds(ds):
             return False
     return True
 
+def is_axial_ds(ds):
+    
+    if not hasattr(ds, "ImageOrientationPatient"):
+        return False
+    
+    iop = np.array(ds.ImageOrientationPatient).astype(float)
+    a, b = iop[:3], iop[3:]
+    c = np.cross(a, b)    
+    return np.argmax(np.abs(c)) == 2
+    
 
 def read_dcms(dcm_folder, reverse=True, names_dict=None, dataset=None):
     '''
@@ -310,15 +268,15 @@ def read_dcms(dcm_folder, reverse=True, names_dict=None, dataset=None):
     for dcm in dcms:
         try:
             ds = pydicom.dcmread(dcm)
-            if _is_im_dcm_ds(ds):
+            if _is_im_dcm_ds(ds) and is_axial_ds(ds):
                 imdss.append(ds)
             elif _is_roi_dcm_ds(ds):
                 roidss.append(ds)
                 roidcms.append(dcm)
             else:
-                print('Found file '+dcm+' that is neither image nor roi dcm.')
+                print('Found file '+dcm+' that is neither axial image nor roi dcm.')
         except:
-            print('Found file '+dcm+' that is neither image nor roi dcm.')
+            print('Found file '+dcm+' that is neither axial image nor roi dcm.')
             
     if len(roidss) > 1:
         raise FileExistsError('Found multiple ROI dcms in folder '+dcm_folder+'. '
@@ -430,53 +388,24 @@ def read_dcms(dcm_folder, reverse=True, names_dict=None, dataset=None):
     return data_tpl
 
 
-def save_nii(im, out_file, spacing=None, img=None):
-    '''
-    save_nii(im, out_file, spacing=None, img=None)
+def save_nii(arr, tarp, srcp):
+    if arr.ndim == 4 and len(arr) == 1:
+        arr = arr[0]
+    
+    assert arr.ndim == 3, "Array must be 3d (or 4d with leading dim 1) to be stored as nifti."
 
-    saves image as nii file by either overwriting image data from another nii
-    file or by giving the spacing and creating a new nii file
-
-    Parameters
-    ----------
-    im : 3d array
-        image data.
-    out_file : str
-        path to where the image should be stored
-    spacing : len 3
-        voxel spacing in mm, optional
-    img : nifti image
-        Image to be used for overwriting.
-
-    Returns
-    -------
-    None.
-
-    '''
-    if not out_file.endswith('.nii.gz'):
-        out_file = out_file + '.nii.gz'
-
-    if spacing is None and img is None:
-        raise ValueError('Voxel spacing or another nifti image must be given'
-                         'as input when writing a new nifti file.')
-    elif spacing is None:
-        	nib
-    else:
-        im_nii = nib.Nifti1Image(im, np.eye(4))
-        im_nii.header['pixdim'][1:4] = spacing
-    nib.save(im_nii, out_file)
+    arr = np.rot90(arr, 3, (1,2))[::-1]
+    arr = np.moveaxis(arr, 0, 2)
+    
+    orig_nii_img = nib.load(srcp)
+    new_nii_img = nib.Nifti1Image(arr,
+                                  orig_nii_img.affine)
+    nib.save(new_nii_img, tarp)
 
 
 def save_nii_from_data_tpl(data_tpl, out_file, key):
 
-    arr = data_tpl[key]
-    if 'had_z_first' in data_tpl:
-        if not data_tpl['had_z_first']:
-            arr = np.stack([arr[z] for z in range(arr.shape[0])], -1)
-    else:
-        if not _has_z_first(data_tpl['spacing'], arr.shape, data_tpl['raw_image_file']):
-            arr = np.stack([arr[z] for z in range(arr.shape[0])], -1)
-            
+    arr = data_tpl[key]            
 
     raw_path = join(environ['OV_DATA_BASE'], 'raw_data', data_tpl['dataset'])
     im_file = None
@@ -514,13 +443,6 @@ def save_nii_from_data_tpl(data_tpl, out_file, key):
 def save_npy_from_data_tpl(data_tpl, out_file, key):
 
     arr = data_tpl[key]
-    if 'had_z_first' in data_tpl:
-        if not data_tpl['had_z_first']:
-            arr = np.stack([arr[z] for z in range(arr.shape[0])], -1)
-    else:
-        if not _has_z_first(data_tpl['spacing'], arr.shape, data_tpl['raw_image_file']):
-            arr = np.stack([arr[z] for z in range(arr.shape[0])], -1)
-
     np.save(out_file, arr)
 
     
@@ -538,10 +460,14 @@ def save_dcmrt_from_data_tpl(data_tpl, out_file, key, names=None, colors=None, d
     if pred.max() == 0:
         print('Skip export to dcm rt, no ROI found!')
         return
+    
+    if pred.ndim == 4 and len(pred) == 1:
+        pred = pred[0]
+    if pred.ndim != 3:
+        raise ValueError(f"Can only store 3d arrays, but got shape {pred.shape}")
 
     # the rt_utils package wants predictions with z axis last so we switch it in case it is first
-    if _has_z_first(data_tpl['spacing'], pred.shape, data_tpl['raw_image_file']):
-        pred = np.stack([pred[z] for z in range(pred.shape[0])], -1)
+    pred = np.moveaxis(pred, 0, 2)
 
     # now let's take care of the colors and names
     n_fg_classes = int(pred.max())

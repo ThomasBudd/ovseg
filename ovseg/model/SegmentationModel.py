@@ -21,7 +21,7 @@ from ovseg.networks import __dict__ as networks_dict
 from ovseg.training.SegmentationTraining import SegmentationTraining, SegmentationTrainingV2
 from ovseg.prediction.SlidingWindowPrediction import SlidingWindowPrediction
 from ovseg.postprocessing.SegmentationPostprocessing import SegmentationPostprocessing
-from ovseg.utils.io import save_nii_from_data_tpl, load_pkl, read_nii, save_dcmrt_from_data_tpl, is_dcm_path
+from ovseg.utils.io import save_nii, load_pkl, read_nii, save_dcmrt_from_data_tpl, is_dcm_path
 from ovseg.utils.torch_np_utils import maybe_add_channel_dim
 from ovseg.utils.dict_equal import dict_equal, print_dict_diff
 from ovseg.utils.label_utils import reduce_classes
@@ -320,8 +320,12 @@ class SegmentationModel(ModelBase):
         key = self.pred_key
         if self.pred_key+'_orig_shape' in data_tpl:
             key += '_orig_shape'
-
-        save_nii_from_data_tpl(data_tpl, join(pred_folder, filename), key)
+        
+        rif = data_tpl['raw_image_file']
+        if rif.endswith('.nii') or rif.endswith('.nii.gz'):
+            save_nii(data_tpl[key], 
+                     join(pred_folder, filename), 
+                     rif)
         
         if is_dcm_path(data_tpl['raw_image_file']):
             
