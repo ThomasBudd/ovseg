@@ -15,4 +15,4 @@ os.makedirs(OV_DATA_BASE, exist_ok=True)
 if 'OV_PREPROCESSED' in os.environ:
     OV_PREPROCESSED = os.environ['OV_PREPROCESSED']
 else:
-    OV_PREPROCESSED = os.path.join(os.environ['OV_DATA_BASE'], 'preprocessed')
+    OV_PREPROCESSED = os.path.join(OV_DATA_BASE, 'preprocessed')
