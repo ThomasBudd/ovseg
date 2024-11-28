@@ -28,14 +28,19 @@ Now you can call the inference from the terminal/command line by providing the p
 
 > ovseg_inference path_to_data 
 
-In case you want to run the inference only on a single image you can also provide the path to that image instead. By default the code will run the inference for the model segmenting the pelvic/ovarian and omental disease. If you want to use other models specific them in the command above with the --models specifier. Available models are
+If you prefer write python code directly you can also do this with a small script:
+
+> from ovseg.run.run_inference import run_inference
+> run_inference("\PATH\TO\DATA")
+
+In case you want to run the inference only on a single image you can also provide the path to that image instead. By default the code will run the inference for the model segmenting the pelvic/ovarian and omental disease. If you want to use other models specific them in the command above with the --models specifier on the command line or the "models=[...]" argument of the python function. Available models are
 
 - pod_om: model for main disease sites in the pelvis/ovaries and the omentum. The two sites are encoded as 9 and 1 in the predictions.
 - abdominal_lesions: model for various lesions between the pelvis and diaphram. The model considers lesions in the omentum (1), right upper quadrant (2), left upper quadrant (3), mesenterium (5), left paracolic gutter (6) and right  paracolic gutter (7).
 - lymph_nodes: segments disease in the lymph nodes namely infrarenal lymph nodes (13), suprarenal lymph nodes (14), supradiaphragmatic lymph nodes (15) and inguinal 
 lymph nodes (17).
 
-you can also combine the models to run two or all three at the same time. Lastly, you have the option to run the inference in fast mode using the --fast option. This drastically decreases the computation time at the cost of accuracy. This option was mainly build to try and run the code on a local machine that does not have a GPU. On my laptop this took ~13 mins per image. The results will be stored as nifti files, you can use ITK-SNAP to take a look at them.
+you can also combine the models to run two or all three at the same time. Lastly, you have the option to run the inference in fast mode using the --fast option of the command line tool or the argument "fast=True". This drastically decreases the computation time at the cost of accuracy. This option was mainly build to try and run the code on a local machine that does not have a GPU. On my laptop this took ~13 mins per image. The results will be stored as nifti files, you can use ITK-SNAP to take a look at them.
 
 The code will download the network weights automatically and store them in the clone git repository. In case you want to store them somewhere else you have to set up an environment variable called OV_DATA_BASE and specify the desired location.
 
