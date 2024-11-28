@@ -30,8 +30,10 @@ Now you can call the inference from the terminal/command line by providing the p
 
 If you prefer write python code directly you can also do this with a small script:
 
-> from ovseg.run.run_inference import run_inference
-> run_inference("\PATH\TO\DATA")
+```
+from ovseg.run.run_inference import run_inference
+run_inference("\PATH\TO\DATA")
+```
 
 In case you want to run the inference only on a single image you can also provide the path to that image instead. By default the code will run the inference for the model segmenting the pelvic/ovarian and omental disease. If you want to use other models specific them in the command above with the --models specifier on the command line or the "models=[...]" argument of the python function. Available models are
 
