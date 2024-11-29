@@ -283,8 +283,9 @@ def evaluate_segmentation_model(im,
     
     # this solution is ugly, but otherwise there might be OOM errors
     pred = np.stack(pred_list).mean(0)
-    pred = torch.from_numpy(pred).cuda()
-    torch.cuda.empty_cache()
+    pred = torch.from_numpy(pred).to(device)
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     # %% we do the postprocessing manually here to save some moving to the
     # GPU back and fourth
     print('*** POSTPROCESSING ***')
@@ -336,8 +337,8 @@ def InferenceWrapper(im, spacing, models, fast=False):
                                        spacing,
                                        models[0],
                                        fast=fast)
-    
-    torch.cuda.empty_cache()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     
     for model in models[1:]:
         
@@ -348,7 +349,8 @@ def InferenceWrapper(im, spacing, models, fast=False):
         
         # fill in new prediction and overwrite previous one
         pred = pred * (arr == 0).type(torch.float) + arr
-        torch.cuda.empty_cache()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
         
     # back to numpy
     pred = pred.cpu().numpy()

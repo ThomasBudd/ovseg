@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 import os
 
 setup(
@@ -8,7 +8,8 @@ setup(
     author='Thomas Buddenkotte',
     author_email='thomasbuddenkotte@googlemail.com',
     # Needed to actually package something
-    packages=['ovseg'],
+    packages=find_packages('src'),
+    package_dir={'': 'src'},
     # Needed for dependencies
     install_requires=[
             "torch>=1.7.0",
